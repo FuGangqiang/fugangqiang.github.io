@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/static/img/favicon.png">
+  <link rel="stylesheet" href="/static/css/main.css">
+  
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>javascript之this</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name"><a href="/index.html" title="Fu">Fu</a></h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>javascript之this</h1>
+    <article>
+      <p><code>this</code> 在 javascript 的面向对象编程模式中非常重要，
+但当用不同的调用形式来函数时，它有不同的意义，这些不同的调用形式包括：</p>
+<ul>
+<li>method invocation</li>
+<li>function invocation</li>
+<li>constructor invocation</li>
+<li>applay invocation</li>
+</ul>
+<h2>method invocation</h2>
+<p>当函数被存为一个对象的属性时，它就是 method，但 method 被调用时，this 就被绑定到此对象。</p>
+<pre><code class="language-javascript">var myCounter = {
+    value: 0,
+    increment: function(inc) {
+        this.value += typeof inc === 'number' ? inc : 1;
+    }
+};
+
+myCounter.increment();   // myCounter === 1
+myCounter.increment(2);  // myCounter === 3
+</code></pre>
+<h2>function invocation</h2>
+<p>但函数不是一个对象的属性时，this 就被绑定到 global object。</p>
+<pre><code class="language-javascript">a = 0;
+f = function () {
+    this.a += 1;
+}
+
+f();   // a === 1
+a = 4;
+f();   // a === 5
+</code></pre>
+<p>当函数被定义到 method 中时，this 仍然被绑定到 global object，
+而不是外层 method 中 this 的含义（外层 method 中 this 被绑定到 method 的 object）。
+这个地方非常容易出错。</p>
+<h2>Constructor invocation</h2>
+<p>但函数使用 new 前缀被调用时，它就是一个 constructor，调用后会返回一个对象以此函数的 prototype 作为它的 prototype。
+在此种函数中的 this 就被绑定为调用后返回的对象（此对象在函数调用时生成，并用此函数通过 this 初始化）。</p>
+<pre><code class="language-javascript"> Counter = function () {
+     this.value = 2;
+ }
+
+ myCounter = new Counter();  // myCounter.value === 2
+</code></pre>
+<h2>applay invocation</h2>
+<p>applay 方法可以使一个数组中元素作为参数来调用函数，apply 有两个参数，第一个参数会被绑定到函数中的 this，第二个参数就是一个包含所有函数参数的数组。</p>
+<pre><code class="language-javascript">var myCounter = {
+    value: 2
+}
+
+inc = function () {
+    this.value += 1;
+}
+
+inc.apply(myCounter)   // myCounter.value === 3
+</code></pre>
+
+
+      <ul id="article_footer">
+        <li>tags: <a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li>date: 2014-11-06 23:15:00</li>
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      <li><a href="/blog/tags/linux.html">linux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      <li><a href="/blog/tags/network.html">network<sup>4</sup></a></li>
+      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      <li><a href="/blog/tags/python.html">python<sup>10</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>3</sup></a></li>
+      <li><a href="/blog/tags/systemd.html">systemd<sup>3</sup></a></li>
+      <li><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
+      <li><a href="/blog/tags/博客.html">博客<sup>2</sup></a></li>
+      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      <li><a href="/blog/tags/笔记.html">笔记<sup>1</sup></a></li>
+      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+	<li><a href="/blog/posts/notes.html">笔记</a></li>
+	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

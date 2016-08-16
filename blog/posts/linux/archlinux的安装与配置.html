@@ -1,0 +1,291 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/static/img/favicon.png">
+  <link rel="stylesheet" href="/static/css/main.css">
+  
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>archlinux的安装与配置</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name"><a href="/index.html" title="Fu">Fu</a></h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>archlinux的安装与配置</h1>
+    <article>
+      <h2>制作 USB 安装盘</h2>
+<p>从 <a href="https://www.archlinux.org/download/">Arch 官网</a>上下载 archlinux 安装 iso 格式镜像
+（文件名类似于 archlinux-2015.11.01-dual.iso）。</p>
+<pre><code>wget http://mirrors.163.com/archlinux/iso/2015.11.01/archlinux-2015.11.01-dual.iso
+</code></pre>
+<p>校验 iso 文件：</p>
+<pre><code>md5sum archlinux-2015.11.01-dual.iso
+</code></pre>
+<p>如果校验 md5 一致，可将 iso 镜像文件写入 usb 安装盘（设备名称为 /dev/sdx）中：</p>
+<pre><code>dd bs=4M if=/path/to/archlinux.iso of=/dev/sdx &amp;&amp; sync
+</code></pre>
+<h2>开机启动</h2>
+<p>开机，设置从 usb 盘启动，进入安装界面，此时默认用户为 root 用户。</p>
+<h2>磁盘分区</h2>
+<p>推荐使用 GPT 分区表：</p>
+<pre><code>cgdisk /dev/sda
+</code></pre>
+<p>分区时须选择：</p>
+<ul>
+<li>分区开始位置</li>
+<li>分区大小</li>
+<li>分区类型（EFI，linux root，linux home，linux default，linux swap）</li>
+</ul>
+<p>分区方案：</p>
+<ul>
+<li><code>/dev/sda1</code>: /boot EFI 分区，512M</li>
+<li><code>/dev/sda2</code>: swap 分区，两倍内存</li>
+<li><code>/dev/sda3</code>: / linux root 分区，20G</li>
+<li><code>/dev/sda4</code>: /usr linux default 分区，20G</li>
+<li><code>/dev/sda5</code>: /var linux default 分区，50G</li>
+<li><code>/dev/sda6</code>: /tmp linux default 分区，20G</li>
+<li><code>/dev/sda7</code>: /home linux home 分区，剩余大小</li>
+</ul>
+<p>格式化分区：</p>
+<pre><code>mkfs.vfat -F32 /dev/sda1
+mkswap /dev/sda2
+swapon /dev/sda2
+mkfs.ext4 /dev/sda3
+mkfs.ext4 /dev/sda4
+mkfs.ext4 /dev/sda5
+mkfs.ext4 /dev/sda6
+mkfs.ext4 /dev/sda7
+</code></pre>
+<h2>挂载分区</h2>
+<pre><code>mount /dev/sda3 /mnt    # 安装系统 root 分区
+mkdir -p /mnt/boot /mnt/usr /mnt/var /mnt/tmp /mnt/home
+mount /dev/sda1 /mnt/boot
+mount /dev/sda4 /mnt/usr
+mount /dev/sda5 /mnt/var
+mount /dev/sda6 /mnt/tmp
+mount /dev/sda7 /mnt/home
+</code></pre>
+<h2>安装基础系统</h2>
+<p>编辑 <code>/etc/pacman.d/mirrorlist</code>，将要使用的源复制到最前面，然后刷新：</p>
+<pre><code>pacman -Syy
+</code></pre>
+<p>安装 <code>base</code> 和 <code>base-devel</code>：</p>
+<pre><code>pacstrap /mnt base base-devel
+</code></pre>
+<h2>生成 fstab</h2>
+<pre><code>genfstab -U -p /mnt &gt;&gt; /mnt/etc/fstab
+cat /mnt/etc/fstab
+</code></pre>
+<h2>切换到新安装系统</h2>
+<pre><code>arch-chroot /mnt /bin/bash
+</code></pre>
+<h2>设置语言地区</h2>
+<p>编辑 <code>/etc/locale.gen</code>，去除下面行的注视：</p>
+<pre><code>en_US.UTF-8 UTF-8
+zh_CN.GB18030 GB18030
+zh_CN.GBK GBK
+zh_CN.UTF-8 UTF-8
+zh_CN GB2312
+</code></pre>
+<p>运行：</p>
+<pre><code>locale-gen
+</code></pre>
+<p>编辑 <code>/etc/locale.conf</code> 为：</p>
+<pre><code>LANG=en_US.UTF-8
+</code></pre>
+<h2>设置终端字体</h2>
+<p>编辑 <code>/etc/vconsole.conf</code>：</p>
+<pre><code>KEYMAP=us
+FONT=Lat2-Terminus16
+</code></pre>
+<h2>设置时区</h2>
+<pre><code>ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+</code></pre>
+<h2>设置时间</h2>
+<pre><code>timedatectl set-time &quot;yyyy-MM-dd hh:mm:ss&quot;
+</code></pre>
+<h2>设置主机名</h2>
+<p>编辑 <code>/etc/hostname</code>：</p>
+<pre><code>HOSTNAME
+</code></pre>
+<h2>添加用户，设置密码</h2>
+<p>设置 root 密码：</p>
+<pre><code>passwd
+</code></pre>
+<p>添加 user 用户：</p>
+<pre><code>useradd -G wheel user
+passwd user
+chfn user
+mkdir -m 700 /home/user
+chown user:user /home/user
+</code></pre>
+<h2>生成初始 ramdisk 环境</h2>
+<p>如果 <code>/usr</code> 和 <code>/</code> 不在同一个分区，
+须修改 <code>/etc/mkinitcpio.conf</code> 文件，
+HOOKS 行须添加 <code>usr fsck shutdown</code> 内容。</p>
+<p>运行：</p>
+<pre><code>mkinitcpio -p linux 
+</code></pre>
+<h2>安装引导装载程序</h2>
+<pre><code>bootctl install
+</code></pre>
+<p>编辑 <code>/boot/loader/entries/arch.conf</code>：</p>
+<pre><code>title          Arch Linux
+linux          /vmlinuz-linux
+initrd         /initramfs-linux.img
+options        root=PARTUUID=xxxxxxxxxxxxx rw
+</code></pre>
+<p><code>options root</code> 项对应系统 root 分区，其中 <code>PARTUUID</code> 可以由命令 <code>blkid</code> 获得。</p>
+<p>编辑 <code>/boot/loader/loader.conf</code>：</p>
+<pre><code>timeout 1
+default arch
+</code></pre>
+<h2>设置网络</h2>
+<h3>有线</h3>
+<pre><code>systemctl enable dhcpcd
+</code></pre>
+<h2>退出安装系统并重启</h2>
+<pre><code>exit
+umount -R /mnt
+reboot
+</code></pre>
+<h2>安装 X 窗口管理系统</h2>
+<pre><code>pacman -S xorg-server xorg-xinit xorg-utils xorg-server-utils
+</code></pre>
+<h2>通用显卡驱动</h2>
+<pre><code>pacman -S xf86-video-vesa
+</code></pre>
+<h2>声卡驱动</h2>
+<pre><code>pacman -S alsa-utils
+</code></pre>
+<h2>安装字体</h2>
+<pre><code>pacman -S ttf-dejavu wqy-zenhei wqy-microhei
+</code></pre>
+<h2>安装 slim</h2>
+<pre><code>pacman -S slim
+systemctl enable slim
+</code></pre>
+<h2>安装 awesome wm</h2>
+<pre><code>pacman -S awesome
+</code></pre>
+<p>编辑 <code>~/.xinitrc</code>：</p>
+<pre><code>exec awesome
+</code></pre>
+<h2>安装 fcitx 输入法</h2>
+<pre><code>pacman -S fcitx fcitx-qt4 fcitx-qt5 fcitx-gtk2 fcitx-gtk3
+</code></pre>
+<p>编辑 <code>~/.xinitrc</code> 添加：</p>
+<pre><code>export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+</code></pre>
+<h2>安装 chromium</h2>
+<pre><code>pacman -S chromium
+</code></pre>
+<h2>安装 pacaur</h2>
+<p>配置 gnupg：</p>
+<pre><code>TODO
+</code></pre>
+<p>从 archlinux aur 网站下载 pacaur PKGBUILD，运行：</p>
+<pre><code>makepkg
+pacman -U 生成的文件，以.xz结尾
+</code></pre>
+
+
+      <ul id="article_footer">
+        <li>tags: <a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li>date: 2015-11-28 12:07:00</li>
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      <li><a href="/blog/tags/linux.html">linux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      <li><a href="/blog/tags/network.html">network<sup>4</sup></a></li>
+      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      <li><a href="/blog/tags/python.html">python<sup>10</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>3</sup></a></li>
+      <li><a href="/blog/tags/systemd.html">systemd<sup>3</sup></a></li>
+      <li><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
+      <li><a href="/blog/tags/博客.html">博客<sup>2</sup></a></li>
+      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      <li><a href="/blog/tags/笔记.html">笔记<sup>1</sup></a></li>
+      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+	<li><a href="/blog/posts/notes.html">笔记</a></li>
+	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

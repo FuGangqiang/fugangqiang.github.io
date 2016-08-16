@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/static/img/favicon.png">
+  <link rel="stylesheet" href="/static/css/main.css">
+  
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>HTTP学习笔记</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name"><a href="/index.html" title="Fu">Fu</a></h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>HTTP学习笔记</h1>
+    <article>
+      <p>这里记录了我在学习 Http:The Definitive Guide 时的一些笔记。</p>
+<h2>MIME type</h2>
+<p>HTTP 可以传输任何格式的文件，
+而这些格式的文件是由 MIME(Multipurpose Internet Mail Extensions)多用途互联网邮件扩展类型标识的。</p>
+<p>常见的 MIME 类型有：</p>
+<ul>
+<li>text/plain: 普通文本，文件扩展名 <code>.txt</code></li>
+<li>text/html：超文本标记语言文本，文件扩展名 <code>.html</code></li>
+<li>text/xml: xml 文档，文件扩展名 <code>.xml</code></li>
+<li>image/png: PNG 图像，文件扩展名 <code>.png</code></li>
+<li>image/gif: GIF 图形，文件扩展名 <code>.gif</code></li>
+<li>image/jpeg: JPEG 图形，文件扩展名 <code>.jpeg</code>,<code>.jpg</code></li>
+<li>audio/x-wave: WAVE 格式的音频，文件扩展名 <code>.wav</code></li>
+<li>audio/mpeg: MP3 格式的音频，文件扩展名 <code>.mp3</code></li>
+<li>video/mpeg: MPEG 文件，文件扩展名 <code>.mpg</code>,<code>.mpeg</code></li>
+<li>video/x-msvideo: AVI 文件，文件扩展名 <code>.avi</code></li>
+<li>application/x-gzip: GZIP 文件，文件扩展名 <code>.gz</code></li>
+<li>application/x-tar: TAR 文件，文件扩展名 <code>.tar</code></li>
+<li>application/xhtml+xml: XHTML 文档，文件扩展名 <code>.xhtml</code></li>
+<li>application/rtf: RTF 文本，文件扩展名 <code>.rtf</code></li>
+<li>application/pdf: PDF 文档，文件扩展名 <code>.pdf</code></li>
+<li>application/msword: Microsoft Word 文件，文件扩展名 <code>.word</code></li>
+<li>application/octet-stream: 任意的二进制数据</li>
+</ul>
+<h2>URI</h2>
+<p>URI(Uniform Resource Identifier)统一资源标识符，
+有两种类型：</p>
+<ol>
+<li>URL(Uniform Resource Locator)统一资源定位符，与位置有关，用位置定位</li>
+</ol>
+<pre><code>http://example.org/absolute/URI/with/absolute/path/to/resource.txt
+</code></pre>
+<ol start="2">
+<li>URN(Uniform Resource Name)统一资源名，与位置无关，用名称定位</li>
+</ol>
+<pre><code>urn:issn:1535-3613
+</code></pre>
+<p>我们通常用 URL，极少用 URN。
+URL 形式如下：</p>
+<pre><code>&lt;scheme&gt;://&lt;user&gt;:&lt;password&gt;@&lt;host&gt;:&lt;port&gt;/&lt;path&gt;;&lt;parameters&gt;?&lt;query&gt;#&lt;frag&gt;
+</code></pre>
+<ol>
+<li>scheme</li>
+<li>user</li>
+<li>password</li>
+<li>host</li>
+<li>port</li>
+<li>path</li>
+<li>parameters</li>
+<li>query</li>
+<li>frag</li>
+</ol>
+<p>以上九部分并不需同时存在，例如：</p>
+<pre><code>http://www.example.com/index.html
+http://www.example.com:80/index.html
+http://8.8.8.8:80/index.html
+http://www.example.com/index.html
+ftp://ftp.example.com/pub/xxx
+ftp://anonymous@ftp.example.com/pub/xxx
+ftp://joe:joespasswd@ftp.example.com/pub/xxx
+ftp://ftp.example.com/pub/xxx;type=
+http://www.example.com/abc.html;sale=false/index.html;graphics=true
+http://www.example.com/index.html?item=123&amp;color=blue&amp;size=large
+http://www.example.com/index.html#id
+</code></pre>
+<h2>Message</h2>
+<p>Message 有三部分组成：</p>
+<ol>
+<li>start line</li>
+<li>header</li>
+<li>body</li>
+</ol>
+<p>两种 Message：</p>
+<ol>
+<li>Request Message</li>
+</ol>
+<pre><code>&lt;method&gt; &lt;request-URL&gt; &lt;version&gt;
+&lt;headers&gt;
+
+&lt;entity-body&gt;
+</code></pre>
+<ol start="2">
+<li>Response Message</li>
+</ol>
+<pre><code>&lt;version&gt; &lt;status&gt; &lt;reason-phrase&gt;
+&lt;headers&gt;
+
+&lt;entity-body&gt;
+</code></pre>
+<p>method:</p>
+<ul>
+<li>GET</li>
+<li>POST</li>
+<li>PUT</li>
+<li>DELETE</li>
+<li>HEAD</li>
+<li>TRACE</li>
+<li>OPTIONS</li>
+</ul>
+<p>version:</p>
+<pre><code>HTTP/&lt;major&gt;.&lt;minor&gt;
+</code></pre>
+<p>header:</p>
+<ul>
+<li>general headers</li>
+<li>request headers</li>
+<li>response headers</li>
+<li>entity headers</li>
+<li>extension headers</li>
+</ul>
+<p>response status codes:</p>
+<ul>
+<li>100~199: informational</li>
+<li>200~299: success</li>
+<li>300~399: the resource has been moved</li>
+<li>400~499: the client did something wrong in the request</li>
+<li>500~599: something went awry on the server</li>
+</ul>
+<p>经常用到的：</p>
+<ul>
+<li>200: OK</li>
+<li>301: Moved Permanently</li>
+<li>302: Moved Temporarily</li>
+<li>401: Unauthorized</li>
+<li>404: NotFound</li>
+<li>500: Internal Server Error</li>
+<li>501: Not Implenmented</li>
+</ul>
+<h2>网路的组成</h2>
+<ul>
+<li>Proxies</li>
+<li>Caches</li>
+<li>gateways</li>
+<li>tunnels</li>
+<li>agents</li>
+</ul>
+
+
+      <ul id="article_footer">
+        <li>tags: <a href="/blog/tags/http.html">http<sup>2</sup></a><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
+        <li>date: 2014-10-08 18:08:00</li>
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      <li><a href="/blog/tags/linux.html">linux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      <li><a href="/blog/tags/network.html">network<sup>4</sup></a></li>
+      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      <li><a href="/blog/tags/python.html">python<sup>10</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>3</sup></a></li>
+      <li><a href="/blog/tags/systemd.html">systemd<sup>3</sup></a></li>
+      <li><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
+      <li><a href="/blog/tags/博客.html">博客<sup>2</sup></a></li>
+      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      <li><a href="/blog/tags/笔记.html">笔记<sup>1</sup></a></li>
+      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+	<li><a href="/blog/posts/notes.html">笔记</a></li>
+	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>
