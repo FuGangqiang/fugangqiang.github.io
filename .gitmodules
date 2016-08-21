@@ -1,0 +1,6 @@
+[submodule "notes"]
+	path = notes
+	url = git@github.com:FuGangqiang/notes.git
+[submodule "docs"]
+	path = docs
+	url = git@github.com:FuGangqiang/docs.git
