@@ -23,7 +23,9 @@
   <nav>
     <ul>
       <li><a href="/index.html">博文</a></li>
-      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+      <li><a href="/blog/posts/notes.html">笔记</a></li>
+      <li><a href="/blog/posts/docs.html">文档</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
     </ul>
   </nav>
 </header>
@@ -44,17 +46,17 @@
 <li><a href="http://limpet.net/mbrubeck/2014/09/17/toy-layout-engine-6-block.html">第六篇：Block layout</a></li>
 <li><a href="http://limpet.net/mbrubeck/2014/11/05/toy-layout-engine-7-painting.html">第七篇：Painting 101</a></li>
 </ul>
-<p>整个系列将用我写的代码进行讲解，向你展示怎么构建自己的 HTML 渲染引擎。
-首先让我们解释一下编写这一系列博客的原因。</p>
+<p>整个系列用自写的代码来展示怎么构建一个 HTML 渲染引擎。
+首先解释一下编写这一系列博客的原因。</p>
 <h2>渲染引擎是什么？</h2>
 <p>技术上说，<strong>浏览器引擎</strong>是网页浏览器的一个组成部分，
-其在后台从互联网抓取网页，翻译网页内容，展现为我们可以阅读、观看、耳听的形式。
+它在后台从互联网抓取网页，转换网页内容，展现为我们可以阅读、观看、耳听的形式。
 Blink，Gecko, WebKit 和 Trident 都是浏览器引擎。
-与此相反，浏览器自己的 UI(用户界面) -- 标签页、工具栏、菜单等 -- 被成为 <strong>chrome</strong>。
-Firefox 和 SeaMonkey 是两个基于 Gecko 引擎的浏览器，但是它们却拥有不同的界面。</p>
-<p>一个浏览器引擎包含很多子部件：
+与它相对的是浏览器的用户界面(UI) -- 标签页、工具栏、菜单等 -- 被称为 <strong>chrome</strong>。
+Firefox 和 SeaMonkey 浏览器都是基于 Gecko 引擎的，但是它们却拥有不同的界面。</p>
+<p>一个浏览器引擎有很多子部件：
 HTTP 客户端，HTML 语法解析器，CSS 语法解析器，JavaScript 引擎（它自身又由语法解析器，解释器和编译器组成），等等。
-而<strong>渲染引擎</strong>通常是那些用来解析 HTML&amp;CSS 网页并将它们展示在你显示器上的子部件。</p>
+而<strong>渲染引擎</strong>通常是用来解析 HTML&amp;CSS 网页并将其展现在显示器上的子部件。</p>
 <h2>为何要写一个玩具性渲染引擎？</h2>
 <p>一个包含所有功能的浏览器引擎是非常复杂的。
 Blink，Gecko，WebKit 这些引擎都有上百万行代码。
@@ -172,8 +174,8 @@ WebWhirr 只有 2000 多行，是我认为仅有的另一个玩具引擎。</p>
 
 
       <ul id="article_footer">
-        <li>tags: <a href="/blog/tags/browser.html">browser<sup>2</sup></a><a href="/blog/tags/engine.html">engine<sup>2</sup></a><a href="/blog/tags/rust.html">rust<sup>3</sup></a></li>
-        <li>date: 2015-10-23 22:24:00</li>
+      	<li>tags: <a href="/blog/tags/browser.html">browser<sup>2</sup></a><a href="/blog/tags/engine.html">engine<sup>2</sup></a><a href="/blog/tags/rust.html">rust<sup>3</sup></a></li>
+	<li>date: 2015-10-23 22:24:00</li>
       </ul>
     </article>
 
@@ -203,7 +205,6 @@ WebWhirr 只有 2000 多行，是我认为仅有的另一个玩具引擎。</p>
       <li><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
       <li><a href="/blog/tags/博客.html">博客<sup>2</sup></a></li>
       <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
-      <li><a href="/blog/tags/笔记.html">笔记<sup>1</sup></a></li>
       <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
       <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
       </ul>
@@ -212,7 +213,6 @@ WebWhirr 只有 2000 多行，是我认为仅有的另一个玩具引擎。</p>
     <section class="links clearfix">
       <h1>链接</h1>
       <ul>
-	<li><a href="/blog/posts/notes.html">笔记</a></li>
 	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
       </ul>
     </section>

@@ -5,7 +5,9 @@
   <link rel="icon" href="/static/img/favicon.png">
   <link rel="stylesheet" href="/static/css/main.css">
   
-  <title>笔记</title>
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>docs</title>
 </head>
 <body>
 <header class="clearfix">
@@ -21,20 +23,27 @@
   <nav>
     <ul>
       <li><a href="/index.html">博文</a></li>
-      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+      <li><a href="/blog/posts/notes.html">笔记</a></li>
+      <li><a href="/blog/posts/docs.html">文档</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
     </ul>
   </nav>
 </header>
 <div id="container" class="clearfix">
   <main>
     
-  <h1>笔记</h1>
-  <article>
-  <section>
-      <span>2016-08-16</span>
-      <span><a href="/blog/posts/notes.html">notes</a></span>
-    </section>
-  </article>
+    <h1>docs</h1>
+    <article>
+      <ul>
+<li><a href="/docs/mdblog.rs/mdblog/">mdblog.rs</a></li>
+</ul>
+
+
+      <ul id="article_footer">
+      	
+	
+      </ul>
+    </article>
 
   </main>
 
@@ -62,7 +71,6 @@
       <li><a href="/blog/tags/web.html">web<sup>4</sup></a></li>
       <li><a href="/blog/tags/博客.html">博客<sup>2</sup></a></li>
       <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
-      <li><a href="/blog/tags/笔记.html">笔记<sup>1</sup></a></li>
       <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
       <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
       </ul>
@@ -71,7 +79,6 @@
     <section class="links clearfix">
       <h1>链接</h1>
       <ul>
-	<li><a href="/blog/posts/notes.html">笔记</a></li>
 	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
       </ul>
     </section>
@@ -83,6 +90,28 @@
     博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
 
 </body>
 </html>
