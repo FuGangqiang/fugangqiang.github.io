@@ -5,7 +5,9 @@
   <link rel="icon" href="/static/img/favicon.png">
   <link rel="stylesheet" href="/static/css/main.css">
   
-  <title>network</title>
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>spark学习-2：word count</title>
 </head>
 <body>
 <header class="clearfix">
@@ -30,25 +32,42 @@
 <div id="container" class="clearfix">
   <main>
     
-  <h1>network</h1>
-  <article>
-  <section>
-      <span>2015-04-27</span>
-      <span><a href="/blog/posts/network/network编程：简单聊天室.html">network编程：简单聊天室</a></span>
-    </section>
-  <section>
-      <span>2015-04-14</span>
-      <span><a href="/blog/posts/network/network编程：smtplib篇.html">network编程：smtplib篇</a></span>
-    </section>
-  <section>
-      <span>2015-03-30</span>
-      <span><a href="/blog/posts/network/network编程：TCP篇.html">network编程：TCP篇</a></span>
-    </section>
-  <section>
-      <span>2015-03-29</span>
-      <span><a href="/blog/posts/network/network编程：UDP篇.html">network编程：UDP篇</a></span>
-    </section>
-  </article>
+    <h1>spark学习-2：word count</h1>
+    <article>
+      <p>统计 spark 安装目录里面的 <code>README.md</code> 所有单词出现的频率。</p>
+<h2>交互界面</h2>
+<p>开启交互程序：</p>
+<pre><code>./bin/pyspark
+</code></pre>
+<p>从 <code>README.md</code> 文件创造 RDD：</p>
+<pre><code class="language-python">&gt;&gt;&gt; textFile = sc.textFile(&quot;README.md&quot;)
+</code></pre>
+<p>对 <code>textFile</code> RDD 进行一系列的转换产生一个新的 RDD：</p>
+<pre><code class="language-python">&gt;&gt;&gt; wordCounts = textFile.flatMap(lambda line: line.split()).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a+b)
+</code></pre>
+<p>获取统计结果：</p>
+<pre><code class="language-python">&gt;&gt;&gt; wordCounts.collect()
+</code></pre>
+<h2>应用程序</h2>
+<p>创建 <code>word_count.py</code> 文件如下：</p>
+<pre><code class="language-python">&quot;&quot;&quot;Word Count&quot;&quot;&quot;
+from pyspark import SparkContext
+
+sc = SparkContext(&quot;local&quot;, &quot;Word Count App&quot;)
+textFile = sc.textFile(&quot;README.md&quot;)
+wordCounts = textFile.flatMap(lambda line: line.split()).map(lambda word: (word, 1)).reduceByKey(lambda a, b: a+b)
+print(&quot;README.md word count statistics:&quot;, wordCounts.collect())
+</code></pre>
+<p>运行命令：</p>
+<pre><code>bin/spark-submit --master local[4] word_count.py
+</code></pre>
+
+
+      <ul id="article_footer">
+        <li>tags: <a href="/blog/tags/spark.html">spark<sup>2</sup></a></li>
+        <li>date: 2016-09-08 22:34:20</li>
+      </ul>
+    </article>
 
   </main>
 
@@ -96,6 +115,28 @@
     博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
 
 </body>
 </html>
