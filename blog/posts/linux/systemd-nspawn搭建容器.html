@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>javascript之this</title>
+  <title>systemd-nspawn搭建容器</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,68 +32,85 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>javascript之this</h1>
+    <h1>systemd-nspawn搭建容器</h1>
     <article>
-      <p><code>this</code> 在 javascript 的面向对象编程模式中非常重要，
-但当用不同的调用形式来函数时，它有不同的意义，这些不同的调用形式包括：</p>
-<ul>
-<li>method invocation</li>
-<li>function invocation</li>
-<li>constructor invocation</li>
-<li>applay invocation</li>
-</ul>
-<h2>method invocation</h2>
-<p>当函数被存为一个对象的属性时，它就是 method，但 method 被调用时，this 就被绑定到此对象。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 0,
-    increment: function(inc) {
-        this.value += typeof inc === 'number' ? inc : 1;
-    }
-};
-
-myCounter.increment();   // myCounter === 1
-myCounter.increment(2);  // myCounter === 3
+      <p>作为一个 systemd 重度使用者，经常用 docker 容器进行一些本地测试或搭建一个开发环境，
+因为 systemd 提供了 systemd-nspawn 来模拟 chroot，无疑它也是可以用来构建容器的，
+所以就摸索了一番，总结如下。</p>
+<h2>什么是 systemd-nspawn？</h2>
+<p>systemd-nspawn 很像 chroot 命令，但是更为强大，
+它可以全面虚拟化整个文件系统、进程树、各种各样的 IPC 子系统以及主机名和域名。
+它可以用来在一个轻量级的容器内运行一个命令或操作系统。</p>
+<p>由于是基于 systemd init 系统，所以它也可以利用现有的 systemd 各种组件命令。</p>
+<h2>构建一个最小的 Archlinux 容器</h2>
+<p>因为我本机是 Archlinux，所以就以构建 Archlinux 容器为例了，首先创建一个容器的顶层文件夹：</p>
+<pre><code>mkdir -p ~/Containers/arch
 </code></pre>
-<h2>function invocation</h2>
-<p>但函数不是一个对象的属性时，this 就被绑定到 global object。</p>
-<pre><code class="language-javascript">a = 0;
-f = function () {
-    this.a += 1;
-}
-
-f();   // a === 1
-a = 4;
-f();   // a === 5
+<p>利用 pacstrap 将 Archlinux 基本系统安装进容器文件夹：</p>
+<pre><code>pacstrap -c -d ~/Containers/arch base
 </code></pre>
-<p>当函数被定义到 method 中时，this 仍然被绑定到 global object，
-而不是外层 method 中 this 的含义（外层 method 中 this 被绑定到 method 的 object）。
-这个地方非常容易出错。</p>
-<h2>Constructor invocation</h2>
-<p>但函数使用 new 前缀被调用时，它就是一个 constructor，调用后会返回一个对象以此函数的 prototype 作为它的 prototype。
-在此种函数中的 this 就被绑定为调用后返回的对象（此对象在函数调用时生成，并用此函数通过 this 初始化）。</p>
-<pre><code class="language-javascript"> Counter = function () {
-     this.value = 2;
- }
-
- myCounter = new Counter();  // myCounter.value === 2
+<p>这样一个 Archlinux 容器就构建成功了，你可以通过 systemd-nspawn 命令开启容器：</p>
+<pre><code>systemd-nspawn -b -D ~/Containers/arch -n
 </code></pre>
-<h2>applay invocation</h2>
-<p>applay 方法可以使一个数组中元素作为参数来调用函数，apply 有两个参数，第一个参数会被绑定到函数中的 this，第二个参数就是一个包含所有函数参数的数组。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 2
-}
+<p>容器启动后，可以用 root 用户名登陆，无须密码，进入容器系统后，你就可以搭建自己的容器环境了。</p>
+<p>当然，你也可以很容易的构建一个 debian 或 fedora 容器，网上有许多构建方法，这里不再讲解。</p>
+<h2>machinectl</h2>
+<p>systemd-nspawn 开启的容器被称为 machine，可以利用 systemd 中的 machinectl 命令进行各种容器操作。</p>
+<p>machinectl 命令默认会到 <code>/var/lib/machines</code>、<code>/usr/local/lib/machines/</code> 和 <code>/usr/lib/machines/</code> 目录搜索容器。
+为了可以用 machinectl 命令，我们将上面的容器文件夹移动到 <code>/var/lib/machines/arch</code> 文件夹下：</p>
+<pre><code>mv ~/Containers/arch /var/lib/machines/arch
+</code></pre>
+<p>这样我们就可以用 machinectl 来控制我们的 <code>arch</code> 容器了。</p>
+<p>开启 <code>arch</code> 容器：</p>
+<pre><code>machinectl start arch
+</code></pre>
+<p>登录 <code>arch</code> 容器：</p>
+<pre><code>machinectl login arch
+</code></pre>
+<p>运行 <code>arch</code> 容器命令：</p>
+<pre><code>machinectl shell arch /usr/bin/pwd
+</code></pre>
+<p>关闭 <code>arch</code> 容器：</p>
+<pre><code>machinectl poweroff arch
+</code></pre>
+<p>machinectl 其他一些命令：</p>
+<pre><code>machinectl reboot container_name
+machinectl terminate container_name
+machinectl kill container_name
 
-inc = function () {
-    this.value += 1;
-}
+machinectl list
+machinectl status container_name
+machinectl show container_name
+machinectl enable container_name
+machinectl disable container_name
 
-inc.apply(myCounter)   // myCounter.value === 3
+machinectl bind container_name PATH [PATH]
+machinectl copy-to container_name PATH [PATH]
+machinectl copy-from container_name PATH [PATH]
+</code></pre>
+<p>machinectl 也有很多与容器 image 相关的命令，这里不再介绍。</p>
+<h2>与其他 systemd 组件配合使用</h2>
+<p>systemd 系列组件大多都有一个 <code>-M</code> 选项，此选项就是用来指定容器，容器搜索路径与 machinectl 一样。</p>
+<p>我们可以这样用 systemd-nspawn 来开启容器：</p>
+<pre><code>systemd-nspawn -M container_name
+</code></pre>
+<p>查看容器日志：</p>
+<pre><code>journalctl -M container_name
+</code></pre>
+<p>查看容器进程控制组内容：</p>
+<pre><code>systemd-cgls -M container_name
+</code></pre>
+<p>分析容器启动过程：</p>
+<pre><code>systemd-analyze -M container_name
+</code></pre>
+<h2>开机自启动制定容器</h2>
+<pre><code>systemctl enable systemd-nspawn@container_name.service
 </code></pre>
 
 
       <ul id="article_footer">
-        <li>tags: <a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
-        <li>date: 2014-11-06 23:15:00</li>
+        <li>tags: <a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li>date: 2016-09-11 10:46:04</li>
       </ul>
     </article>
 
