@@ -1,0 +1,213 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/static/img/favicon.png">
+  <link rel="stylesheet" href="/static/css/main.css">
+  
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>postgresql之执行计划(Execution Plan)</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name"><a href="/index.html" title="Fu">Fu</a></h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+      <li><a href="/blog/posts/notes.html">笔记</a></li>
+      <li><a href="/blog/posts/docs.html">文档</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>postgresql之执行计划(Execution Plan)</h1>
+    <article>
+      <h2>什么是执行计划(Execution Plan)？</h2>
+<p>SQL 是典型的描述性语言，也就是说用户在使用 SQL 时，只需提出什么样的计算需要执行，而不是写出如何来执行这些计算，
+其更强调 What 而不是 How，例如：</p>
+<pre><code class="language-sql">select email from users where name = 'foo';
+</code></pre>
+<p>上面 SQL 语句描述的意思是：我们需要到 users 表查询所有 name 是 foo 的 email，只是描述了我们需要的结果。
+我们写这条语句时，并不需要知道数据库是如何执行这条语句的，
+比如执行这条语句的其中一个方法是：</p>
+<ol>
+<li>打开存储 users 表的文件</li>
+<li>读取所有行</li>
+<li>比较每一行 name 字段与 foo 字符串，如果相等将该行中的 email 字段保存到结果中</li>
+<li>返回所有结果</li>
+</ol>
+<p>数据库系统将这些如何执行语句的动作全部隐藏起来了，这样就使用户可以很轻松的描述自己的问题，
+但是这样做并不完美，当遇到性能问题时，如何高效的执行 SQL 语句的责任就全部丢给数据库后台了，
+使数据库系统更加复杂。</p>
+<p>数据库系统的查询优化器根据每一步骤花费的时间来选择一个最优的<strong>执行计划</strong>(Execution Plan)，
+然后按照这个执行计划来一步一步的执行，进而获取 SQL 语句的最终结果。</p>
+<p>这样，当我们遇到某一个效率低下的 SQL 语句，最先做的事情就是查找这个 SQL 语句的<strong>执行计划</strong>。</p>
+<h2>获取执行计划(Execution Plan)</h2>
+<p>postgresql 在 SQL 语句前面添加 <code>EXPLAIN</code> 关键字就可以获取这条 SQL 语句的执行计划：</p>
+<pre><code class="language-sql">EXPLAIN SELECT * FROM users;
+</code></pre>
+<p>结果如下：</p>
+<pre><code class="language-sql">                        QUERY PLAN
+----------------------------------------------------------
+ Seq Scan on users  (cost=0.00..5.24 rows=234 width=41)
+</code></pre>
+<p>在上面的例子中，EXPLAIN 并没有执行 SELECT 语句，只是对这条语句进行预测，并将预测结果(QUERY PLAN)打印出来。</p>
+<p>我们可以利用 ANALYZE 关键字来真实的执行 SQL 语句，并打印更详细的信息：</p>
+<pre><code class="language-sql">EXPLAIN ANALYZE SELECT * FROM users;
+
+                        QUERY PLAN
+-----------------------------------------------------------
+Seq Scan on users (cost=0.00..5.21 rows=173 width=118)
+         (actual time=0.018..0.018 rows=0 loops=1)
+ Total runtime: 0.020 ms
+</code></pre>
+<p>EXPLAIN 通常用来查看 SELECT 语句，但是它也可以查看 INSERT、UPDATE、DELETE、EXECUTE 或 DECLARE 语句。
+注意当使用 ANALYZE 关键字时，这些语句是会被真实的执行，并改变数据库中的数据，可以使用事务命令来避免修改数据库：</p>
+<pre><code class="language-sql">BEGIN;
+EXPLAIN ANALYZE ...;
+ROLLBACK;
+</code></pre>
+<h2>如何看懂执行计划(Execution Plan)</h2>
+<p>数据库执行 SQL 语句的步骤是这样的：</p>
+<ol>
+<li>读取 SQL 语句</li>
+<li>对其进行语法分析，形成一个语法分析树（或者关系代数表达式，两者相通）</li>
+<li>对语法分析树根据关系代数等式进行优化转换</li>
+<li>优化器根据一些统计数据得出一个最优的执行计划</li>
+<li>计算引擎根据执行计划计算 SQL 语句结果</li>
+</ol>
+<p>因为第 4 步优化器根据语法分析树计算执行计划，所以一般执行计划也是一个树结构，
+而 postgresql 的 EXPLAIN 的输出结果是文字形式，所以就会用缩进来表达这种树结构。</p>
+<p>如下：</p>
+<pre><code class="language-sql">EXPLAIN SELECT *
+FROM tenk1 t1, onek t2
+WHERE t1.unique1 &lt; 100 AND t1.unique2 = t2.unique2;
+
+                                        QUERY PLAN
+------------------------------------------------------------------------------------------
+ Merge Join  (cost=198.11..268.19 rows=10 width=488)
+   Merge Cond: (t1.unique2 = t2.unique2)
+   -&gt;  Index Scan using tenk1_unique2 on tenk1 t1  (cost=0.29..656.28 rows=101 width=244)
+         Filter: (unique1 &lt; 100)
+   -&gt;  Sort  (cost=197.83..200.33 rows=1000 width=244)
+         Sort Key: t2.unique2
+         -&gt;  Seq Scan on onek t2  (cost=0.00..148.00 rows=1000 width=244)
+</code></pre>
+<p>从上面可以看出，执行计划的结构是一个计划节点树，叶子节点为 Scan 节点，
+如果查询语句还有 join、aggregation、sorting等其他操作，会在这些 Scan 节点之上再添加节点来执行这些操作。</p>
+<p>每一个计划节点都会有四个数值，比如根结点的<code>(cost=198.11..268.19 rows=10 width=488)</code>，它们分别代表：</p>
+<ul>
+<li>执行该节点开始时间(<code>198.11</code>)</li>
+<li>执行该节点消耗总时间(<code>268.19</code>)</li>
+<li>执行该节点后返回行数(<code>10</code>)</li>
+<li>执行该节点返回每一行的平均总字节数(<code>488</code>)</li>
+</ul>
+<p>以下是最常见的几种节点：</p>
+<h4>Scan Methods</h4>
+<ul>
+<li>Sequential Scan：扫描整个 table 选择结果</li>
+<li>Index Scan：从 B-tree 索引筛选，然后根据索引扫描 table 获取结果</li>
+<li>Index Only Scan：同 Index Scan，只是不需要再次查询 table 了，所有筛选和结果都使用索引</li>
+<li>Bitmap Index Scan：对普通的 Index Scan 的优化，从 B-tree 索引中筛选的结果首先保存在一个 bitmap 中，
+然后对这个 bitmap 按照在磁盘中存储顺序排序，再按照这个顺序查询 table。</li>
+</ul>
+<h4>Join Methods</h4>
+<ul>
+<li>Nested Loop：最通用的双循环合并</li>
+<li>Hash Join：将较小的 table 放到一个 hash 表中，然后扫描较大的 table 并按照合并条件合并</li>
+<li>Merge Join：将两个 table 分别排序，然后根据合并条件合并</li>
+</ul>
+
+
+      <ul id="article_footer">
+        <li>tags: <a href="/blog/tags/postgresql.html">postgresql<sup>1</sup></a></li>
+        <li>date: 2016-09-18 17:42:59</li>
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      <li><a href="/blog/tags/linux.html">linux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      <li><a href="/blog/tags/network.html">network<sup>4</sup></a></li>
+      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      <li><a href="/blog/tags/postgresql.html">postgresql<sup>1</sup></a></li>
+      <li><a href="/blog/tags/python.html">python<sup>10</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>4</sup></a></li>
+      <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
+      <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
+      <li><a href="/blog/tags/web.html">web<sup>5</sup></a></li>
+      <li><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
+      <li><a href="/blog/tags/安全.html">安全<sup>1</sup></a></li>
+      <li><a href="/blog/tags/容器.html">容器<sup>1</sup></a></li>
+      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>
