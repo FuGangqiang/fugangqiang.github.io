@@ -35,7 +35,7 @@
     <h1>postgresql之server端编程</h1>
     <article>
       <h2>什么是 server 端编程？</h2>
-<p>postgresql 不仅仅具有数据存储和管理的功能，而且也是一个很强大的框架。
+<p>postgresql 不仅仅具有数据存储和管理的功能，而且也是一个很强大的编程框架。
 在服务端，用户可以自定义函数、数据类型、触发器或重载操作符，
 可以交叉调用服务端数种语言的函数或库，处理所有数据类型的数据，即使是非数据相关的任务也是可以的。</p>
 <h2>为什么要用 server 端编程？</h2>
@@ -266,7 +266,7 @@ SELECT get_array(4,5), get_array('c'::text, 'd'::text);
 (1 row)
 </code></pre>
 <h4>重载</h4>
-<p>PL/pgSQL 多个函数可以公用一个函数名，但是它们的参数的个数或类型必须不同：</p>
+<p>PL/pgSQL 多个函数可以共用一个函数名，但是它们的参数的个数或类型必须不同：</p>
 <pre><code>CREATE FUNCTION test(int, real) RETURNS ...
 CREATE FUNCTION test(smallint, double precision) RETURNS ...
 </code></pre>
