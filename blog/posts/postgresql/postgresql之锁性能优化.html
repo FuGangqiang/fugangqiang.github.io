@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>javascript之this</title>
+  <title>postgresql之锁性能优化</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,68 +32,75 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>javascript之this</h1>
+    <h1>postgresql之锁性能优化</h1>
     <article>
-      <p><code>this</code> 在 javascript 的面向对象编程模式中非常重要，
-但当用不同的调用形式来函数时，它有不同的意义，这些不同的调用形式包括：</p>
-<ul>
-<li>method invocation</li>
-<li>function invocation</li>
-<li>constructor invocation</li>
-<li>applay invocation</li>
-</ul>
-<h2>method invocation</h2>
-<p>当函数被存为一个对象的属性时，它就是 method，但 method 被调用时，this 就被绑定到此对象。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 0,
-    increment: function(inc) {
-        this.value += typeof inc === 'number' ? inc : 1;
-    }
-};
-
-myCounter.increment();   // myCounter === 1
-myCounter.increment(2);  // myCounter === 3
+      <p>如果你想构建一个大规模的网站，单凭横向扩展 web 服务器是远远不够的。
+如何巧妙地管理数据库也是非常必要的。
+锁（locking）便是实现网站高扩展性的一个关键。</p>
+<p>在 postgresql 中，借助于并发性的改进，通过减少锁及加速执行得到若干令人满意的特性。</p>
+<p>一般推荐的做法是：
+在解决锁问题之前，无论如何先要检查出在你的 postgresql 数据库服务器上正在运行的是什么，这非常有必要。
+我建议参考 pg_stat_statements 并仔细地检查系统瓶颈（bottleneck）。</p>
+<h2>改进 select for update 语句</h2>
+<p>假设两人同时试图修改数据库中同一行的内容，每个用户会首先选择（select）一行来检查它的内容，然后开始更新。
+令人讨厌的事情是：这两个用户很可能会找到原来的行并且覆盖彼此做的改变。
+这是一个经典的竞态事件。</p>
+<p>在现实生活中，这样会导致恶劣的后果：
+例如两个人也许会预定了同一架飞机的同一个航班；
+或者取款时取出的钱可能会比帐户中实际的数额更多。
+这显然不是我们想要的。</p>
+<p>再拿前面的航班机票预定为例，假设有人想要预定飞机的某一座位：</p>
+<pre><code class="language-sql">select ...
+from table
+where class = 'economy' and empty = true
+limit 1
+for update
 </code></pre>
-<h2>function invocation</h2>
-<p>但函数不是一个对象的属性时，this 就被绑定到 global object。</p>
-<pre><code class="language-javascript">a = 0;
-f = function () {
-    this.a += 1;
-}
-
-f();   // a === 1
-a = 4;
-f();   // a === 5
+<p>现在的麻烦是：
+如果另外一个人也试图抢占一个座位，他会发现该座位已经被第一个人选择。
+但是，这一行是被锁定的。
+第二个人的 <code>select for update</code> 操作必须等到第一个人的事务处理完成。
+值得提醒的是，乘客可能非常乐意接受该航班上的其它任意座位，所以没有必要等待某个特定的座位。</p>
+<p>postgresql 9.5 将会解决这一问题。
+下面是一种新的读取行的方式：</p>
+<pre><code class="language-sql">select ...
+from table
+where class = 'economy' and empty = true
+limit 1
+for update skip locked
 </code></pre>
-<p>当函数被定义到 method 中时，this 仍然被绑定到 global object，
-而不是外层 method 中 this 的含义（外层 method 中 this 被绑定到 method 的 object）。
-这个地方非常容易出错。</p>
-<h2>Constructor invocation</h2>
-<p>但函数使用 new 前缀被调用时，它就是一个 constructor，调用后会返回一个对象以此函数的 prototype 作为它的 prototype。
-在此种函数中的 this 就被绑定为调用后返回的对象（此对象在函数调用时生成，并用此函数通过 this 初始化）。</p>
-<pre><code class="language-javascript"> Counter = function () {
-     this.value = 2;
- }
-
- myCounter = new Counter();  // myCounter.value === 2
+<p>这里的巧妙之处在于 postgresql 将会简单地忽略被锁定的行，并返回一个没有被别人锁定的行。
+这样是非常有意义的，因为 100 个同时在查看一个免费座位的用户会得到 100 个不同的行。
+这样的结果是你没有死守一个 cpu，而是巧妙地横向扩展了系统中的所有 cpu。
+由于冲突不再发生，没有人必须等其他人。</p>
+<h2>select for share</h2>
+<p>还有一种可以使 postgresql 提供更高并发的方法。
+看下面的例子：</p>
+<pre><code>select *
+from account as a, currency as c
+where a.currency = c.id and a.account = 4711
+for update
 </code></pre>
-<h2>applay invocation</h2>
-<p>applay 方法可以使一个数组中元素作为参数来调用函数，apply 有两个参数，第一个参数会被绑定到函数中的 this，第二个参数就是一个包含所有函数参数的数组。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 2
-}
-
-inc = function () {
-    this.value += 1;
-}
-
-inc.apply(myCounter)   // myCounter.value === 3
+<p>在这个例子中，某人想查看他的银行账户。
+现在主要的问题是：哪些行是被锁定的？
+答案是：account 和 currency。</p>
+<p>仅仅因为一个人想从 ATM 中取钱而锁定整个 currency 表显然并不是个好办法，
+而应该让很多人可以同时取钱，在这一问题上，postgresql 的解决方法是提前告知需要更新哪张表。</p>
+<p>方法很简单：</p>
+<pre><code class="language-sql">select *
+from account as a, currency as c
+where a.currency = c.id and a.account = 4711
+for update of account for share of currency
 </code></pre>
+<p>通过告诉 postgresql 我们要做的事情，postgresql 数据库会在 currency 表上使用一个无害的锁。
+这样大部分人可以同时查看相同的 currency 而无需相互锁定，同时又保证了 account 表的安全。</p>
+<p>转载自：<a href="http://www.csdn.net/article/2015-11-07/2826143">更高的并发：改进PostgreSQL锁机制</a><br>
+原文：<a href="http://highscalability.com/blog/2015/10/13/more-concurrency-improved-locking-in-postgresql.html">More Concurrency: Improved Locking In PostgreSQL</a></p>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
-        <li>日期： 2014-11-06 23:15:00</li>
+        <li>标签： <a href="/blog/tags/postgresql.html">postgresql<sup>4</sup></a><a href="/blog/tags/性能.html">性能<sup>5</sup></a><a href="/blog/tags/数据库.html">数据库<sup>4</sup></a></li>
+        <li>日期： 2016-10-12 11:11:07</li>
       </ul>
     </article>
 
