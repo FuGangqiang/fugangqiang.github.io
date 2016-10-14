@@ -34,7 +34,8 @@
     
     <h1>postgresql之锁性能优化</h1>
     <article>
-      <p>如果你想构建一个大规模的网站，单凭横向扩展 web 服务器是远远不够的。
+      <p>转载自：<a href="http://www.csdn.net/article/2015-11-07/2826143">更高的并发：改进PostgreSQL锁机制</a><br></p>
+<p>如果你想构建一个大规模的网站，单凭横向扩展 web 服务器是远远不够的。
 如何巧妙地管理数据库也是非常必要的。
 锁（locking）便是实现网站高扩展性的一个关键。</p>
 <p>在 postgresql 中，借助于并发性的改进，通过减少锁及加速执行得到若干令人满意的特性。</p>
@@ -94,8 +95,7 @@ for update of account for share of currency
 </code></pre>
 <p>通过告诉 postgresql 我们要做的事情，postgresql 数据库会在 currency 表上使用一个无害的锁。
 这样大部分人可以同时查看相同的 currency 而无需相互锁定，同时又保证了 account 表的安全。</p>
-<p>转载自：<a href="http://www.csdn.net/article/2015-11-07/2826143">更高的并发：改进PostgreSQL锁机制</a><br>
-原文：<a href="http://highscalability.com/blog/2015/10/13/more-concurrency-improved-locking-in-postgresql.html">More Concurrency: Improved Locking In PostgreSQL</a></p>
+<p>原文：<a href="http://highscalability.com/blog/2015/10/13/more-concurrency-improved-locking-in-postgresql.html">More Concurrency: Improved Locking In PostgreSQL</a></p>
 
 
       <ul id="article_footer">
@@ -115,7 +115,9 @@ for update of account for share of currency
       <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
       <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
       <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/docker.html">docker<sup>1</sup></a></li>
       <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/git.html">git<sup>8</sup></a></li>
       <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
       <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
       <li><a href="/blog/tags/linux.html">linux<sup>2</sup></a></li>
