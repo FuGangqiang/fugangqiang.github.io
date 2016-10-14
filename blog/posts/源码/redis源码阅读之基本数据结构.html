@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>spark学习-3：RDD</title>
+  <title>redis源码阅读之基本数据结构</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,96 +32,188 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>spark学习-3：RDD</h1>
+    <h1>redis源码阅读之基本数据结构</h1>
     <article>
-      <p>Spark 最主要的抽象就是 RDD(resilient distributed dataset)弹性分布式数据集，
-Spark 中所有工作都会被表达为对 RDD 的操作：</p>
+      <h2>基本数据结构</h2>
+<h3>动态字符串(dynamic string)</h3>
 <ul>
-<li>生成 RDD</li>
-<li>转换 RDD</li>
-<li>获取 RDD 结果</li>
-<li>保存 RDD</li>
+<li>sds.h</li>
+<li>sds.c</li>
 </ul>
-<h2>生成 RDD</h2>
-<h4>加载内置类型</h4>
-<pre><code class="language-python">rdd = sc.parallelize(['hello', 'spark'])
+<p>存储在 heap 上，只是比 c 中的字符串类型多了一个结构头，
+在结构头里有 len 和 size 属性，实现了二进制安全。</p>
+<pre><code class="language-c">struct sdshdr {
+    unsigned int len;
+    unsigned int free;
+    char buf[];
+};
 </code></pre>
-<h4>加载文本文件</h4>
-<pre><code class="language-python">rdd = sc.textFile('README.md')
-</code></pre>
-<h4>加载 json 文本文件</h4>
-<pre><code class="language-python">import json
+<h3>双向链表(doubly linked list)</h3>
+<ul>
+<li>adlist.h</li>
+<li>adlist.c</li>
+</ul>
+<p>与教科书上面讲的几乎没什么差别：</p>
+<pre><code class="language-c">typedef struct listNode {
+    struct listNode *prev;
+    struct listNode *next;
+    void *value;
+} listNode;
 
-rdd = sc.textFile('filename.json).map(lambda x: json.loads(x))
+typedef struct list {
+    listNode *head;
+    listNode *tail;
+    void *(*dup)(void *ptr);
+    void (*free)(void *ptr);
+    int (*match)(void *ptr, void *key);
+    unsigned long len;
+} list;
 </code></pre>
-<p>或者</p>
-<pre><code class="language-python">rdd = spark.read.json('filename.json')
-</code></pre>
-<h4>加载 csv 文本文件</h4>
-<pre><code class="language-python">rdd = sc.textFile('filename.csv').map(lambda line: line.split(','))
-</code></pre>
-<p>或者</p>
-<pre><code>rdd = spark.read.csv('filename.csv')
-</code></pre>
-<h4>加载 SequenceFile</h4>
-<pre><code>rdd = sc.sequenceFile(inFile, 'org.apache.hadoop.io.Text', 'org.apache.hadoop.io.IntWritable')
-</code></pre>
-<h2>转换 RDD</h2>
+<h3>字典(Hash Table)</h3>
 <ul>
-<li>filter</li>
-<li>map</li>
-<li>flatMap</li>
-<li>distinct</li>
-<li>sample</li>
-<li>union</li>
-<li>intersection</li>
-<li>subtract</li>
-<li>cartesian</li>
-<li>reduceByKey</li>
-<li>foldByKey</li>
-<li>groupByKey</li>
-<li>combineByKey</li>
-<li>mapValues</li>
-<li>flatMapValues</li>
-<li>keys</li>
-<li>values</li>
-<li>sortByKey</li>
-<li>subtractByKey</li>
-<li>join</li>
-<li>rigthOuterJoin</li>
-<li>leftOuterJoin</li>
-<li>cogroup</li>
-<li>partitionBy</li>
+<li>dict.h</li>
+<li>dict.c</li>
 </ul>
-<h2>获取 RDD 结果</h2>
+<p>利用链地址法来解决字典 hash 碰撞。</p>
+<p>redis 中的 dict 的 rehash 是渐进式，
+也就是说 rehash 过程不是一下子就完成的，
+起初只是将 dict 状态修改为正处于 rehashing 中，
+而是在之后的每一次 dict 访问时，都会转移几个 key-value 对，
+直到 rehash 完毕，再次修改 dict 状态为已 rehashing 完毕。</p>
+<pre><code class="language-c">typedef struct dictEntry {
+    void *key;
+    union {
+        void *val;
+        uint64_t u64;
+        int64_t s64;
+        double d;
+    } v;
+    struct dictEntry *next;
+} dictEntry;
+
+typedef struct dictht {
+    dictEntry **table;
+    unsigned long size;
+    unsigned long sizemask;
+    unsigned long used;
+} dictht;
+
+typedef struct dict {
+    dictType *type;
+    void *privdata;
+    dictht ht[2];
+    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    int iterators;
+} dict;
+</code></pre>
+<h3>跳跃表</h3>
 <ul>
-<li>first</li>
-<li>top</li>
-<li>take</li>
-<li>takeOrdered</li>
-<li>takeSample</li>
-<li>collect</li>
-<li>count</li>
-<li>reduce</li>
-<li>fold</li>
-<li>combine</li>
-<li>aggregate</li>
-<li>collectAsMap</li>
-<li>countByValue</li>
-<li>lookup</li>
+<li>redis.h</li>
+<li>t_zset.c</li>
 </ul>
-<h2>保存 RDD</h2>
-<h4>保存至文本文件</h4>
-<pre><code>rdd.saveAsTextFile(outputFile)
+<p>跳跃表其实就是有序链表的一个变种，查找、删除和添加元素的速度和平衡二叉树相近，但实现起来更直观一些。</p>
+<pre><code class="language-c">typedef struct zskiplistNode {
+    robj *obj;
+    double score;
+    struct zskiplistNode *backward;
+    struct zskiplistLevel {
+        struct zskiplistNode *forward;
+        unsigned int span;
+    } level[];
+} zskiplistNode;
+
+typedef struct zskiplist {
+    struct zskiplistNode *header, *tail;
+    unsigned long length;
+    int level;
+} zskiplist;
 </code></pre>
-<h4>保存至 json 文件</h4>
-<pre><code>rdd.map(lambda x: json.dumps(x)).saveAsTextFile(outputFile)
+<h3>整数集合</h3>
+<ul>
+<li>intset.h</li>
+<li>intset.c</li>
+</ul>
+<p>就是用一个数组存放有序整数的集合，根据存放整数的大小来确定集合中各个整数所占用的字节数。</p>
+<pre><code class="language-c">typedef struct intset {
+    uint32_t encoding;
+    uint32_t length;
+    int8_t contents[];
+} intset;
 </code></pre>
+<h3>压缩列表</h3>
+<ul>
+<li>ziplist.h</li>
+<li>ziplist.c</li>
+</ul>
+<p>压缩列表也是一个列表，列表根据各元素的性质来决定使用何种方式、大小来存放元素，
+其实就是一段连续内存，其结构如下：</p>
+<pre><code>&lt;zlbytes&gt;&lt;zltail&gt;&lt;zllen&gt;&lt;entry&gt;&lt;entry&gt;&lt;zlend&gt;
+</code></pre>
+<p>entry 可以存放的类型有：</p>
+<ul>
+<li>4bit 无符号数</li>
+<li>1byte 符号整数</li>
+<li>3byte 有符号整数</li>
+<li>int16_t 整数</li>
+<li>int32_t 整数</li>
+<li>int64_t 整数</li>
+<li>长度小于等于 63(2^6 - 1) 字节的字符数组</li>
+<li>长度小于等于 16383(2^14 - 1) 字节的字符数组</li>
+<li>长度小于等于 4294967295(2^32 - 1) 字节的字符数组</li>
+</ul>
+<p>ziplist 中的 entry 的定义如下：</p>
+<pre><code class="language-c">typedef struct zlentry {
+    unsigned int prevrawlensize, prevrawlen;
+    unsigned int lensize, len;
+    unsigned int headersize;
+    unsigned char encoding;
+    unsigned char *p;
+} zlentry;
+</code></pre>
+<h2>基本类型</h2>
+<p>redis 支持的基本类型及它们在内存中的表现形式：</p>
+<ul>
+<li>
+<p>string 类型　</p>
+<ul>
+<li>long</li>
+<li>动态字符串</li>
+</ul>
+</li>
+<li>
+<p>list 类型</p>
+<ul>
+<li>压缩列表</li>
+<li>双向类表</li>
+</ul>
+</li>
+<li>
+<p>set 类型</p>
+<ul>
+<li>整数集合</li>
+<li>字典</li>
+</ul>
+</li>
+<li>
+<p>zset 类型</p>
+<ul>
+<li>跳跃表</li>
+<li>双向链表</li>
+</ul>
+</li>
+<li>
+<p>hash 类型</p>
+<ul>
+<li>压缩列表</li>
+<li>字典</li>
+</ul>
+</li>
+</ul>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
-        <li>日期： 2016-09-10 10:36:48</li>
+        <li>标签： <a href="/blog/tags/redis.html">redis<sup>1</sup></a><a href="/blog/tags/源码.html">源码<sup>1</sup></a></li>
+        <li>日期： 2016-03-16 13:27:08</li>
       </ul>
     </article>
 
