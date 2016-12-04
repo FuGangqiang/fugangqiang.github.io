@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>用mdblog.rs构建静态博客</title>
+  <title>pyenv搭建python虚拟环境</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,103 +32,85 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>用mdblog.rs构建静态博客</h1>
+    <h1>pyenv搭建python虚拟环境</h1>
     <article>
-      <p>最近在学习 <a href="https://www.rust-lang.org/en-US/">rust</a> 语言，
-想拿一个项目练一下手，想到了重构自己的静态博客平台，
-就着手写了 <a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 项目，目前已经用它来重构了我的 GitHub 的静态博客。</p>
-<p>现在先说一下 mdblog.rs 支持的一些功能：</p>
+      <p>在 python 开发过程中，经常同时开发多个程序，
+其各自依赖的 python 版本号不同，又需要各自特定版本的依赖库，
+这样，我们在开发过程中需要来回切换不同版本的 python 以及 python virtualenv，
+这样我们就需要一个即有管理 python 版本，又有管理 python virtualenv 的应用，
+<a href="https://github.com/yyuu/pyenv"><code>pyenv</code></a>即是为此。</p>
+<h2>安装 pyenv</h2>
+<pre><code>curl -L https://raw.githubusercontent.com/yyuu/pyenv-installer/master/bin/pyenv-installer | bash
+</code></pre>
+<p>所有相关文件均被安装到 <code>~/.pyenv</code> 文件夹中，</p>
+<p>当然卸载 <code>pyenv</code> 及其安装的一切 python 版本及 virtualenv 只需删除 <code>~/.pyenv</code> 文件夹即可。</p>
+<pre><code>rm -fr ~/.pyenv
+</code></pre>
+<h2>配置 pyenv</h2>
+<p>可以在你的 <code>.bashrc</code> 配置文件里面添加如下：</p>
+<pre><code>export PATH=&quot;~/.pyenv/bin:$PATH&quot;
+eval &quot;$(pyenv init -)&quot;
+eval &quot;$(pyenv virtualenv-init -)&quot;
+</code></pre>
+<p>这样在每次启动终端时，你都可以用 <code>pyenv</code> 了。</p>
+<h2>更新 pyenv</h2>
+<p>利用 <code>update</code> 命令可以更新到最新版本：</p>
+<pre><code>pyenv update
+</code></pre>
+<h2>安装、查看及卸载 python 特定版本</h2>
+<p>查看 <code>pyenv</code> 支持安装的 python 版本：</p>
+<pre><code>pyenv install -l
+</code></pre>
+<p>安装 <code>python 3.5.2</code> 版本：</p>
+<pre><code>pyenv install 3.5.2
+</code></pre>
+<p>所有相关安装程序均被安装在 <code>~/.pyenv/versions</code> 文件夹下。</p>
+<p>卸载 python 版本：</p>
+<pre><code>pyenv uninstall 3.5.2
+</code></pre>
+<p>查看 <code>pyenv</code> 下所有安装的 python 版本：</p>
+<pre><code>pyenv versions
+</code></pre>
+<p>其中：</p>
 <ul>
-<li>博客文章用 <a href="http://commonmark.org/">markdown</a> 格式编写</li>
-<li>支持 <a href="https://en.wikipedia.org/wiki/TeX">TeX</a> 数学公式</li>
-<li>代码高亮显示</li>
-<li>博客标签分类</li>
-<li>隐藏特定博客</li>
+<li>以 <code>*</code> 开头的为当前 pyenv 设置的 python 版本</li>
+<li>system 版本为当前操作系统中存在的版本，而不是由 pyenv 安装的</li>
 </ul>
-<p>还有一些其他特性：</p>
+<p>查看当前 python 版本：</p>
+<pre><code>pyenv version
+</code></pre>
+<h2>切换 python 版本</h2>
+<p>当在终端执行 python 时，<code>pyenv</code> 按以下顺序来决定使用哪一个 python 版本：</p>
 <ul>
-<li>博客标题就是文件名</li>
-<li>博客 url 按照目录结构组建，而不是按照时间</li>
+<li><code>PYENV_VERSION</code> 环境变量，可以用 <code>pyenv shell</code> 设置此环境变量</li>
+<li>当前文件夹下的 <code>.python-version</code> 文件（如果存在），可以用 <code>pyenv local</code> 添加或修改此文件</li>
+<li>当前文件夹向上逐级查找父文件夹，直至根目录，第一个被发现的 <code>.python-version</code> 文件</li>
+<li>文件 <code>~/.pyenv/version</code>，可以用 <code>pyenv global</code> 修改此文件</li>
 </ul>
-<p>那么来看一下怎么用 mdblog.rs 来构建博客吧！</p>
-<h2>安装 rustc &amp; cargo</h2>
-<p>因为 mdblog.rs 是由 rust 语言编写的，所以系统中需要安装 rustc 和 cargo，
-推荐利用 <a href="https://rustup.rs/">rustup.rs</a> 来安装它们，目前只能用 nightly 版本编译 mdblog.rs：</p>
-<pre><code>rustup default nightly
+<p>你也可以同时激活多个 python 版本，这样你就可以使 python2 和 python3 版本共存，比如：</p>
+<pre><code>pyenv global 3.5.2 2.7.12
 </code></pre>
-<h2>安装 mdblog.rs</h2>
-<pre><code>cargo install mdblog
+<p>可以通过 <code>pyenv which</code> 来查看 python 某个版本的可执行文件路径。</p>
+<h2>创建、激活、停用及删除 virtualenv</h2>
+<p>创建名为 <code>venv</code> 的 virtualenv 环境：</p>
+<pre><code>pyenv virtualenv 3.5.2 venv
 </code></pre>
-<h2>初始化博客文件夹</h2>
-<pre><code>mdblog init myblog
+<p>激活 <code>venv</code> 环境：</p>
+<pre><code>pyenv activate venv
 </code></pre>
-<p>此时博客目录树如下：</p>
-<pre><code>myblog
-├── config.toml
-├── media
-├── posts
-│   └── hello.md
-└── _themes
-    └── simple
-        ├── static
-        │   ├── css
-        │   │   ├── highlight.css
-        │   │   └── main.css
-        │   ├── img
-        │   │   ├── favicon.png
-        │   │   └── logo.png
-        │   └── js
-        │       ├── highlight.js
-        │       └── main.js
-        └── templates
-            ├── base.tpl
-            ├── index.tpl
-            ├── post.tpl
-            └── tag.tpl
-
-9 directories, 12 files
+<p>停用当前 <code>venv</code> 环境：</p>
+<pre><code>pyenv deactivate
 </code></pre>
-<h2>编写博客文章</h2>
-<p>博客文章是在 <code>myblog/posts</code> 目录里面，也可以在此分类建立文件夹归档博客文章，
-每一篇博客文章均由两部分组成：</p>
-<ul>
-<li><code>header</code>
-<ul>
-<li><code>date</code>: 发布日期，必填项，格式如 <code>date: 1970-01-01 00:00:00</code></li>
-<li><code>tags</code>: 标签，必填项，格式如 <code>tags: hello, world</code></li>
-<li><code>hidden</code>: 是否隐藏，可选项，默认为 <code>false</code>，格式如 <code>hidden: true</code></li>
-</ul>
-</li>
-<li><code>body</code>： 博客 markdown 正文</li>
-</ul>
-<p><code>header</code> 和 <code>body</code> 由第一个空行分割，一片完整的博客文章内容如下(<code>posts/hello.md</code>)：</p>
-<pre><code>date: 1970-01-01 00:00:00
-tags: hello, world
-
-# hello
-
-hello world!
+<p>删除 <code>venv</code> 环境：</p>
+<pre><code>pyenv virtualenv-delete venv
 </code></pre>
-<h2>构建博客</h2>
-<p>进入博客目录：</p>
-<pre><code>cd myblog
-</code></pre>
-<p>开始构建：</p>
-<pre><code>mdblog build
-</code></pre>
-<h2>测试浏览博客</h2>
-<p>进入 <code>myblog/_builds</code> html 静态页面文件夹：</p>
-<pre><code>cd _builds
-</code></pre>
-<p>搭建服务：</p>
-<pre><code>python3 -m http.server --bind localhost 8000
-</code></pre>
-<p>这样就可以在 <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> 浏览博客页面了。</p>
+<h2>其他命令</h2>
+<p>可以通过 <code>pyenv commands</code> 来查看所有 <code>pyenv</code> 的子命令：</p>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/rust.html">rust<sup>4</sup></a><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
-        <li>日期： 2016-08-25 10:34:00</li>
+        <li>标签： <a href="/blog/tags/python.html">python<sup>11</sup></a></li>
+        <li>日期： 2016-12-04 15:43:47</li>
       </ul>
     </article>
 
