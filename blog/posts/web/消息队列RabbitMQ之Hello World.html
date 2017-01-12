@@ -50,7 +50,7 @@
 <p><img src="/media/rabbitmq/hello_world.png" alt="hello world" /></p>
 <p>以下代码用 <code>python</code> 语言编写。</p>
 <h3>生产者</h3>
-<pre><code>import pika
+<pre><code class="language-python">import pika
 
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
@@ -63,7 +63,7 @@ print(f'[x] Sent {body}')
 connection.close()
 </code></pre>
 <h3>消费者</h3>
-<pre><code>import pika
+<pre><code class="language-python">import pika
 
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
@@ -111,6 +111,7 @@ channel.start_consuming()
       <li><a href="/blog/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
       <li><a href="/blog/tags/redis.html">redis<sup>1</sup></a></li>
       <li><a href="/blog/tags/rust.html">rust<sup>4</sup></a></li>
+      <li><a href="/blog/tags/security.html">security<sup>1</sup></a></li>
       <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
       <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
       <li><a href="/blog/tags/web.html">web<sup>11</sup></a></li>
