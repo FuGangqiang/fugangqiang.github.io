@@ -125,6 +125,21 @@ make_socket_non_blocking(int sfd)
   return 0;
 }
 </code></pre>
+<p>通过 <code>register_socket</code> 向 epoll instance 中添加要监控的文件描述符：</p>
+<pre><code class="language-c">static void
+register_socket(int efd, int sfd) {
+  int s;
+  struct epoll_event event;
+
+  event.data.fd = sfd;
+  event.events = EPOLLIN | EPOLLET;
+  s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &amp;event);
+  if(s == -1) {
+    perror(&quot;epoll_ctl&quot;);
+    abort();
+  }
+}
+</code></pre>
 <p><code>Event Loop</code> 存在于 <code>main</code> 函数里面：</p>
 <pre><code class="language-c">int
 main(int argc, char *argv[])
@@ -175,7 +190,6 @@ main(int argc, char *argv[])
 <pre><code class="language-c">static void
 handle_listen_socket_event(int efd, struct epoll_event *event) {
   int s;
-  struct epoll_event e;
 
   while(1) {
     struct sockaddr in_addr;
@@ -206,13 +220,7 @@ handle_listen_socket_event(int efd, struct epoll_event *event) {
     if(s == -1)
       abort();
 
-    e.data.fd = infd;
-    e.events = EPOLLIN | EPOLLET;
-    s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &amp;e);
-    if(s == -1) {
-      perror(&quot;epoll_ctl&quot;);
-      abort();
-    }
+    register_socket(efd, infd);
   }
 }
 
