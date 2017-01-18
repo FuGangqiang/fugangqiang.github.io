@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="/static/img/favicon.png">
+  <link rel="stylesheet" href="/static/css/main.css">
+  
+<link rel="stylesheet" href="/static/css/highlight.css">
+
+  <title>rust之mio</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name"><a href="/index.html" title="Fu">Fu</a></h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+      <li><a href="/blog/posts/notes.html">笔记</a></li>
+      <li><a href="/blog/posts/docs.html">文档</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>rust之mio</h1>
+    <article>
+      <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇主要讲解 mio。</p>
+<p>mio(Metal IO) 是 rust 语言中的异步 io crate，tokio 框架就是基于这个 crate 的。
+从源码上看 mio 基本就是对 linux epoll(bsd kqueue) 的简单包装，只是披了一层 rust 外衣，
+性能与原生相同，接口调用方式与 linux epoll 极为相似，mio 本身实现了可以监控以下几种事件：</p>
+<ul>
+<li>tcp io</li>
+<li>udp io</li>
+<li>timer</li>
+<li>channel(mpsc)</li>
+</ul>
+<p>同时，mio 也提供了一种扩展机制，可以很轻松的实现以下类似事件：</p>
+<ul>
+<li>uds(unix domain socket)</li>
+<li>signal</li>
+<li>pipe</li>
+<li>thread</li>
+<li>subprocess</li>
+</ul>
+<p>当然在看这篇文章之前，你需要了解 linux epoll 的知识，
+可以查看博文<a href="/blog/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
+<p>我们可以通过以下示例来看一下 mio 的用法：</p>
+<pre><code class="language-rust">extern crate mio;
+extern crate slab;
+
+use std::net::SocketAddr;
+use std::io::{Read, Write, ErrorKind};
+use mio::*;
+use mio::tcp::TcpListener;
+
+type Slab&lt;T&gt; = slab::Slab&lt;T, Token&gt;;
+
+const SERVER_TOKEN: Token = Token(::std::usize::MAX-1);
+
+
+fn main() {
+    let mut args = ::std::env::args();
+    let cmd = args.next().unwrap();
+    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
+    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
+    let server = TcpListener::bind(&amp;addr).expect(&quot;socket binding error&quot;);
+    let poll = Poll::new().expect(&quot;poll create error&quot;);
+    let mut conns = Slab::with_capacity(1024);
+    let mut events = Events::with_capacity(1024);
+    let mut buf: [u8; 1024] = [0; 1024];
+    let stdout = ::std::io::stdout();
+
+    poll.register(&amp;server, SERVER_TOKEN, Ready::readable(), PollOpt::edge())
+        .expect(&quot;poll register error&quot;);
+    // the event loop
+    loop {
+        poll.poll(&amp;mut events, None).expect(&quot;poll error&quot;);
+        for event in events.iter() {
+            let (token, kind) = (event.token(), event.kind());
+
+            if kind.is_error() || kind.is_hup() || !kind.is_readable() {
+                println!(&quot;kind error&quot;);
+                if token == SERVER_TOKEN {
+                    ::std::process::exit(1);
+                }
+                conns.remove(token);
+            } else if token == SERVER_TOKEN {
+                loop {
+                    let sock = match server.accept() {
+                        Ok((sock, addr)) =&gt; {
+                            println!(&quot;Accepted connection: {}&quot;, addr);
+                            sock
+                        }
+                        Err(_) =&gt; break
+                    };
+                    let new_token = conns.insert(sock).expect(&quot;add connection error&quot;);
+                    poll.register(&amp;conns[new_token], new_token, Ready::readable(), PollOpt::edge())
+                        .expect(&quot;poll register error&quot;);
+
+                }
+            } else {
+                let mut need_to_close = false;
+                {
+                    let ref mut client = conns[token];
+                    loop {
+                        match client.read(&amp;mut buf) {
+                            Ok(n) =&gt; {
+                                if n == 0 {
+                                    need_to_close = true;
+                                    break;
+                                } else {
+                                    let mut handle = stdout.lock();
+                                    handle.write(&amp;buf[..n]).expect(&quot;write error&quot;);
+                                    handle.flush().expect(&quot;flush error&quot;);
+                                }
+                            },
+                            Err(e) =&gt; {
+                                if e.kind() != ErrorKind::WouldBlock {
+                                    need_to_close = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if need_to_close {
+                    println!(&quot;Closing connection on token={:?}&quot;, token);
+                    conns.remove(token);
+                }
+
+            }
+        }
+    }
+}
+</code></pre>
+<p>我们从源码上面看，代码结果与 linux epoll 大致一样，
+有一个显著的不同就是 mio 用了 token(usize 类型) 来绑定 tcp 链接，
+这个应该主要是因为在 linux 系统中，每一个 socket 都是一个文件，对应一个文件描述符(usize 类型)，
+而 rust 语言标准库里并没有跨平台的文件描述符类型，
+而且也为了扩展其他事件类型，
+引入 token 机制，统一了事件的索引类型。</p>
+<p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
+当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
+<p>示例代码 repo 可以到<a href="https://github.com/FuGangqiang/mio-example">mio-example</a>下载。</p>
+
+
+      <ul id="article_footer">
+        <li>标签： <a href="/blog/tags/mio.html">mio<sup>1</sup></a><a href="/blog/tags/rust.html">rust<sup>5</sup></a></li>
+        <li>日期： 2017-01-18 20:55:38</li>
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      <li><a href="/blog/tags/docker.html">docker<sup>1</sup></a></li>
+      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      <li><a href="/blog/tags/git.html">git<sup>8</sup></a></li>
+      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      <li><a href="/blog/tags/linux.html">linux<sup>3</sup></a></li>
+      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      <li><a href="/blog/tags/mio.html">mio<sup>1</sup></a></li>
+      <li><a href="/blog/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      <li><a href="/blog/tags/network.html">network<sup>5</sup></a></li>
+      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      <li><a href="/blog/tags/postgresql.html">postgresql<sup>5</sup></a></li>
+      <li><a href="/blog/tags/python.html">python<sup>11</sup></a></li>
+      <li><a href="/blog/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      <li><a href="/blog/tags/redis.html">redis<sup>1</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>5</sup></a></li>
+      <li><a href="/blog/tags/security.html">security<sup>1</sup></a></li>
+      <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
+      <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
+      <li><a href="/blog/tags/web.html">web<sup>11</sup></a></li>
+      <li><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
+      <li><a href="/blog/tags/安全.html">安全<sup>1</sup></a></li>
+      <li><a href="/blog/tags/容器.html">容器<sup>1</sup></a></li>
+      <li><a href="/blog/tags/性能.html">性能<sup>5</sup></a></li>
+      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      <li><a href="/blog/tags/数据库.html">数据库<sup>5</sup></a></li>
+      <li><a href="/blog/tags/消息队列.html">消息队列<sup>2</sup></a></li>
+      <li><a href="/blog/tags/源码.html">源码<sup>1</sup></a></li>
+      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      <li><a href="/blog/tags/自动化.html">自动化<sup>3</sup></a></li>
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/js/highlight.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>
