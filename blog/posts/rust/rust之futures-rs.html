@@ -82,7 +82,7 @@
 使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
 </ul>
 <p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
-<pre><code>id_rpc(&amp;my_server).and_then(|id| {
+<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
     get_row(id)
 }).map(|row| {
     json::encode(row)
@@ -90,7 +90,7 @@
     write_string(my_socket, encoded)
 })
 </code></pre>
-<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，来执行各种回调。</p>
+<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
 <h2>futures-rs future 种类</h2>
 <p>从上面看 future 只是代表一个单值，只代表一个事件，
 但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
@@ -107,7 +107,7 @@
 </ul>
 <h2>trait 定义</h2>
 <p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
-<pre><code>trait Future {
+<pre><code class="language-rust">trait Future {
     // The type of value that the future yields on successful completion.
     type Item;
 
@@ -124,7 +124,7 @@
 <p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
 其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
 <p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
-<pre><code>trait Stream {
+<pre><code class="language-rust">trait Stream {
     // The type of item yielded each time the stream's event occurs
     type Item;
 
@@ -155,7 +155,7 @@ trait Sink {
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/rust.html">rust<sup>6</sup></a><a href="/blog/tags/tokio.html">tokio<sup>2</sup></a></li>
+        <li>标签： <a href="/blog/tags/rust.html">rust<sup>7</sup></a><a href="/blog/tags/tokio.html">tokio<sup>3</sup></a></li>
         <li>日期： 2017-01-19 21:58:59</li>
       </ul>
     </article>
@@ -187,11 +187,11 @@ trait Sink {
       <li><a href="/blog/tags/python.html">python<sup>11</sup></a></li>
       <li><a href="/blog/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
       <li><a href="/blog/tags/redis.html">redis<sup>1</sup></a></li>
-      <li><a href="/blog/tags/rust.html">rust<sup>6</sup></a></li>
+      <li><a href="/blog/tags/rust.html">rust<sup>7</sup></a></li>
       <li><a href="/blog/tags/security.html">security<sup>1</sup></a></li>
       <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
       <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
-      <li><a href="/blog/tags/tokio.html">tokio<sup>2</sup></a></li>
+      <li><a href="/blog/tags/tokio.html">tokio<sup>3</sup></a></li>
       <li><a href="/blog/tags/web.html">web<sup>11</sup></a></li>
       <li><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
       <li><a href="/blog/tags/安全.html">安全<sup>1</sup></a></li>
