@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>rust之tokio-core</title>
+  <title>python异步io web框架之aiohttp</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,76 +32,115 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>rust之tokio-core</h1>
+    <h1>python异步io web框架之aiohttp</h1>
     <article>
-      <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
-</ul>
-<p>本篇主要讲解 <a href="https://github.com/tokio-rs/tokio-core">tokio-core</a>。</p>
-<p>直接通过 mio 我们也是可以写出异步 IO 程序的，但是 mio 提供的接口太过于底层，
-以至于直接用 mio 时需要保存 token 和链接的关系，并且还要在链接就绪后去执行特定的程序，
-这些都太过于繁杂，但是这个过程存在一个事件分派模式，
-我们可以把这个模式抽象出来，所以 tokio-core 应运而生。</p>
-<p>tokio-core 基于 mio 和 futures-rs，
-通过 mio 来管理 IO 事件，通过 futures-rs 来表达对各种 IO 事件的处理，
-这样 tokio-core 提供了更方便的接口供用户使用。</p>
-<p>我们可以通过以下代码示例来说明 tokio-core 的用法：</p>
-<pre><code class="language-rust">extern crate futures;
-extern crate tokio_core;
-
-use std::net::SocketAddr;
-
-use futures::Future;
-use futures::stream::Stream;
-use tokio_core::io::{copy, Io};
-use tokio_core::net::TcpListener;
-use tokio_core::reactor::Core;
-
-
-fn main() {
-    let mut args = ::std::env::args();
-    let cmd = args.next().unwrap();
-    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
-    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
-
-    let mut core = Core::new().unwrap();  // the Event Loop
-    let handle = core.handle();
-
-    let socket = TcpListener::bind(&amp;addr, &amp;handle).unwrap();
-    let done = socket.incoming().for_each(|(socket, addr)| {
-        let pair = futures::lazy(|| Ok(socket.split()));
-        let amt = pair.and_then(|(reader, _)| copy(reader, ::std::io::stdout()));
-        println!(&quot;Accepted connection: {}&quot;, addr);
-        handle.spawn(amt.then(move |_| {
-            println!(&quot;Closing connection on {}&quot;, addr);
-            Ok(())
-        }));
-        Ok(())
-    });
-
-    // Start Event Loop
-    core.run(done).unwrap();
-}
+      <p>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了，
+无疑利用 asyncio 写 web 应用将会极为方便。
+虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)，
+但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)，
+所以决定尝试一下 <a href="https://github.com/KeepSafe/aiohttp/">aiohttp</a> 的 web 框架。</p>
+<h2>安装</h2>
+<pre><code>pip install aiohttp
 </code></pre>
-<p>上面代码实现的功能与 epoll/mio 篇中实现的功能完全一样，通过对比，
-我们可以看出 tokio-core 写出的代码更具有可读性，
-它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
-又通过各种自定义的 futures 来定义事件处理程序。</p>
-<p>上面程序需要注意的一点是：
-<code>tokio_core::net</code> 中提供的所有 udp/tcp 相关的方法都已通过 futures-rs 进行了包装，
-这样就可以通过 futures 之间的组合方法来编写各种各样链接的处理方法了。</p>
-<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-core">tokio-core-example</a> 下载。</p>
+<h2>hello world</h2>
+<p>虽然 aiohttp 经常用于客户端编程，但是它也可以用于服务端 web 开发，
+而且写法也极为优美，下面是一个 hello world 示例：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def hello(request):
+    name = request.match_info.get('name', 'Anonymous')
+    text = f'Hello, {name}'
+    return web.Response(text=text)
+
+
+app = web.Application()
+app.router.add_get('/', hello)
+app.router.add_get('/{name}', hello)
+
+web.run_app(app)
+</code></pre>
+<h2>websocket</h2>
+<p>aiohttp 也原生支持 websocket：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def ws_hello(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for msg in ws:
+        if msg.type == web.MsgType.text:
+            ws.send_str(f'Hello, {msg.data}')
+        elif msg.type == web.MsgType.binary:
+            ws.send_bytes(msg.data)
+        elif msg.type == web.MsgType.close:
+            break
+
+    return ws
+
+
+app = web.Application()
+app.router.add_get('/echo', ws_hello)
+
+web.run_app(app)
+</code></pre>
+<h2>目录结构</h2>
+<p>虽然写一个简单的 web 服务一个文件就可以了，
+但是当 web 服务比较复杂时，清晰的目录结构可以更有效的组织代码，
+自己写一个服务时利用了以下代码结构：</p>
+<pre><code>backend
+├── app/
+│   ├── model/
+│   ├── sql/
+│   ├── api/
+│   ├── config.py
+│   ├── db.py
+│   ├── middlewares.py
+│   ├── permissions.py
+│   ├── urls.py
+│   └── utils.py
+├── requirements/
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── tests/
+├── init／
+├── deploy/
+├── run.py
+└── README.md
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>app</code> 目录存放所有服务相关的代码</li>
+<li><code>app/model</code> 目录存放服务相关的 model 定义</li>
+<li><code>app/sql</code> 目录存放数据库表格定义/修改的 sql 脚本</li>
+<li><code>app/config.py</code> 存放所有相关配置信息</li>
+<li><code>app/db.py</code> 存放与数据库操作与初始化相关的代码</li>
+<li><code>app/middlewares.py</code> 存放 web 服务的中间件</li>
+<li><code>app/permissions.py</code> 存放与权限检测相关的代码</li>
+<li><code>app/urls.py</code> 存放 web 服务的路由定义</li>
+<li><code>app/utils.py</code> 存放一些辅助工具函数</li>
+<li><code>requirements</code> 目录存放 pip 安装 requirements 文件</li>
+<li><code>init</code> 目录提供一些与数据库初始化和测试样例数据初始化的代码</li>
+<li><code>deploy</code> 目录存放与服务部署相关的代码</li>
+<li><code>run.py</code> 是服务的入口脚本，与 <code>flask-cli</code> 类似</li>
+</ul>
+<h2>相关包</h2>
+<p>asyncio 周边已经存在大量辅助包了，这里列一些比较常用的包：</p>
+<ul>
+<li>uvloop</li>
+<li>aiofiles</li>
+<li>asyncpg</li>
+<li>aioredis</li>
+<li>aiokafka</li>
+<li>aioes</li>
+</ul>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/rust.html">rust<sup>8</sup></a><a href="/blog/tags/tokio.html">tokio<sup>4</sup></a></li>
-        <li>日期： 2017-01-20 16:07:40</li>
+        <li>标签： <a href="/blog/tags/aiohttp.html">aiohttp<sup>1</sup></a><a href="/blog/tags/python.html">python<sup>12</sup></a></li>
+        <li>日期： 2017-02-10 16:09:15</li>
       </ul>
     </article>
 
