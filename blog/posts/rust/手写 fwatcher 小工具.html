@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>git之gitignore</title>
+  <title>手写 fwatcher 小工具</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,33 +32,86 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>git之gitignore</h1>
+    <h1>手写 fwatcher 小工具</h1>
     <article>
-      <ul>
-<li>blank lines or lines starting with <code>#</code> are ignored</li>
-<li>stardard glob patterns work
-<ul>
-<li><code>*</code> matches zero or more characters</li>
-<li><code>[abc]</code> matches any character inside the brackets</li>
-<li><code>[0-9]</code> matches any character between them</li>
-<li><code>a/**/z</code> matches <code>a/z</code>, <code>a/b/z</code>, <code>a/b/c/z</code>, and so on</li>
-</ul>
-</li>
-<li>negate a pattern by starting it with an <code>!</code></li>
-</ul>
-<p>示例：</p>
-<pre><code>*.a     # 所有已 .a 结尾的文件
-!lib.a  # 将跟踪 lib.a，即使 *.a
-/TODO   # 仅忽略顶层TODO，而不是 subdir/TODO
-build/  # 忽略build/文件夹下所有文件
-doc/*.txt     # 忽略 doc/notes.txt，但不忽略doc/server/arch.txt
-doc/**/*.txt  # 忽略所有doc/文件夹下的所有 .txt 文件，包括doc/*.txt
+      <p>在 web 开发过程中，我们经常需要在某个或某些文件被修改后运行一些命令。</p>
+<p>例如：在 django web 开发时，当运行 <code>manage.py runserver</code> 后，
+如果我们修改了 django 工程相关的代码，<code>manage.py</code> 程序会在后台自动重启服务，
+使代码即时生效，以便于检验代码正确性。</p>
+<p>然而在 python 众多 web 框架中，许多都没有 django 这种类似功能，在其他语言也同样如此。
+而且这种当某些文件修改后及时运行某些指令的情况很常见，
+因此，自己决定写一个类似的监控文件的小程序 <code>fwatcher</code>，以便以后的自动化开发。</p>
+<p>fwatcher 用 rust 语言编写，
+不仅可以直接用于命令行，
+也可以通过 crate lib 来集成到 rust 程序中，以便于其他 rust 应用调用。</p>
+<p>代码库 repo: <a href="https://github.com/FuGangqiang/fwatcher.rs">https://github.com/FuGangqiang/fwatcher.rs</a></p>
+<h2>fwatcher 命令行</h2>
+<h4>安装</h4>
+<p>需要 rust 的 cargo 包管理器：</p>
+<pre><code class="language-sh">cargo install fwatcher
+</code></pre>
+<p>这样 <code>fwatcher</code> 就被安装在你的 <code>~/.cargo/bin</code> 目录中了。</p>
+<h4>用法</h4>
+<pre><code class="language-sh">$ fwatcher -h
+Usage:
+    fwatcher [options] CMD
+
+Options:
+    -h, --help          Display this message
+    -v, --version       Print version info
+    -r, --restart       Auto restart command
+    -d, --directory &lt;dir&gt;
+                        Watch directory, default to current directory
+    -p, --pattern &lt;pattern&gt;
+                        Watch file glob pattern, default to &quot;*&quot;
+    -i, --interval &lt;pattern&gt;
+                        Interval in seconds to scan filesystem, default to 1
+</code></pre>
+<p>如果你想在当前文件夹下递归搜索 python 文件，当其中一个被修改了，就立即运行 <code>pytest</code> 程序：</p>
+<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; &quot;pytest&quot;
+</code></pre>
+<p>当然，你也可以指定只监控哪些文件夹：</p>
+<pre><code class="language-sh">fwatcher -d src -d test -p &quot;**/*.py&quot; &quot;pytest&quot;
+</code></pre>
+<p>上面命令每检测到一个 python 文件被修改，就会运行 <code>pytest</code> 程序一次，即使上一次修改导致的 <code>pytest</code> 还再运行。</p>
+<p>当运行的程序比较耗时，又或者是一个服务并不会停止时，你如果需要重启上一次开启的程序，
+这时需要加 <code>--restart</code> 参数：</p>
+<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; --restart &quot;run_forever_cmd&quot;
+</code></pre>
+<h2>Rust Lib</h2>
+<p>Cargo.toml 依赖：</p>
+<pre><code class="language-toml">[dependencies]
+glob = &quot;0.2&quot;
+notify = &quot;4.0&quot;
+fwatcher = &quot;*&quot;
+</code></pre>
+<p>下面是一个示例：</p>
+<pre><code class="language-rust">extern crate glob;
+extern crate fwatcher;
+
+use fwatcher::Fwatcher;
+use glob::Pattern;
+use std::path::PathBuf;
+use std::time::Duration;
+
+
+fn main() {
+    let dirs =vec![PathBuf::from(&quot;src&quot;)];
+    let patterns = vec![Pattern::new(&quot;**/*.py&quot;).unwrap()];
+    let interval =  Duration::new(1, 0);
+    let restart = false;
+    let cmd = vec![&quot;pytest&quot;.to_string()];
+
+    // 上面是调用 Fwatcher 所需的参数，参数与命令行相应参数一一对应
+    let mut fwatcher = Fwatcher::new(dirs, patterns, interval, restart, cmd);
+    fwatcher.run();
+}
 </code></pre>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/git.html">git<sup>8</sup></a></li>
-        <li>日期： 2015-12-30 12:54:03</li>
+        <li>标签： <a href="/blog/tags/rust.html">rust<sup>9</sup></a><a href="/blog/tags/自动化.html">自动化<sup>4</sup></a></li>
+        <li>日期： 2017-02-20 19:15:41</li>
       </ul>
     </article>
 
