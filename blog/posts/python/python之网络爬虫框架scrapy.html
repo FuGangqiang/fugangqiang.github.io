@@ -7,7 +7,7 @@
   
 <link rel="stylesheet" href="/static/css/highlight.css">
 
-  <title>javascript之this</title>
+  <title>python之网络爬虫框架scrapy</title>
 </head>
 <body>
 <header class="clearfix">
@@ -32,68 +32,107 @@
 <div id="container" class="clearfix">
   <main>
     
-    <h1>javascript之this</h1>
+    <h1>python之网络爬虫框架scrapy</h1>
     <article>
-      <p><code>this</code> 在 javascript 的面向对象编程模式中非常重要，
-但当用不同的调用形式来函数时，它有不同的意义，这些不同的调用形式包括：</p>
+      <p>最近自己写了一个爬虫程序，用 scrapy 来爬取网上的几十万首诗词，
+非常方便，本文总结一下。</p>
+<h2>什么是网络爬虫？</h2>
+<p>现在已经步入互联网时代，我们接触的大多数信息都可以通过互联网来获取，
+最基本的就是通过浏览器，键入网页地址，浏览网站，获取网站信息。</p>
+<p>用户可以自行手工上网筛选信息的，当然这样效率是异常的低，
+而网络爬虫通过程序自动化来自动访问网页链接，
+自动分析网页内容，自动筛选出需要的信息，并将产生的信息数据加以保存起来，
+进而大大提高了获取信息的效率。</p>
+<p>爬虫程序之所以可以做到自动化，
+皆因互联网一切网页都是符合相关标准协议的，
+只需按照标准协议来解析网页数据，我们就可以结构化网页数据，并提取相关信息。</p>
+<p>由于爬虫程序的结构、功能大多类似，
+通过爬虫框架无疑会将我们从爬虫实现的细节中解脱出来，
+我们只需关注怎么筛选出需要的数据就可以了，
+本文讲解爬虫框架中最常见的 scrapy。</p>
+<h2>scrapy 框架</h2>
+<h3>安装 scrapy：</h3>
+<pre><code>pip install scrapy
+</code></pre>
+<h3>创建爬虫工程</h3>
+<p>scrapy 框架与 python django web 框架理念相似，
+提供了相似的命令行界面：</p>
+<pre><code>scrapy startproject tutorial
+</code></pre>
+<p>这样 scrapy 就创建了 <code>tutorial</code> 爬虫工程文件目录，
+里面初始化了爬虫所需的基本文件，
+从中可以看出 scrapy 爬虫程序的结构：</p>
+<pre><code>$ tree tutorial
+tutorial
+├── scrapy.cfg
+└── tutorial
+    ├── __init__.py
+    ├── items.py
+    ├── middlewares.py
+    ├── pipelines.py
+    ├── __pycache__
+    ├── settings.py
+    └── spiders
+        ├── __init__.py
+        └── __pycache__
+
+4 directories, 7 files
+</code></pre>
+<p>而我们写的相关爬虫程序只需在 <code>spiders</code> 目录里添加相关代码就可以了，
+其他文件都是 scrapy 为了更好的扩展而准备的，此时可以不必理这些文件。</p>
+<h3>自定义爬虫程序</h3>
+<p>创建 <code>tutorial/tuorial/spiders/quotes.py</code> 文件：</p>
+<pre><code>import scrapy
+
+
+class QuotesSpider(scrapy.Spider):
+    name = &quot;quotes&quot;
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').extract_first(),
+                'author': quote.css('small.author::text').extract_first(),
+                'tags': quote.css('div.tags a.tag::text').extract(),
+            }
+</code></pre>
+<p>从上面代码可以看出，我们只需指定：</p>
 <ul>
-<li>method invocation</li>
-<li>function invocation</li>
-<li>constructor invocation</li>
-<li>applay invocation</li>
+<li><code>name</code>: 爬虫对应的 name，用于唯一标记爬虫程序</li>
+<li><code>start_urls</code>: 爬虫开始的第一个 url 地址</li>
+<li><code>parse</code>: 抓取页面中需要的信息</li>
 </ul>
-<h2>method invocation</h2>
-<p>当函数被存为一个对象的属性时，它就是 method，但 method 被调用时，this 就被绑定到此对象。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 0,
-    increment: function(inc) {
-        this.value += typeof inc === 'number' ? inc : 1;
-    }
-};
-
-myCounter.increment();   // myCounter === 1
-myCounter.increment(2);  // myCounter === 3
+<p>其他与爬虫相关的所有细节，scrapy 已经提供好了，我们只需写这些就可以正是获取信息了。</p>
+<h3>运行爬虫程序</h3>
+<p>命令须在爬虫工程目录运行：</p>
+<pre><code>scrapy crawl quotes -o quotes.json
 </code></pre>
-<h2>function invocation</h2>
-<p>但函数不是一个对象的属性时，this 就被绑定到 global object。</p>
-<pre><code class="language-javascript">a = 0;
-f = function () {
-    this.a += 1;
-}
-
-f();   // a === 1
-a = 4;
-f();   // a === 5
+<p>这样，所有结果就保存在 <code>quotes.json</code> 文件里了。</p>
+<h3>调试爬虫</h3>
+<p>为了更好的实时调试，查看代码作用，scrapy 提供了 <code>shell</code> 子命令：</p>
+<pre><code>scrapy shell 'http://quotes.toscrape.com/page/1/'
 </code></pre>
-<p>当函数被定义到 method 中时，this 仍然被绑定到 global object，
-而不是外层 method 中 this 的含义（外层 method 中 this 被绑定到 method 的 object）。
-这个地方非常容易出错。</p>
-<h2>Constructor invocation</h2>
-<p>但函数使用 new 前缀被调用时，它就是一个 constructor，调用后会返回一个对象以此函数的 prototype 作为它的 prototype。
-在此种函数中的 this 就被绑定为调用后返回的对象（此对象在函数调用时生成，并用此函数通过 this 初始化）。</p>
-<pre><code class="language-javascript"> Counter = function () {
-     this.value = 2;
- }
-
- myCounter = new Counter();  // myCounter.value === 2
-</code></pre>
-<h2>applay invocation</h2>
-<p>applay 方法可以使一个数组中元素作为参数来调用函数，apply 有两个参数，第一个参数会被绑定到函数中的 this，第二个参数就是一个包含所有函数参数的数组。</p>
-<pre><code class="language-javascript">var myCounter = {
-    value: 2
-}
-
-inc = function () {
-    this.value += 1;
-}
-
-inc.apply(myCounter)   // myCounter.value === 3
-</code></pre>
+<p>这样就进入了一个命令交互界面，可以运行相关 python 代码实时验证代码。</p>
+<h3>其他</h3>
+<p>上面只是一个简单的介绍，scrapy 提供了更多的抽象：</p>
+<ul>
+<li>Item</li>
+<li>ItemLoader</li>
+<li>ItemPipeline</li>
+<li>Middleware</li>
+<li>Setting</li>
+<li>Logging</li>
+<li>...</li>
+</ul>
+<p>具体请看 <a href="https://doc.scrapy.org/en/latest/">scrapy 文档</a></p>
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
-        <li>日期： 2014-11-06 23:15:00</li>
+        <li>标签： <a href="/blog/tags/python.html">python<sup>13</sup></a><a href="/blog/tags/web.html">web<sup>12</sup></a><a href="/blog/tags/爬虫.html">爬虫<sup>1</sup></a></li>
+        <li>日期： 2017-02-25 18:19:40</li>
       </ul>
     </article>
 
