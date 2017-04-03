@@ -145,7 +145,7 @@ chown user:user /home/user
 须修改 <code>/etc/mkinitcpio.conf</code> 文件，
 HOOKS 行须添加 <code>usr fsck shutdown</code> 内容。</p>
 <p>运行：</p>
-<pre><code>mkinitcpio -p linux 
+<pre><code>mkinitcpio -p linux
 </code></pre>
 <h2>安装引导装载程序</h2>
 <pre><code>bootctl install
@@ -182,16 +182,6 @@ reboot
 <h2>安装字体</h2>
 <pre><code>pacman -S ttf-dejavu wqy-zenhei wqy-microhei
 </code></pre>
-<h2>安装 slim</h2>
-<pre><code>pacman -S slim
-systemctl enable slim
-</code></pre>
-<h2>安装 awesome wm</h2>
-<pre><code>pacman -S awesome
-</code></pre>
-<p>编辑 <code>~/.xinitrc</code>：</p>
-<pre><code>exec awesome
-</code></pre>
 <h2>安装 fcitx 输入法</h2>
 <pre><code>pacman -S fcitx fcitx-qt4 fcitx-qt5 fcitx-gtk2 fcitx-gtk3
 </code></pre>
@@ -204,12 +194,12 @@ export XMODIFIERS=@im=fcitx
 <pre><code>pacman -S chromium
 </code></pre>
 <h2>安装 pacaur</h2>
-<p>配置 gnupg：</p>
-<pre><code>TODO
-</code></pre>
 <p>从 archlinux aur 网站下载 pacaur PKGBUILD，运行：</p>
 <pre><code>makepkg
 pacman -U 生成的文件，以.xz结尾
+</code></pre>
+<p><code>makepkg</code> 时会报 gpg 验证出错，需要运行：</p>
+<pre><code>gpg --recv-keys xxxxxxxxID
 </code></pre>
 
 

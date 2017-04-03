@@ -47,7 +47,7 @@
 <h2>客户端缓存</h2>
 <p>客户端（浏览器）缓存机制，其实主要就是 HTTP 协议定义的缓存机制，
 通过以下 HTTP 协议头字段来控制 html 页面缓存：</p>
-<table><thead><tr><td> 规则 </td><td> 消息头 </td><td> 值 </td><td> 类型 </td><td> 作用</td></tr></thead>
+<table><thead><tr><th> 规则 </th><th> 消息头 </th><th> 值 </th><th> 类型 </th><th> 作用</th></tr></thead><tbody>
 <tr><td> 新鲜度 </td><td> Expires </td><td> Sun, 16 Oct 2016 05:43:02 GMT </td><td> 响应 </td><td> 告诉浏览器在过期时间前可以使用副本（有可能存在时间不一致问题）</td></tr>
 <tr><td>       </td><td> Pragma </td><td> no-cache </td><td> 响应 </td><td> 告诉浏览器忽略资源的缓存副本</td></tr>
 <tr><td>       </td><td> Cache-Control </td><td> no-cache </td><td> 响应 </td><td> 告诉浏览器忽略资源的缓存副本，强制每次请求直接发送给源服务器</td></tr>
@@ -60,20 +60,20 @@
 <tr><td> 校验值 </td><td> ETag </td><td> 50b1c1d4f775c61:df3 </td><td> 请求 </td><td> 告知浏览器当前资源在服务器的唯一标识符（生成规则由服务器决定）</td></tr>
 <tr><td>       </td><td> If-None-Match </td><td> 50b1c1d4f775c61:df3 </td><td> 请求 </td><td> 如果浏览器第一次请求时响应中 ETag 非空，第二次请求同一资源时，会把它作为该项发给服务器</td></tr>
 <tr><td> 辅助 </td><td> Vary </td><td> Accept-Encoding </td><td> 响应 </td><td> 辅助从多个缓存副本中筛选合适的版本（不同压缩算法产生的副本）</td></tr>
-</table>
+</tbody></table>
 <p>其中 <code>Cache-Control</code> 的缓存控制方式比较多，如下图：</p>
 <p><img src="/media/web/http_cache_control.png" alt="http CacheControl" /></p>
 <p>客户端和服务端对这些 HTTP 协议头字段的处理如下图：</p>
 <p><img src="/media/web/browser_http_cache_headers.png" alt="browser http cache headers" /></p>
 <p>用户在使用浏览器时各种操作对缓存的影响如下：</p>
-<table><thead><tr><td>用户操作      </td><td> Expires/Cache-Control </td><td> Last-Modified/Etag</td></tr></thead>
+<table><thead><tr><th>用户操作      </th><th> Expires/Cache-Control </th><th> Last-Modified/Etag</th></tr></thead><tbody>
 <tr><td>地址栏回车    </td><td>          有效          </td><td>       有效</td></tr>
 <tr><td>页面链接跳转   </td><td>          有效          </td><td>       有效</td></tr>
 <tr><td>新开窗口      </td><td>          有效          </td><td>       有效</td></tr>
 <tr><td>前进、后退    </td><td>          有效          </td><td>       有效</td></tr>
 <tr><td>F5 刷新      </td><td>          无效          </td><td>       有效</td></tr>
 <tr><td>Ctrl+F5 刷新 </td><td>          无效          </td><td>       无效</td></tr>
-</table>
+</tbody></table>
 <h2>代理服务器缓存</h2>
 <p>Web 代理服务器使用与客户端同样的缓存原理，只是规模更大。
 代理服务器群为成百上千用户服务使用同样的机制，
