@@ -2,17 +2,16 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <link rel="icon" href="/static/img/favicon.png">
-  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
   
-<link rel="stylesheet" href="/static/css/highlight.css">
 
   <title>postgresql之物理存储结构</title>
 </head>
 <body>
 <header class="clearfix">
   <section id="imglogo">
-    <a href="/index.html" title="Fu"><img src="/static/img/logo.png"></a>
+    <a href="/index.html" title="Fu"><img src="/static/logo.png"></a>
   </section>
 
   <section id="textlogo">
@@ -178,8 +177,12 @@ TOAST(The Oversized-Attribute Storage Technique)机制就是专门处理这种�
 
 
       <ul id="article_footer">
-        <li>标签： <a href="/blog/tags/postgresql.html">postgresql<sup>8</sup></a><a href="/blog/tags/数据库.html">数据库<sup>8</sup></a></li>
-        <li>日期： 2017-02-13 16:20:21</li>
+        
+           <li>标签： <a href="/blog/tags/postgresql.html">postgresql<sup>8</sup></a><a href="/blog/tags/数据库.html">数据库<sup>8</sup></a></li>
+        
+        
+           <li>日期： 2017-02-13 16:20:21</li>
+        
       </ul>
     </article>
 
@@ -189,52 +192,92 @@ TOAST(The Oversized-Attribute Storage Technique)机制就是专门处理这种�
     <section class="tags clearfix">
       <h1>标签</h1>
       <ul>
-      <li><a href="/blog/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
-      <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
-      <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
-      <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
-      <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
-      <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
-      <li><a href="/blog/tags/docker.html">docker<sup>1</sup></a></li>
-      <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
-      <li><a href="/blog/tags/git.html">git<sup>8</sup></a></li>
-      <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
-      <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
-      <li><a href="/blog/tags/linux.html">linux<sup>3</sup></a></li>
-      <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
-      <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
-      <li><a href="/blog/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
-      <li><a href="/blog/tags/network.html">network<sup>9</sup></a></li>
-      <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
-      <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
-      <li><a href="/blog/tags/postgresql.html">postgresql<sup>8</sup></a></li>
-      <li><a href="/blog/tags/python.html">python<sup>13</sup></a></li>
-      <li><a href="/blog/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
-      <li><a href="/blog/tags/redis.html">redis<sup>1</sup></a></li>
-      <li><a href="/blog/tags/rust.html">rust<sup>9</sup></a></li>
-      <li><a href="/blog/tags/security.html">security<sup>1</sup></a></li>
-      <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
-      <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
-      <li><a href="/blog/tags/tokio.html">tokio<sup>4</sup></a></li>
-      <li><a href="/blog/tags/web.html">web<sup>12</sup></a></li>
-      <li><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
-      <li><a href="/blog/tags/安全.html">安全<sup>1</sup></a></li>
-      <li><a href="/blog/tags/容器.html">容器<sup>1</sup></a></li>
-      <li><a href="/blog/tags/性能.html">性能<sup>5</sup></a></li>
-      <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
-      <li><a href="/blog/tags/数据库.html">数据库<sup>8</sup></a></li>
-      <li><a href="/blog/tags/消息队列.html">消息队列<sup>2</sup></a></li>
-      <li><a href="/blog/tags/源码.html">源码<sup>1</sup></a></li>
-      <li><a href="/blog/tags/爬虫.html">爬虫<sup>1</sup></a></li>
-      <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
-      <li><a href="/blog/tags/自动化.html">自动化<sup>4</sup></a></li>
+      
+        <li><a href="/blog/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/blog/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/blog/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/blog/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/blog/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/blog/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/blog/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/blog/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/blog/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/blog/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/blog/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/blog/tags/博客.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/blog/tags/安全.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/容器.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/性能.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/blog/tags/数学.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/blog/tags/数据库.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/blog/tags/消息队列.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/blog/tags/源码.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/爬虫.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/算法.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/blog/tags/自动化.html">自动化<sup>4</sup></a></li>
+      
       </ul>
     </section>
 
     <section class="links clearfix">
       <h1>链接</h1>
       <ul>
-	<li><a href="http://github.com/FuGangqiang" target="_blank">Github</a></li>
+        <li><a href="/index.html" target="_blank">Blog</a></li>
       </ul>
     </section>
   </aside>
@@ -242,12 +285,10 @@ TOAST(The Oversized-Attribute Storage Technique)机制就是专门处理这种�
 
 <footer>
   <p>
-    博学之　审问之　慎思之　明辨之　笃行之
+    Keep It Simple, Stupid!
   </p>
 </footer>
 
-<script src="/static/js/highlight.js"></script>
-<script>hljs.initHighlightingOnLoad();</script>
 <script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
 <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
