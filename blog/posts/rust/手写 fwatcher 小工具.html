@@ -96,14 +96,14 @@ use std::time::Duration;
 
 fn main() {
     let dirs =vec![PathBuf::from(&quot;src&quot;)];
-    let patterns = vec![Pattern::new(&quot;**/*.py&quot;).unwrap()];
-    let interval =  Duration::new(1, 0);
-    let restart = false;
     let cmd = vec![&quot;pytest&quot;.to_string()];
 
-    // 上面是调用 Fwatcher 所需的参数，参数与命令行相应参数一一对应
-    let mut fwatcher = Fwatcher::new(dirs, patterns, interval, restart, cmd);
-    fwatcher.run();
+    let mut fwatcher = Fwatcher::new(dirs, cmd);
+    fwatcher.pattern(Pattern::new(&quot;**/*.py&quot;).unwrap())
+            .exclude_pattern(Pattern::new(&quot;**/.git/**&quot;).unwrap())
+            .interval(Duration::new(1, 0))
+            .restart(false)
+            .run();
 }
 </code></pre>
 
@@ -209,7 +209,7 @@ fn main() {
     <section class="links clearfix">
       <h1>链接</h1>
       <ul>
-        <li><a href="/index.html" target="_blank">Blog</a></li>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
       </ul>
     </section>
   </aside>
@@ -217,7 +217,7 @@ fn main() {
 
 <footer>
   <p>
-    Keep It Simple, Stupid!
+    博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
 
