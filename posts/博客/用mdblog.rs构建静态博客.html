@@ -1,0 +1,265 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>用mdblog.rs构建静态博客</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>用mdblog.rs构建静态博客</h1>
+    <article>
+      <p>最近在学习 <a href="https://www.rust-lang.org/en-US/">rust</a> 语言，
+想拿一个项目练一下手，想到了重构自己的静态博客平台，
+就着手写了 <a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 项目，目前已经用它来重构了我的 GitHub 的静态博客。</p>
+<p>现在先说一下 mdblog.rs 支持的一些功能：</p>
+<ul>
+<li>博客文章用 <a href="http://commonmark.org/">markdown</a> 格式编写</li>
+<li>支持 <a href="https://en.wikipedia.org/wiki/TeX">TeX</a> 数学公式</li>
+<li>代码高亮显示</li>
+<li>博客标签分类</li>
+<li>隐藏特定博客</li>
+</ul>
+<p>还有一些其他特性：</p>
+<ul>
+<li>博客标题就是文件名</li>
+<li>博客 url 按照目录结构组建，而不是按照时间</li>
+</ul>
+<p>那么来看一下怎么用 mdblog.rs 来构建博客吧！</p>
+<h2>安装 rustc &amp; cargo</h2>
+<p>因为 mdblog.rs 是由 rust 语言编写的，所以系统中需要安装 rustc 和 cargo，
+推荐利用 <a href="https://rustup.rs/">rustup.rs</a> 来安装它们，目前只能用 nightly 版本编译 mdblog.rs：</p>
+<pre><code>rustup default nightly
+</code></pre>
+<h2>安装 mdblog.rs</h2>
+<pre><code>cargo install mdblog
+</code></pre>
+<h2>初始化博客文件夹</h2>
+<pre><code>mdblog init myblog
+</code></pre>
+<p>此时博客目录树如下：</p>
+<pre><code>myblog
+├── config.toml
+├── media
+├── posts
+│   └── hello.md
+└── _themes
+    └── simple
+        ├── static
+        │   ├── css
+        │   │   ├── highlight.css
+        │   │   └── main.css
+        │   ├── img
+        │   │   ├── favicon.png
+        │   │   └── logo.png
+        │   └── js
+        │       ├── highlight.js
+        │       └── main.js
+        └── templates
+            ├── base.tpl
+            ├── index.tpl
+            ├── post.tpl
+            └── tag.tpl
+
+9 directories, 12 files
+</code></pre>
+<h2>编写博客文章</h2>
+<p>博客文章是在 <code>myblog/posts</code> 目录里面，也可以在此分类建立文件夹归档博客文章，
+每一篇博客文章均由两部分组成：</p>
+<ul>
+<li><code>header</code>
+<ul>
+<li><code>date</code>: 发布日期，必填项，格式如 <code>date: 1970-01-01 00:00:00</code></li>
+<li><code>tags</code>: 标签，必填项，格式如 <code>tags: hello, world</code></li>
+<li><code>hidden</code>: 是否隐藏，可选项，默认为 <code>false</code>，格式如 <code>hidden: true</code></li>
+</ul>
+</li>
+<li><code>body</code>： 博客 markdown 正文</li>
+</ul>
+<p><code>header</code> 和 <code>body</code> 由第一个空行分割，一片完整的博客文章内容如下(<code>posts/hello.md</code>)：</p>
+<pre><code>date: 1970-01-01 00:00:00
+tags: hello, world
+
+# hello
+
+hello world!
+</code></pre>
+<h2>构建博客</h2>
+<p>进入博客目录：</p>
+<pre><code>cd myblog
+</code></pre>
+<p>开始构建：</p>
+<pre><code>mdblog build
+</code></pre>
+<h2>测试浏览博客</h2>
+<p>进入 <code>myblog/_builds</code> html 静态页面文件夹：</p>
+<pre><code>cd _builds
+</code></pre>
+<p>搭建服务：</p>
+<pre><code>python3 -m http.server --bind localhost 8000
+</code></pre>
+<p>这样就可以在 <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> 浏览博客页面了。</p>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/rust.html">rust<sup>9</sup></a><a href="/tags/博客.html">博客<sup>3</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

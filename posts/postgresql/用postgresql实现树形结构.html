@@ -1,0 +1,324 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>用postgresql实现树形结构</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>用postgresql实现树形结构</h1>
+    <article>
+      <p>关系型数据库对树形结构没有一个很好的解决方案，本文针对 postgresql 数据库，列出以下解决方案:</p>
+<ul>
+<li>jsonb 类型</li>
+<li>xml 类型</li>
+<li>邻接表(Adjacency List)</li>
+<li>路径枚举(The Path to a Node)</li>
+<li>先根遍历树(Modified Preorder Tree Traversal)</li>
+</ul>
+<p>本文所有代码均以下图为例：</p>
+<p><img src="/media/postgresql/foods_tree.gif" alt="foods tree" /></p>
+<h2>jsonb</h2>
+<p>postgresql 自从 9.4 版本加入 jsonb 类型，用其表示树形结构很方便：</p>
+<pre><code class="language-sql">create table foods (
+    food jsonb
+);
+
+insert into foods values (
+    '{
+         &quot;Fruit&quot;: {
+             &quot;Red&quot;: [
+                 {
+                     &quot;name&quot;: &quot;Cherry&quot;
+                 }
+             ],
+             &quot;Yellow&quot;: [
+                 {
+                     &quot;name&quot;: &quot;Banana&quot;
+                 }
+             ]
+         },
+         &quot;Meat&quot;: [
+             {
+                 &quot;name&quot;: &quot;Beef&quot;
+             },
+             {
+                 &quot;name&quot;: &quot;Pork&quot;
+             }
+         ]
+     }'
+);
+</code></pre>
+<p>postgresql 提供了大量的对 jsonb 类型进行查询、修改操作。</p>
+<h2>xml</h2>
+<p>xml 本身就是一个树形结构，postgresql 内部已经实现了 xml 类型，用它来表示树形结构也是可以的：</p>
+<pre><code class="language-sql">create table foods (
+    food xml
+);
+
+insert into foods values (
+    '&lt;Food&gt;
+        &lt;Fruit&gt;
+            &lt;Red&gt;
+                &lt;name&gt;Cherry&lt;/name&gt;
+            &lt;/Red&gt;
+            &lt;Yellow&gt;
+                &lt;name&gt;Banana&lt;/name&gt;
+            &lt;/Yellow&gt;
+        &lt;/Fruit&gt;
+        &lt;Meat&gt;
+            &lt;name&gt;Beef&lt;/name&gt;
+            &lt;name&gt;Pork&lt;/name&gt;
+        &lt;/Meat&gt;
+     &lt;/Food&gt;'
+);
+</code></pre>
+<p>postgresql 也针对 xml 类型提供了许多 xml 相关的操作函数。</p>
+<h2>邻接表</h2>
+<p>邻接表就是把所有的节点都放在一张表中，用一个属性记录其父节点：</p>
+<pre><code class="language-sql">create table foods (
+    id integer,
+    name varchar(15),
+    parent integer
+);
+
+insert into foods(id, name) values (1, 'Food');
+insert into foods(id, name, parent) values (2, 'Fruit', 1);
+insert into foods(id, name, parent) values (3, 'Meat', 1);
+insert into foods(id, name, parent) values (4, 'Red', 2);
+insert into foods(id, name, parent) values (5, 'Yellow', 2);
+insert into foods(id, name, parent) values (6, 'Cherry', 4);
+insert into foods(id, name, parent) values (7, 'Banana', 5);
+insert into foods(id, name, parent) values (8, 'Beef', 3);
+insert into foods(id, name, parent) values (9, 'Pork', 3);
+</code></pre>
+<p>遍历树形结构可以用通用表表达式(CTE, Common Table Expressions)来实现：</p>
+<pre><code class="language-sql">with recursive tree as (
+        select id, name
+        from foods
+        where id = 1
+    union all
+        select origin.id, tree.name || '&gt;' || origin.name
+        from tree join foods origin
+             on origin.parent = tree.id
+)
+select * from tree;
+ id |           name
+----+--------------------------
+  1 | Food
+  2 | Food&gt;Fruit
+  3 | Food&gt;Meat
+  4 | Food&gt;Fruit&gt;Red
+  5 | Food&gt;Fruit&gt;Yellow
+  8 | Food&gt;Meat&gt;Beef
+  9 | Food&gt;Meat&gt;Pork
+  6 | Food&gt;Fruit&gt;Red&gt;Cherry
+  7 | Food&gt;Fruit&gt;Yellow&gt;Banana
+</code></pre>
+<h2>路径枚举</h2>
+<p>路径枚举就是在 foods 表中设置一个 path 属性，用来存储从根节点到当前结点的路径，用分隔符隔开，
+尽管 path 可以是 text 类型，但是 postgresql contrib 中的 ltree 模块专门针对这种情况定义了 ltree 类型：</p>
+<pre><code class="language-sql">create extension ltree;
+create table foods (
+    path ltree
+);
+
+insert into foods values('Food');
+insert into foods values('Food.Fruit');
+insert into foods values('Food.Meat');
+insert into foods values('Food.Fruit.Red');
+insert into foods values('Food.Fruit.Yellow');
+insert into foods values('Food.Fruit.Red.Cherry');
+insert into foods values('Food.Fruit.Yellow.Banana');
+insert into foods values('Food.Meat.Beef');
+insert into foods values('Food.Meat.Pork');
+</code></pre>
+<h2>先根遍历树</h2>
+<p>用两个数字(left 和 right)对每个节点进行编码如下：</p>
+<pre><code class="language-sql">create table foods (
+    name text,
+    left integer,
+    right integer
+);
+
+insert into foods values('Food', 1, 18);
+insert into foods values('Fruit', 2, 11);
+insert into foods values('Meat', 12, 17);
+insert into foods values('Red', 3, 6);
+insert into foods values('Yellow', 7, 10);
+insert into foods values('Cherry', 4, 5);
+insert into foods values('Banana', 8, 9);
+insert into foods values('Beaf', 13, 14);
+insert into foods values('Pork', 15, 16);
+</code></pre>
+<p><img src="/media/postgresql/foods_preorder_tree.gif" alt="foods preorder tree" /></p>
+<p>规则如下：</p>
+<ul>
+<li>left 的数值小于该节点的所有后代的 left</li>
+<li>right 的数值大于该节点的所有后代 right</li>
+</ul>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/postgresql.html">postgresql<sup>8</sup></a><a href="/tags/数据库.html">数据库<sup>8</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

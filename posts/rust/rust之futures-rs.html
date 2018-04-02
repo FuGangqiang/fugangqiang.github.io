@@ -1,0 +1,293 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>rust之futures-rs</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>rust之futures-rs</h1>
+    <article>
+      <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures-rs</a>。</p>
+<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
+并在此基础上引入轻量级进程或协程的概念。</p>
+<h2>为什么需要 futures？</h2>
+<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
+当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
+处理这些链接的方法大多用两种方式：</p>
+<ul>
+<li>callbacks</li>
+<li>futures</li>
+</ul>
+<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
+为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
+<h2>什么是 futures？</h2>
+<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
+其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
+<ul>
+<li>一个 RPC 调用</li>
+<li>一个数据库查询</li>
+<li>一个计时器</li>
+<li>一个非常耗时的任务</li>
+<li>从 socket 中读数据</li>
+</ul>
+<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
+<ul>
+<li>顺序组合(sequential composition)：
+<code>f.and_then(|val| some_new_future(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
+<li>映射组合(Mapping)：
+<code>f.map(|val| some_new_value(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
+<li>合并组合(Joining)：
+<code>f.join(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
+<li>选择组合(Selecting)：
+<code>f.select(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
+</ul>
+<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
+<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
+    get_row(id)
+}).map(|row| {
+    json::encode(row)
+}).and_then(|encoded| {
+    write_string(my_socket, encoded)
+})
+</code></pre>
+<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
+<h2>futures-rs future 种类</h2>
+<p>从上面看 future 只是代表一个单值，只代表一个事件，
+但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
+因此我们还需要另一种 future 抽象用来关联多个事件：</p>
+<ul>
+<li>Stream：读入流，与 incoming events 关联</li>
+<li>Sink：写出流，与 outgoing events 关联</li>
+</ul>
+<p>因此 futures-rs 分别提供了三种 trait：</p>
+<ul>
+<li>Future</li>
+<li>Stream</li>
+<li>Sink</li>
+</ul>
+<h2>trait 定义</h2>
+<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
+<pre><code class="language-rust">trait Future {
+    // The type of value that the future yields on successful completion.
+    type Item;
+
+    // The type of value that the future yields on failure.
+    type Error;
+
+    // The only required method, which attempts to complete the future.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
+
+    ...
+}
+
+</code></pre>
+<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
+其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
+<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
+<pre><code class="language-rust">trait Stream {
+    // The type of item yielded each time the stream's event occurs
+    type Item;
+
+    // The error type; errors terminate the stream.
+    type Error;
+
+    // Try to produce a value.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
+
+    ...
+}
+
+trait Sink {
+    // The type of value that the sink accepts.
+    type SinkItem;
+
+    // The type of value produced by the sink when an error occurs.
+    type SinkError;
+
+    // The analog to `poll`, used for sending and then flushing items.
+    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
+
+    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
+
+    ...
+}
+</code></pre>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/network.html">network<sup>9</sup></a><a href="/tags/rust.html">rust<sup>9</sup></a><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

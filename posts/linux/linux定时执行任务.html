@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>linux定时执行任务</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>linux定时执行任务</h1>
+    <article>
+      <p>linux 下有两种方式来实现定时执行任务：</p>
+<ul>
+<li>SysV init 下的 crond 后台进程</li>
+<li>Systemd init 下的 timer unit</li>
+</ul>
+<h2>SysV init</h2>
+<p>如果你的 linux 使用 SysV init 系统，
+缺省会启动 crond 进程，该进程不需要用户启动、关闭。</p>
+<p>crond 进程负责读取调度任务并执行，用户只需要将相应的调度脚本写入 cron 的调度配置文件中。</p>
+<p>cron 的调度文件有以下几个：</p>
+<ul>
+<li>crontab</li>
+<li>cron.d</li>
+<li>cron.daily</li>
+<li>cron.hourly</li>
+<li>cron.monthly</li>
+<li>cron.weekly</li>
+</ul>
+<p>如果用的任务不是以 hourly、monthly、weekly 方式执行，
+则可以将相应的任务写入到 crontab 或 cron.d 目录中。</p>
+<p>如果想要看现在 crontab 正在运行什么，可以执行命令：</p>
+<pre><code>crontab -l
+</code></pre>
+<p>如果要编辑 crontab，可以执行命令：</p>
+<pre><code>crontab -e
+</code></pre>
+<p>上面命令会用默认的编辑器来让我们编辑 crontab，
+如果我们修改后，保存并退出编辑器，
+编辑器中的内容将会保存到 crontab 中。</p>
+<p>crontab 中填写的格式如下：</p>
+<pre><code>* * * * * /bin/your/script.sh
+</code></pre>
+<p>上面格式有 6 个域组成，前 5 个都是星号（下面详解），最后一个是要执行的命令，
+它的意思是每分钟执行脚本 <code>/bin/your/script.sh</code>。</p>
+<p>crontab 中每一行前 5 个域是用来指定执行时间的，它们的含义和取值范围分别为（从前至后）：</p>
+<ul>
+<li>minute (from 0 to 59)</li>
+<li>hour (from 0 to 23)</li>
+<li>day of month (from 1 to 31)</li>
+<li>month (from 1 to 12)</li>
+<li>day of week (from 0 to 6) (0=Sunday)</li>
+</ul>
+<p>如果想要每时 20 分执行一个脚本文件，crontab 添加如下：</p>
+<pre><code>20 * * * * /bin/your/script.sh
+</code></pre>
+<p>如果想要每天 1:30 分钟执行一个脚本文件，crontab 添加如下：</p>
+<pre><code>30 1 * * * /bin/your/script.sh
+</code></pre>
+<p>如果想要每个月的 2 号 1:30 执行一个脚本文件，crontab 添加如下：</p>
+<pre><code>30 1 2 * * /bin/your/script.sh
+</code></pre>
+<p>如果想要每年 3 月 2 号 1:30 执行一个脚本文件，crontab 添加如下：</p>
+<pre><code>30 1 2 3 * /bin/your/script.sh
+</code></pre>
+<p>也可以指定每星期 5 晚上：</p>
+<pre><code>30 1 * * 5 /bin/your/script.sh
+</code></pre>
+<p>也可以更随意一些，指定星期 1 至星期 5：</p>
+<pre><code>0 1 * * 1-5 /bin/your/script.sh
+</code></pre>
+<p>指定每 10 分钟执行一次：</p>
+<pre><code>0,10,20,30,40,50 * * * * /bin/your/script.sh
+</code></pre>
+<p>当然，也可以这样：</p>
+<pre><code>*/10 * * * * /bin/your/script.sh
+</code></pre>
+<p>也有一些关键字代表前五个域：</p>
+<ul>
+<li><code>@reboot</code>：启动时执行，只执行一次</li>
+<li><code>@yearly</code>： 一年执行一次，&quot;0 0 1 1 *&quot;</li>
+<li><code>@annually</code>：与 <code>@yearly</code> 相同</li>
+<li><code>@monthly</code>：一月执行一次，&quot;0 0 1 * *&quot;</li>
+<li><code>@weekly</code>：一周执行一次，&quot;0 0 * * 0&quot;</li>
+<li><code>@daily</code>：一天执行一次，&quot;0 0 * * *&quot;</li>
+<li><code>@midnight</code>：与 <code>@daily</code> 相同</li>
+<li><code>@hourly</code>：一小时执行一次，&quot;0 * * * *&quot;</li>
+</ul>
+<p>crontab 可以写成这样：</p>
+<pre><code>@daily /bin/your/script.sh
+</code></pre>
+<h2>Systemd init</h2>
+<p>如果你的 linux 使用 Systemd init 系统，你不仅可以用 crontab 来定时执行任务，
+也可以用 systemd 自身提供的 unit.timer，而且时间格式更随意，
+请参考博文 <a href="/blog/posts/linux/systemd%E4%B8%AD%E7%9A%84%E6%97%B6%E9%97%B4%E6%A0%BC%E5%BC%8F.html">systemd 中的时间格式</a>，
+其中主要讲解了 systemd 中的三种时间格式：Time Span、Timestamp、Calendar Event。</p>
+<p>每一个 unit.timer 都必须对应另一个 unit file，unit.timer 用来描述定时器，unit file 用来描述要运行的命令。
+默认 service 文件和 timer 文件同名，但是也可以在 timer 中制定 unit file 文件。</p>
+<p>除非明确指定 <code>DefaultDependencies=</code>，否则每一个 unit.timer 默认都会把 <code>Conflicts=</code> 和 <code>Before=</code> 设定为 <code>shutdown.target</code>，
+这是为了保证在系统退出前每一个 unit.timer 被停止执行。</p>
+<p>unit.timer 一旦设置了 <code>OnCalendar=</code>，其 <code>After=</code> 就会被设置为 <code>timer-sync.target</code>，以保证在系统时钟被正确设置后运行。</p>
+<p>每一个 unit.timer 都有一个 <code>[Timer]</code> 设置块，在这个设置块里，定义一些与定时器相关的设置：</p>
+<ul>
+<li><code>OnActiveSec=</code>：设置计时器时间，相对于 unit.timer 被激活的时间点</li>
+<li><code>OnBootSec=</code>：设置计时器时间，相对于系统启动后的时间点</li>
+<li><code>OnStartupSec=</code>：设置计时器时间，相对于 systemd 被初次启动后的时间点</li>
+<li><code>OnUnitActiveSec=</code>：设置计时器时间，相对于 unit.timer 中指定的 unit file 上一次被激活的时间点</li>
+<li><code>OnUnitInactiveSec=</code>：设置计时器时间，相对于 unit.timer 中指定的 unit file 上一次被冻结的时间点</li>
+</ul>
+<p>上面五个设置格式均为 Time Span，它们可以混合使用，比如你可以同时设置 <code>OnBootSec=</code> 和 <code>OnUnitActiveSec=</code>。</p>
+<ul>
+<li><code>OnCalendar=</code>：设置计时器时间，格式为 Calendar Event，否则其语义与 <code>OnActiveSec=</code> 相近</li>
+<li><code>AccuracySec=</code>：设置计时器精确度</li>
+<li><code>Unit=</code>：设置计时器启动 unit file</li>
+<li><code>Persistent=</code>：如果设置为 true，unit file 上一次被执行的时间点会被保存在硬盘文件</li>
+<li><code>WakeSystem=</code>：如果设置为 true，计时器将会唤醒 suspend 状态</li>
+</ul>
+<p>一个示例：</p>
+<p><code>hello.timer</code> 文件：</p>
+<pre><code class="language-ini">[Unit]
+Description=Hello Timer Example
+
+[Timer]
+OnActiveSec=2s
+OnCalendar=*-*-* *:00:00
+
+[Install]
+WantedBy=default.target
+</code></pre>
+<p><code>hello.service</code> 文件：</p>
+<pre><code class="language-ini">[Unit]
+Description=this is a timer example
+
+[Service]
+Type=simple
+ExecStart=/your/script.sh
+</code></pre>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/systemd.html">systemd<sup>4</sup></a><a href="/tags/自动化.html">自动化<sup>4</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

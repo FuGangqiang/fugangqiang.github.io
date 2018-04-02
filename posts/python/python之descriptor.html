@@ -1,0 +1,297 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>python之descriptor</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>python之descriptor</h1>
+    <article>
+      <h2>什么是描述符(descriptor)？</h2>
+<p>只要定义了名为 <code>__get__</code>、<code>__set__</code>、<code>__delete__</code> 中任意一个方法的对象都叫描述符，
+也可以说它实现了描述符协议。</p>
+<p>描述符协议方法如下：</p>
+<pre><code>descr.__get__(self, obj, type=None) --&gt; value
+descr.__set__(self, obj, value) --&gt; None
+descr.__delete__(self, obj) --&gt; None
+</code></pre>
+<h2>描述符的类型</h2>
+<ul>
+<li>数据性描述符：有 <code>__get__</code> 和 <code>__set__</code> 方法</li>
+<li>非数据性描述符：有 <code>__get__</code> 方法，没有 <code>__set__</code> 方法</li>
+</ul>
+<p>描述符的这两种类型和对象字典具有不同的访问顺序，其优先级为：数据性描述符 &gt; 对象字典 &gt; 非数据性描述符。</p>
+<h2>描述符方法的调用</h2>
+<p>描述符自身就可以调用其描述符方法：<code>d.__get__(obj)</code>。</p>
+<p>但是对象属性访问通常会自动调用描述符方法。
+比如：<code>obj.d</code>，用来获取 <code>obj</code> 对象中 <code>d</code> 属性，
+它的访问顺序是：</p>
+<ul>
+<li><code>obj.__dict__['d']</code></li>
+<li><code>type(obj).__dict__['d']</code></li>
+<li><code>type(obj).__bases__</code> 基类中访问 <code>d</code></li>
+</ul>
+<p>如果访问结果不是描述符，则直接将其返回。</p>
+<p>如果访问结果是一个描述符，就会根据描述符类型确定访问优先级，进而决定是否调用描述符方法。
+例如数据性描述符优先级高于对象字典的访问，所以会优先调用描述符方法：</p>
+<ul>
+<li><code>obj.d</code> 调用 <code>type(obj).__dict__['d'].__get__(obj, type(obj))</code> 方法</li>
+<li><code>obj.d = val</code> 调用 <code>type(obj).__dict__['d'].__set__(obj, val)</code> 方法</li>
+<li><code>del obj.d</code> 调用 <code>type(obj).__dict__['d'].__del__(obj)</code> 方法</li>
+</ul>
+<p>如果是是类属性访问：</p>
+<ul>
+<li><code>C.d</code> 调用 <code>C.__dict__['d'].__get__(None, C)</code> 方法</li>
+</ul>
+<p>python中的 <code>property</code>、<code>static method</code>、<code>class method</code>、<code>super()</code> 都是用描述符来改变属性访问来实现的。</p>
+<h2>cached_property 实现</h2>
+<p>在许多web框架中都会用到<code>cached_property</code>装饰器，其实它就是一个描述符类：</p>
+<pre><code class="language-python">class cached_property(object):
+    def __init__(self, func):
+        self.__doc__ = getattr(func, '__doc__')
+        self.__name__ = getattr(func, '__name__')
+        self.__module__ = getattr(func, '__module__')
+        self.func = func
+
+    def __get__(self, obj, cls):
+        if obj is None:
+            return self
+        value = obj.__dict__[self.func.__name__] = self.func(obj)
+        return value
+</code></pre>
+<p><code>cached_property</code>用法如下：</p>
+<pre><code class="language-python">class C(object):
+    @cached_property
+    def x(self):
+        return 1
+</code></pre>
+<p>这样，我们就可以用<code>c = C()</code>定义一个对象，
+通过<code>c.x</code>来调用描述符，进而使<code>c.__dict__['x']=1</code>，
+如果我们以后再次访问<code>c.x</code>时，我们就可以直接返回<code>c.__dict__['x']</code>了。</p>
+<p>从上面可以看出：
+只有首次访问<code>c.x</code>时才调用描述符，
+进而生成<code>c.__dict__['x']</code>，
+往后再次访问就直接返回<code>c.__dict__['x']</code>了。
+只要我们没有访问<code>c.x</code>，在<code>c.__dict__</code>中就不会存在<code>x</code>键值，进而达到节省内存的作用。</p>
+<h2>property 实现</h2>
+<pre><code class="language-python">class Property(object):
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None):
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        self.__doc__ = doc
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if self.fget is None:
+            raise AttributeError(&quot;unreadable attribute&quot;)
+        return self.fget(obj)
+
+    def __set__(self, obj, value):
+        if self.fset is None:
+            raise AttributeError(&quot;can't set attribute&quot;)
+        self.fset(obj, value)
+
+    def __delete__(self, obj):
+        if self.fdel is None:
+            raise AttributeError(&quot;can't delete attribute&quot;)
+        self.fdel(obj)
+
+    def getter(self, fget):
+        return type(self)(fget, self.fset, self.fdel, self.__doc__)
+
+    def setter(self, fset):
+        return type(self)(self.fget, fset, self.fdel, self.__doc__)
+
+    def deleter(self, fdel):
+        return type(self)(self.fget, self.fset, fdel, self.__doc__)
+</code></pre>
+<h2>static method 实现</h2>
+<pre><code class="language-python">class StaticMethod(object):
+ def __init__(self, f):
+      self.f = f
+
+ def __get__(self, obj, objtype=None):
+      return self.f
+</code></pre>
+<h2>class method 实现</h2>
+<pre><code>class ClassMethod(object):
+     def __init__(self, f):
+          self.f = f
+
+     def __get__(self, obj, klass=None):
+          if klass is None:
+               klass = type(obj)
+          def newfunc(*args):
+               return self.f(klass, *args)
+          return newfunc
+</code></pre>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/python.html">python<sup>13</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

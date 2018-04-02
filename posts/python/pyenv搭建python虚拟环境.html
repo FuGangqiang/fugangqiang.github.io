@@ -1,0 +1,247 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>pyenv搭建python虚拟环境</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>pyenv搭建python虚拟环境</h1>
+    <article>
+      <p>在 python 开发过程中，经常同时开发多个程序，
+其各自依赖的 python 版本号不同，又需要各自特定版本的依赖库，
+这样，我们在开发过程中需要来回切换不同版本的 python 以及 python virtualenv，
+这样我们就需要一个即有管理 python 版本，又有管理 python virtualenv 的应用，
+<a href="https://github.com/yyuu/pyenv"><code>pyenv</code></a>即是为此。</p>
+<h2>安装 pyenv</h2>
+<pre><code>curl -L https://raw.githubusercontent.com/yyuu/pyenv-installer/master/bin/pyenv-installer | bash
+</code></pre>
+<p>所有相关文件均被安装到 <code>~/.pyenv</code> 文件夹中，</p>
+<p>当然卸载 <code>pyenv</code> 及其安装的一切 python 版本及 virtualenv 只需删除 <code>~/.pyenv</code> 文件夹即可。</p>
+<pre><code>rm -fr ~/.pyenv
+</code></pre>
+<h2>配置 pyenv</h2>
+<p>可以在你的 <code>.bashrc</code> 配置文件里面添加如下：</p>
+<pre><code>export PATH=&quot;~/.pyenv/bin:$PATH&quot;
+eval &quot;$(pyenv init -)&quot;
+eval &quot;$(pyenv virtualenv-init -)&quot;
+</code></pre>
+<p>这样在每次启动终端时，你都可以用 <code>pyenv</code> 了。</p>
+<h2>更新 pyenv</h2>
+<p>利用 <code>update</code> 命令可以更新到最新版本：</p>
+<pre><code>pyenv update
+</code></pre>
+<h2>安装、查看及卸载 python 特定版本</h2>
+<p>查看 <code>pyenv</code> 支持安装的 python 版本：</p>
+<pre><code>pyenv install -l
+</code></pre>
+<p>安装 <code>python 3.5.2</code> 版本：</p>
+<pre><code>pyenv install 3.5.2
+</code></pre>
+<p>所有相关安装程序均被安装在 <code>~/.pyenv/versions</code> 文件夹下。</p>
+<p>卸载 python 版本：</p>
+<pre><code>pyenv uninstall 3.5.2
+</code></pre>
+<p>查看 <code>pyenv</code> 下所有安装的 python 版本：</p>
+<pre><code>pyenv versions
+</code></pre>
+<p>其中：</p>
+<ul>
+<li>以 <code>*</code> 开头的为当前 pyenv 设置的 python 版本</li>
+<li>system 版本为当前操作系统中存在的版本，而不是由 pyenv 安装的</li>
+</ul>
+<p>查看当前 python 版本：</p>
+<pre><code>pyenv version
+</code></pre>
+<h2>切换 python 版本</h2>
+<p>当在终端执行 python 时，<code>pyenv</code> 按以下顺序来决定使用哪一个 python 版本：</p>
+<ul>
+<li><code>PYENV_VERSION</code> 环境变量，可以用 <code>pyenv shell</code> 设置此环境变量</li>
+<li>当前文件夹下的 <code>.python-version</code> 文件（如果存在），可以用 <code>pyenv local</code> 添加或修改此文件</li>
+<li>当前文件夹向上逐级查找父文件夹，直至根目录，第一个被发现的 <code>.python-version</code> 文件</li>
+<li>文件 <code>~/.pyenv/version</code>，可以用 <code>pyenv global</code> 修改此文件</li>
+</ul>
+<p>你也可以同时激活多个 python 版本，这样你就可以使 python2 和 python3 版本共存，比如：</p>
+<pre><code>pyenv global 3.5.2 2.7.12
+</code></pre>
+<p>可以通过 <code>pyenv which</code> 来查看 python 某个版本的可执行文件路径。</p>
+<h2>创建、激活、停用及删除 virtualenv</h2>
+<p>创建名为 <code>venv</code> 的 virtualenv 环境：</p>
+<pre><code>pyenv virtualenv 3.5.2 venv
+</code></pre>
+<p>激活 <code>venv</code> 环境：</p>
+<pre><code>pyenv activate venv
+</code></pre>
+<p>停用当前 <code>venv</code> 环境：</p>
+<pre><code>pyenv deactivate
+</code></pre>
+<p>删除 <code>venv</code> 环境：</p>
+<pre><code>pyenv virtualenv-delete venv
+</code></pre>
+<h2>其他命令</h2>
+<p>可以通过 <code>pyenv commands</code> 来查看所有 <code>pyenv</code> 的子命令：</p>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/python.html">python<sup>13</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

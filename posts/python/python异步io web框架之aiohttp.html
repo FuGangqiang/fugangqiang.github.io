@@ -1,0 +1,277 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>python异步io web框架之aiohttp</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>python异步io web框架之aiohttp</h1>
+    <article>
+      <p>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了，
+无疑利用 asyncio 写 web 应用将会极为方便。
+虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)，
+但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)，
+所以决定尝试一下 <a href="https://github.com/KeepSafe/aiohttp/">aiohttp</a> 的 web 框架。</p>
+<h2>安装</h2>
+<pre><code>pip install aiohttp
+</code></pre>
+<h2>hello world</h2>
+<p>虽然 aiohttp 经常用于客户端编程，但是它也可以用于服务端 web 开发，
+而且写法也极为优美，下面是一个 hello world 示例：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def hello(request):
+    name = request.match_info.get('name', 'Anonymous')
+    text = f'Hello, {name}'
+    return web.Response(text=text)
+
+
+app = web.Application()
+app.router.add_get('/', hello)
+app.router.add_get('/{name}', hello)
+
+web.run_app(app)
+</code></pre>
+<h2>websocket</h2>
+<p>aiohttp 也原生支持 websocket：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def ws_hello(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for msg in ws:
+        if msg.type == web.MsgType.text:
+            ws.send_str(f'Hello, {msg.data}')
+        elif msg.type == web.MsgType.binary:
+            ws.send_bytes(msg.data)
+        elif msg.type == web.MsgType.close:
+            break
+
+    return ws
+
+
+app = web.Application()
+app.router.add_get('/echo', ws_hello)
+
+web.run_app(app)
+</code></pre>
+<h2>目录结构</h2>
+<p>虽然写一个简单的 web 服务一个文件就可以了，
+但是当 web 服务比较复杂时，清晰的目录结构可以更有效的组织代码，
+自己写一个服务时利用了以下代码结构：</p>
+<pre><code>backend
+├── app/
+│   ├── model/
+│   ├── sql/
+│   ├── api/
+│   ├── config.py
+│   ├── db.py
+│   ├── middlewares.py
+│   ├── permissions.py
+│   ├── urls.py
+│   └── utils.py
+├── requirements/
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── tests/
+├── init／
+├── deploy/
+├── run.py
+└── README.md
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>app</code> 目录存放所有服务相关的代码</li>
+<li><code>app/model</code> 目录存放服务相关的 model 定义</li>
+<li><code>app/sql</code> 目录存放数据库表格定义/修改的 sql 脚本</li>
+<li><code>app/config.py</code> 存放所有相关配置信息</li>
+<li><code>app/db.py</code> 存放与数据库操作与初始化相关的代码</li>
+<li><code>app/middlewares.py</code> 存放 web 服务的中间件</li>
+<li><code>app/permissions.py</code> 存放与权限检测相关的代码</li>
+<li><code>app/urls.py</code> 存放 web 服务的路由定义</li>
+<li><code>app/utils.py</code> 存放一些辅助工具函数</li>
+<li><code>requirements</code> 目录存放 pip 安装 requirements 文件</li>
+<li><code>init</code> 目录提供一些与数据库初始化和测试样例数据初始化的代码</li>
+<li><code>deploy</code> 目录存放与服务部署相关的代码</li>
+<li><code>run.py</code> 是服务的入口脚本，与 <code>flask-cli</code> 类似</li>
+</ul>
+<h2>相关包</h2>
+<p>asyncio 周边已经存在大量辅助包了，这里列一些比较常用的包：</p>
+<ul>
+<li>uvloop</li>
+<li>aiofiles</li>
+<li>asyncpg</li>
+<li>aioredis</li>
+<li>aiokafka</li>
+<li>aioes</li>
+</ul>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a><a href="/tags/python.html">python<sup>13</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,269 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>python之网络爬虫框架scrapy</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>python之网络爬虫框架scrapy</h1>
+    <article>
+      <p>最近自己写了一个爬虫程序，用 scrapy 来爬取网上的几十万首诗词，
+非常方便，本文总结一下。</p>
+<h2>什么是网络爬虫？</h2>
+<p>现在已经步入互联网时代，我们接触的大多数信息都可以通过互联网来获取，
+最基本的就是通过浏览器，键入网页地址，浏览网站，获取网站信息。</p>
+<p>用户可以自行手工上网筛选信息的，当然这样效率是异常的低，
+而网络爬虫通过程序自动化来自动访问网页链接，
+自动分析网页内容，自动筛选出需要的信息，并将产生的信息数据加以保存起来，
+进而大大提高了获取信息的效率。</p>
+<p>爬虫程序之所以可以做到自动化，
+皆因互联网一切网页都是符合相关标准协议的，
+只需按照标准协议来解析网页数据，我们就可以结构化网页数据，并提取相关信息。</p>
+<p>由于爬虫程序的结构、功能大多类似，
+通过爬虫框架无疑会将我们从爬虫实现的细节中解脱出来，
+我们只需关注怎么筛选出需要的数据就可以了，
+本文讲解爬虫框架中最常见的 scrapy。</p>
+<h2>scrapy 框架</h2>
+<h3>安装 scrapy：</h3>
+<pre><code>pip install scrapy
+</code></pre>
+<h3>创建爬虫工程</h3>
+<p>scrapy 框架与 python django web 框架理念相似，
+提供了相似的命令行界面：</p>
+<pre><code>scrapy startproject tutorial
+</code></pre>
+<p>这样 scrapy 就创建了 <code>tutorial</code> 爬虫工程文件目录，
+里面初始化了爬虫所需的基本文件，
+从中可以看出 scrapy 爬虫程序的结构：</p>
+<pre><code>$ tree tutorial
+tutorial
+├── scrapy.cfg
+└── tutorial
+    ├── __init__.py
+    ├── items.py
+    ├── middlewares.py
+    ├── pipelines.py
+    ├── __pycache__
+    ├── settings.py
+    └── spiders
+        ├── __init__.py
+        └── __pycache__
+
+4 directories, 7 files
+</code></pre>
+<p>而我们写的相关爬虫程序只需在 <code>spiders</code> 目录里添加相关代码就可以了，
+其他文件都是 scrapy 为了更好的扩展而准备的，此时可以不必理这些文件。</p>
+<h3>自定义爬虫程序</h3>
+<p>创建 <code>tutorial/tuorial/spiders/quotes.py</code> 文件：</p>
+<pre><code>import scrapy
+
+
+class QuotesSpider(scrapy.Spider):
+    name = &quot;quotes&quot;
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').extract_first(),
+                'author': quote.css('small.author::text').extract_first(),
+                'tags': quote.css('div.tags a.tag::text').extract(),
+            }
+</code></pre>
+<p>从上面代码可以看出，我们只需指定：</p>
+<ul>
+<li><code>name</code>: 爬虫对应的 name，用于唯一标记爬虫程序</li>
+<li><code>start_urls</code>: 爬虫开始的第一个 url 地址</li>
+<li><code>parse</code>: 抓取页面中需要的信息</li>
+</ul>
+<p>其他与爬虫相关的所有细节，scrapy 已经提供好了，我们只需写这些就可以正是获取信息了。</p>
+<h3>运行爬虫程序</h3>
+<p>命令须在爬虫工程目录运行：</p>
+<pre><code>scrapy crawl quotes -o quotes.json
+</code></pre>
+<p>这样，所有结果就保存在 <code>quotes.json</code> 文件里了。</p>
+<h3>调试爬虫</h3>
+<p>为了更好的实时调试，查看代码作用，scrapy 提供了 <code>shell</code> 子命令：</p>
+<pre><code>scrapy shell 'http://quotes.toscrape.com/page/1/'
+</code></pre>
+<p>这样就进入了一个命令交互界面，可以运行相关 python 代码实时验证代码。</p>
+<h3>其他</h3>
+<p>上面只是一个简单的介绍，scrapy 提供了更多的抽象：</p>
+<ul>
+<li>Item</li>
+<li>ItemLoader</li>
+<li>ItemPipeline</li>
+<li>Middleware</li>
+<li>Setting</li>
+<li>Logging</li>
+<li>...</li>
+</ul>
+<p>具体请看 <a href="https://doc.scrapy.org/en/latest/">scrapy 文档</a></p>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/python.html">python<sup>13</sup></a><a href="/tags/web.html">web<sup>12</sup></a><a href="/tags/爬虫.html">爬虫<sup>1</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>

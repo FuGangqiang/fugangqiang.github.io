@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="stylesheet" href="/static/main.css">
+  
+
+  
+<title>用mdbook记录笔记</title>
+
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="/index.html" title="Fu">
+    <img src="/static/logo.png"></a>
+  </section>
+
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+
+  <nav>
+    <ul>
+      <li><a href="/index.html">博文</a></li>
+     <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+    
+    <h1>用mdbook记录笔记</h1>
+    <article>
+      <h2>mdbook</h2>
+<p><code>mdbook</code> 是一个类似与 <code>gitbook</code> 的命令行工具，使用 Markdown 格式文件自动生成书籍文档，
+而构建 <code>mdbook</code> 的语言是 <code>rust</code>，其源码存放于 <a href="https://github.com/azerupi/mdBook">github</a>，
+而其<a href="http://azerupi.github.io/mdBook/">自身文档</a>就是 <code>mdbook</code> 自动生成的。</p>
+<h2>编译 mdbook</h2>
+<p>编译之前，系统中需要安装 <code>rustc</code> 和 <code>cargo</code>，
+<code>rustc</code> 是 rust 语言的编译器，
+而 <code>cargo</code> 是用来管理 rust 源码下载、编译、构建的工具。</p>
+<p>下载 <code>mdbook</code> 源码：</p>
+<pre><code>git clone --depth=1 https://github.com/azerupi/mdBook.git
+</code></pre>
+<p>编译源码：</p>
+<pre><code>cd mdBook
+cargo build --release
+</code></pre>
+<p>此时可执行文件 <code>mdbook</code> 就会出现在 <code>./target/release</code> 文件夹下，
+应将此文件夹放入环境变量 <code>PATH</code> 内。</p>
+<h2>运行 mdbook</h2>
+<h3>init 子命令</h3>
+<p>运行 <code>init</code> 子命令如下：</p>
+<pre><code>cd book-test
+mdbook init
+</code></pre>
+<p>也可以初始化指定文件夹：</p>
+<pre><code>mdbook init /path/to/book-test
+</code></pre>
+<p>这样 <code>mdbook</code> 会自动生成一个如下的目录结构：</p>
+<pre><code>book-test/
+├── book
+└── src
+    ├── chapter_1.md
+    └── SUMMARY.md
+</code></pre>
+<p>其中 <code>src</code> 文件夹就是用来存放 markdown 格式文档，
+<code>book</code> 文件夹就是用来存放自动生成的文档，
+<code>SUMMARY.md</code>文件是一个最重要的文件，它是用来定义书籍文档的框架结构的，用来建立书籍文档的索引及其链接文件。</p>
+<h3>build 子命令</h3>
+<p><code>build</code> 子命令就是用来渲染书籍文档的：</p>
+<pre><code>cd book-test
+mdbook build
+</code></pre>
+<p>也可以渲染指定文件夹：</p>
+<pre><code>mdbook build /path/to/book-test
+</code></pre>
+<p>这样，<code>mdbook</code> 就会解析 <code>SUMMARY.md</code> 文件，来了解书籍文档的框架，获取链接文件，渲染相应 markdown 文件。</p>
+<h3>SUMMARY.md 格式</h3>
+<p>允许元素：</p>
+<ul>
+<li>
+<p><code>Title</code>：通常是 <code># Summary</code> 这种形式，它只是用来代表一个标题，解析时 <code>mdbook</code> 命令会忽略该行</p>
+</li>
+<li>
+<p><code>list link</code>：列表元素，用来构建书籍文档的框架结构，形式如下：</p>
+<pre><code>  - [Title of the Chapter](relative/path/to/markdown.md)
+</code></pre>
+</li>
+</ul>
+<p>示例如下：</p>
+<pre><code># Summary
+
+- [mdBook](README.md)
+- [Command Line Tool](cli/cli-tool.md)
+    - [init](cli/init.md)
+    - [build](cli/build.md)
+- [Format](format/format.md)
+    - [SUMMARY.md](format/summary.md)
+    - [Configuration](format/config.md)
+    - [Theme](format/theme/theme.md)
+        - [index.hbs](format/theme/index-hbs.md)
+        - [Syntax highlighting](format/theme/syntax-highlighting.md)
+- [Rust Library](lib/lib.md)
+</code></pre>
+<h2>博客相关</h2>
+<p>本博客最近打算用 <code>mdbook</code> 来整理以前记录的一些笔记文档，
+目前尚处于初始阶段，不过以后会逐步完善笔记的。</p>
+<p>笔记索引存放于 <a href="http://fugangqiang.github.io/blog/posts/notes.html">notes</a> 页面下。</p>
+
+
+      <ul id="article_footer">
+        
+          <li>标签： <a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+        
+        
+      </ul>
+    </article>
+
+  </main>
+
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+      
+        <li><a href="/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+      
+        <li><a href="/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+      
+        <li><a href="/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+      
+        <li><a href="/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+      
+        <li><a href="/tags/bezier.html">bezier<sup>2</sup></a></li>
+      
+        <li><a href="/tags/browser.html">browser<sup>2</sup></a></li>
+      
+        <li><a href="/tags/c.html">c<sup>1</sup></a></li>
+      
+        <li><a href="/tags/docker.html">docker<sup>1</sup></a></li>
+      
+        <li><a href="/tags/engine.html">engine<sup>2</sup></a></li>
+      
+        <li><a href="/tags/git.html">git<sup>8</sup></a></li>
+      
+        <li><a href="/tags/http.html">http<sup>2</sup></a></li>
+      
+        <li><a href="/tags/javascript.html">javascript<sup>1</sup></a></li>
+      
+        <li><a href="/tags/linux.html">linux<sup>3</sup></a></li>
+      
+        <li><a href="/tags/markdown.html">markdown<sup>1</sup></a></li>
+      
+        <li><a href="/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+      
+        <li><a href="/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+      
+        <li><a href="/tags/network.html">network<sup>9</sup></a></li>
+      
+        <li><a href="/tags/package.html">package<sup>1</sup></a></li>
+      
+        <li><a href="/tags/postgresql.html">postgresql<sup>8</sup></a></li>
+      
+        <li><a href="/tags/python.html">python<sup>13</sup></a></li>
+      
+        <li><a href="/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+      
+        <li><a href="/tags/redis.html">redis<sup>1</sup></a></li>
+      
+        <li><a href="/tags/rust.html">rust<sup>9</sup></a></li>
+      
+        <li><a href="/tags/security.html">security<sup>1</sup></a></li>
+      
+        <li><a href="/tags/spark.html">spark<sup>4</sup></a></li>
+      
+        <li><a href="/tags/systemd.html">systemd<sup>4</sup></a></li>
+      
+        <li><a href="/tags/tokio.html">tokio<sup>4</sup></a></li>
+      
+        <li><a href="/tags/web.html">web<sup>12</sup></a></li>
+      
+        <li><a href="/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+      
+        <li><a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>8</sup></a></li>
+      
+        <li><a href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+      
+        <li><a href="/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E7%AE%97%E6%B3%95.html">算法<sup>1</sup></a></li>
+      
+        <li><a href="/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      
+      </ul>
+    </section>
+
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+
+<script src="/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+
+</body>
+</html>
