@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-11</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-11</h1>
+    <article>
+      <h1>第十一贴：系统接口</h1>
+<p>通常一些有用的 scheme 程序需要与所在的操作系统交流</p>
+<h2>Checking for and deleting files</h2>
+<p><code>file-exists?</code> 过程检查其参数&lt;字符串&gt;所指的文件是否存在；
+<code>delete-file</code> 删除其参数&lt;字符串&gt;所指的文件。
+这些过程并不是 scheme 标准的一部分，但是大部分 scheme 实现都包含了它们。</p>
+<p><code>stat</code> 过程返回其参数对象的状态值，可以用这个返回的状态值调用以下过程得到自己想要的数据：</p>
+<ul>
+<li><code>stat:dev</code></li>
+<li><code>stat:ino</code></li>
+<li><code>stat:mode</code></li>
+<li><code>stat:nlink</code></li>
+<li><code>stat:uid</code></li>
+<li><code>stat:gid</code></li>
+<li><code>stat:rdev</code></li>
+<li><code>stat:size</code></li>
+<li><code>stat:atime</code></li>
+<li><code>stat:mtime</code></li>
+<li><code>stat:ctime</code></li>
+<li><code>stat:atimesec</code></li>
+<li><code>stat:mtimesec</code></li>
+<li><code>stat:ctimesec</code></li>
+<li><code>stat:blksize</code></li>
+<li><code>stat:blocks</code></li>
+<li><code>stat:type</code></li>
+<li><code>stat:perms</code></li>
+</ul>
+<h2>Calling operating-system commands</h2>
+<p><code>system</code> 过程通过操作系统执行其字符串参数。</p>
+<pre><code>(system &quot;ls&quot;)
+;lists current directory
+ 
+(define fname &quot;spot&quot;)
+(system (string-append &quot;test -f &quot; fname))
+;tests if file 'spot' exists
+</code></pre>
+<p>最后一个语句与下面等同：</p>
+<pre><code>(file-exists? fname)
+(delete-file fname)
+</code></pre>
+<h2>Environment variables</h2>
+<p><code>getenv</code> 过程返回操作系统的环境变量：</p>
+<pre><code>guile&gt;(getenv &quot;HOME&quot;)
+&quot;/home/fu&quot;
+guile&gt;(getenv &quot;SHELL&quot;)
+&quot;/bin/bash&quot;
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2010-12-27 00:43:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

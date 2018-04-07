@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-9</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-9</h1>
+    <article>
+      <h1>第九贴：结构</h1>
+<p>本篇你将体会到 lisp/scheme 宏的强大之处</p>
+<p>结构就是被自然组织在一起的数据，可以使用 scheme 的复合数据类型&lt;例如向量、列表&gt;来表示结构。</p>
+<p>下面，我们就通过刚学习到的宏来自定义一个树结构。这个树结构包含有 <code>height</code>，<code>girth</code>，<code>age</code>，<code>leaf-shape</code>和<code>leaf-color</code>五个域名。</p>
+<p>这个结构可以被表示为一个长度为 <code>5</code> 的向量，而那些域可以通过 <code>vector-ref</code> 和 <code>vector-set!</code> 过程来访问和修改。
+但是每时每刻都记着每一域名所对应的索引是很容易出错的，因此我们写一个宏 <code>defstruct</code> 来定义一个数据结构&lt;基于向量&gt;，并且同时定义一些实例化、访问和修改该数据结构的过程。</p>
+<p>这个 tree 结构可以被这样定义：</p>
+<pre><code>(defstruct tree height girth age leaf-shape leaf-color)
+</code></pre>
+<p>以上定义了一个构造过程 <code>make-tree</code>，每个域的访问过程为 <code>tree.height</code>，<code>tree.girth</code> 等等，每个域的修改过程为 <code>set!tree.heitht</code>，<code>set!tree.girth</code> 等等。</p>
+<p>其中构造过程可以这样使用：</p>
+<pre><code>(define coconut
+   (make-tree #:height 30
+              #:leaf-shape 'frond
+              #:age 5))
+</code></pre>
+<p>构造过程参数是一个双数，由 key-value 对组成，如果有的域名没有在构造过程中被初始化，其值就是<code>*unspecified*</code>。</p>
+<p>访问过程可以这样被使用：</p>
+<pre><code>(tree.height coconut)        ;会得到 30
+(tree.leaf-shape coconut)    ;会得到 frond
+(tree.girth coconut)         ;会得到 *unspecified* &lt;guile 默认不显示任何内容&gt;
+</code></pre>
+<p>修改过程可以这样被使用：</p>
+<pre><code>(set!tree.height coconut 40)
+(set!tree.girth coconut 10)
+</code></pre>
+<p>此后，我们再次访问 <code>coconut</code> 相关的域就会得到新的值：</p>
+<pre><code>(tree.heitht coconut)       ;会得到 40
+(tree.girth coconut)        ;会得到 10
+</code></pre>
+<h2>Default initializations</h2>
+<p>我们也可以像这样在定义结构时初始化一些指定的域名的值：</p>
+<pre><code>(defstruct tree heitht girth age
+                (leaf-shape 'frond)
+                (leaf-color 'green))
+</code></pre>
+<p>这样我们像下面定义的 <code>palm</code> 实例就会使其 <code>leaf-shape</code> 和 <code>leaf-color</code> 的值分别为 <code>'frond</code> 和 <code>'green</code>。</p>
+<pre><code>(define palm (make-tree #:height 60))
+(tree.height palm)                     ;会得到 60
+(tree.lefa-shape palm)                 ;会得到 frond
+(tree.leaf-color palm)                 ;会得到 green
+</code></pre>
+<h2>defstruct defined</h2>
+<p>上面只是介绍了我们想要的功能，下面才是这些功能的实现：</p>
+<pre><code>;;;注：本例是在 guile 中运行，如果为其他 scheme 实现可参考原文
+ 
+;;; list-position 在 defstruct 宏定义中会被调用
+(define (list-position o l)
+  (let loop ((i 0) (l l))
+    (if (null? l)
+        #f
+        (if (eqv? (car l) o)
+            i
+            (loop (+ i 1) (cdr l))))))
+ 
+;;; defstruct 定义
+(define-macro (defstruct s . ff)
+  (let ((s-s (symbol-&gt;string s))
+        (n (length ff)))
+    (let* ((n+1 (+ n 1))
+           (vv (make-vector n+1)))
+      (let loop ((i 1) (ff ff))
+        (if (&lt;= i n)
+            (let ((f (car ff)))
+              (vector-set! vv i (if (pair? f)
+                                    (cadr f)
+                                    '*unspecified*))
+              (loop (+ i 1) (cdr ff)))))
+      (let ((ff (map (lambda (f) (if (pair? f)
+                                     (car f)
+                                     f))
+                     ff)))
+        `(begin
+           (define ,(string-&gt;symbol
+                     (string-append &quot;make-&quot; s-s))
+             (lambda fvfv
+               (let ((st (make-vector ,n+1))
+                     (ff ',ff))
+                 (vector-set! st 0 ',s)
+                 ,@(let loop ((i 1) (r '()))
+                     (if (&gt;= i n+1)
+                         r
+                         (loop (+ i 1)
+                               (cons `(vector-set! st ,i ,(vector-ref vv i))
+                                     r))))
+                 (let loop ((fvfv fvfv))
+                   (if (not (null? fvfv))
+                       (begin (vector-set! st
+                                           (+ (list-position (keyword-&gt;symbol (car fvfv))
+                                                             ff)
+                                              1)
+                                           (cadr fvfv))
+                              (loop (cddr fvfv)))))
+                 st)))
+           ,@(let loop ((i 1) (procs '()))
+               (if (&gt;= i n+1)
+                   procs
+                   (loop (+ i 1)
+                         (let ((f (symbol-&gt;string
+                                   (list-ref ff (- i 1)))))
+                           (cons
+                            `(define ,(string-&gt;symbol
+                                       (string-append s-s &quot;.&quot; f))
+                               (lambda (x)
+                                 (vector-ref x ,i)))
+                            (cons
+                             `(define ,(string-&gt;symbol
+                                        (string-append &quot;set!&quot; s-s &quot;.&quot; f))
+                                (lambda (x v)
+                                  (vector-set! x ,i v)))
+                             procs))))))
+           (define ,(string-&gt;symbol (string-append s-s &quot;?&quot;))
+             (lambda (x)
+               (and (vector? x)
+                    (eqv? (vector-ref x 0)
+                          ',s)))))))))
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2010-12-25 09:12:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

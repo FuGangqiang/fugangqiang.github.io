@@ -1,0 +1,206 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-7</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-7</h1>
+    <article>
+      <h1>第七贴：输入输出</h1>
+<p>scheme 提供了一些输入输出过程，可以调用它们读取输入端口，写入输出端口，而这些端口<port>可以与控制台<console>、文件<file>或者字符串<string>相关联。</p>
+<h2>Reading&lt;读取&gt;</h2>
+<p>scheme 读取<reader>过程有一个可选输入端口参数，默认是当前输入端口&lt;通常是控制台&gt;。</p>
+<p>读取可以是基于字符、行或者是符号表达式。在每一次读取过程中，端口的状态都会更新，以使下一次读取时从已经读过的后面开始。如果一个端口已经读取到结尾，读取过程就返回 <code>end-of-file</code> 或 <code>eof-object</code> 对象，这个对象可以用 <code>eof-object?</code> 函数来判断。
+<code>read-char</code> 过程读取指定端口下一个字符;
+<code>read-line</code> 过程读取指定端口的下一行，返回一个字符串&lt;换行符会自动去掉&gt;;
+<code>read</code> 过程读取指定端口的下一个符号表达式。</p>
+<h2>Writing&lt;写入&gt;</h2>
+<p>scheme 写入过程以一个被写入对象和一个可选输出端口为参数，输出端口默认是当前输出端口&lt;通常为控制台&gt;。
+<code>write-char</code> 过程把一个字符&lt;不带 <code>#\</code>&gt;写入到指定端口；
+<code>write</code> 过程把一个符号表达式以一种 machine-readable 的形式写入指定端口，比如，一个字符串会被双引号括着，而字符会带有 <code>#\</code>；
+<code>display</code> 过程把一个符号表达式以一种 human-readable 的形式写入指定端口，比如，一个字符串不会被双引号括着，而一个字符不会带有 <code>#\</code>。</p>
+<h2>File ports&lt;文件端口&gt;</h2>
+<p>scheme　输入（输出）过程以标准输入（输出）为默认输入（输出）端口，所以当从标准输入（输出）读取（写入）时，不用指定端口，但是如果你想显式的给出端口，可以调用无参数的 <code>current-input-port</code> 和 <code>current-out-port</code> 过程：</p>
+<pre><code>scheme@(guile-user)&gt; (display 9)
+9scheme@(guile-user)&gt; (display 9 (current-output-port))
+9scheme@(guile-user)&gt;
+</code></pre>
+<ul>
+<li><code>open-input-file</code> 以一个文件名为参数，返回与这个文件相关联的输入端口，当所给文件不存在时会报错；</li>
+<li><code>open-output-file</code> 以一个文件名为参数，返回与这个文件相关联的输出端口，当所给文件已存在时会报错。</li>
+</ul>
+<p>当对一个端口完成所有操作时，你应当用 <code>close-input-port</code> 和 <code>close-output-port</code> 来关闭它。</p>
+<p>下面例子中，假设当前文件夹下 hello.txt 文件只含有 <code>hello</code> 一个词：</p>
+<pre><code>scheme@(guile-user)&gt; (define i (open-input-file &quot;hello.txt&quot;))
+scheme@(guile-user)&gt; (read-char i)
+#\h
+scheme@(guile-user)&gt; (define j (read i))
+scheme@(guile-user)&gt; j
+ello
+scheme@(guile-user)&gt; (read-char i)
+#\newline
+scheme@(guile-user)&gt; (read-char i)
+#&lt;eof&gt;
+</code></pre>
+<p>下面例子，假设当前文件夹下没有 greeting.txt 文件：</p>
+<pre><code>scheme@(guile-user)&gt; (define o (open-output-file &quot;greeting.txt&quot;))
+scheme@(guile-user)&gt; (display &quot;hello&quot; o)
+scheme@(guile-user)&gt; (write-char #\space o)
+scheme@(guile-user)&gt; (display 'world o)
+scheme@(guile-user)&gt; (newline o)
+scheme@(guile-user)&gt; (close-output-port o)
+</code></pre>
+<p>此时，在当前文件夹下会有一个 greeting.txt 文件，文件内容为：<code>hello world</code></p>
+<h3>Automatic opening and closing of file ports&lt;自动开关文件端口&gt;</h3>
+<p>scheme 中的 <code>call-with-input-file</code> 和 <code>call-with-output-file</code> 过程会为你自动打开一个端口，
+并且当你不再用它时会自动关闭它。</p>
+<p><code>call-with-input-file</code> 过程以一个文件名和一个过程为参数，而参数过程是以一个端口为参数，
+而 <code>call-with-input-file</code> 过程的作用就是把与一个文件名相关的端口传给其过程参数，
+并且当过程参数返回时确保该端口被关闭：</p>
+<pre><code>scheme@(guile-user)&gt; (call-with-input-file &quot;hello.txt&quot;
+...                     (lambda (i)
+...                        (let* ((a (read-char i))
+...                               (b (read-char i))
+...                               (c (read-char i)))
+...                           (list a b c))))
+(#\h #\e #\l)
+</code></pre>
+<p><code>call-with-output-file</code> 过程与 <code>call-with-input-file</code> 过程相似，但是其所服务的对象是输出文件。</p>
+<h2>String ports&lt;字符串端口&gt;</h2>
+<p><code>open-input-string</code> 过程使一个字符串与一个端口相关联，而那些读取过程对该端口的操作就是读出字符串中的内容：</p>
+<pre><code>scheme@(guile-user)&gt; (define i (open-input-string &quot;hello world&quot;))
+scheme@(guile-user)&gt; (read-char i)
+#\h
+scheme@(guile-user)&gt; (read i)
+ello
+scheme@(guile-user)&gt; (read i)
+world
+scheme@(guile-user)&gt; (read i)
+#&lt;eof&gt;
+</code></pre>
+<h2>Loading file&lt;加载文件&gt;</h2>
+<p>load 过程会在当前模块中顺序执行当前文件夹下给定文件名中所有 scheme 语句。</p>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2010-12-18 00:31:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

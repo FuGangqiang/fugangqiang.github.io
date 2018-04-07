@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Linux中 ALIGN宏背后的原理</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Linux中 ALIGN宏背后的原理</h1>
+    <article>
+      <h2>内核宏</h2>
+<pre><code>#define ALIGN(x,a)      __ALIGN_MASK(x,(typeof(x))(a)-1)  
+#define __ALIGN_MASK(x,mask)    (((x)+(mask))&amp;~(mask))  
+</code></pre>
+<p>不考虑类型，上述代码可以简化为如下：</p>
+<pre><code>#define ALIGN(x,a)    (((x)+(a)-1)&amp;~(a-1)) 
+</code></pre>
+<h2>原理</h2>
+<pre><code>int a;
+int size = 8;
+</code></pre>
+<p>如果让<code>a</code>为(size=8)的整数倍表示成二进制应是什么样子呢？
+那就是让这个数表示成二进制时的最后三位为0.
+而要达到这一目标，只要下面这个数与它进行与运算就可以了:</p>
+<p>11111111 11111111 11111111 11111000</p>
+<p>而上面这个数实际下就是 <code>~ (size - 1)</code>，可以将该数称为size的对齐掩码size_mask.</p>
+<p>可这样做求出的是比<code>a</code>小的那个最大的8的倍数. 如果要求出比<code>a</code>大的是不是需要加上8就可以了?
+可是如果a本身就是8的倍数, 这样加8不就错了吗, 所以在<code>a</code>基础上加上 <code>size - 1</code>, 然后与<code>size</code>的对齐掩码进行与运算.
+这样, 我们可以定义下面的宏, 用于计算一个数<code>a</code>以<code>size</code>为倍数的前后两个值：</p>
+<pre><code>#define alignment_down(a, size) (a &amp; (~(size-1)) )
+#define alignment_up(a, size) ((a+size-1) &amp; (~ (size-1)))
+</code></pre>
+<p>例如:</p>
+<pre><code>a=0, size=8,  则alignment_down(a,size)=0, alignment_up(a,size)=0.
+a=6, size=8,  则alignment_down(a,size)=0, alignment_up(a,size)=8.
+a=8, size=8,  则alignment_down(a,size)=8, alignment_up(a,size)=8.
+a=14, size=8, 则alignment_down(a,size)=8, alignment_up(a,size)=16.
+</code></pre>
+<p>注意：size应当为2的n次方, 即2, 4, 8, 16, 32, 64, 128, 256, 1024, 2048, 4096.....</p>
+<h2>在linux中的应用</h2>
+<p>上面的计算方法在linux等代码中也常常可以看到,下面给出几个例子:</p>
+<ul>
+<li>当分配地址addr时, 要将该地址以size为倍数对齐, 而且要得到是比addr大的值, 则使用_ALIGN宏：
+<pre><code>#define _ALIGN(addr,size) (((addr)+(size)-1)&amp;(~((size)-1)))
+</code></pre>
+</li>
+<li>与页面对齐相关的宏
+<pre><code>#define PAGE_SIZE         4096
+#define PAGE_MASK         (~(PAGE_SIZE-1))
+#define PAGE_ALIGN(addr) -(((addr)+PAGE_SIZE-1) &amp; PAGE_MASK)
+</code></pre>
+</li>
+<li>与skb分配时对齐相关的宏
+<pre><code>#define SKB_DATA_ALIGN(X) (((X) + (SMP_CACHE_BYTES - 1)) &amp; ~(SMP_CACHE_BYTES - 1))
+</code></pre>
+</li>
+</ul>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+      <li>日期： 2011-06-13 17:46:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

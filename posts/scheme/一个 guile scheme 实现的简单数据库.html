@@ -1,0 +1,294 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>一个 guile scheme 实现的简单数据库</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>一个 guile scheme 实现的简单数据库</h1>
+    <article>
+      <p>本文是模仿 Practical common lisp 中第三章&lt;Practical:A Simple Database&gt;中的程序而成的。</p>
+<p>在此，我用 scheme 的传统宏实现了一个类似的简单数据库。</p>
+<p>代码如下：</p>
+<pre><code>(use-modules (ice-9 format))
+ 
+(define-macro (create-table name columns)
+  (let ((+name-s (symbol-&gt;string name)))
+    `(begin
+       (define ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;))
+         '())
+ 
+       (define ,(string-&gt;symbol (string-append &quot;make-&quot; +name-s &quot;-record&quot;))
+         (lambda +cols
+           (map cons ,columns +cols)))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;add-&quot; +name-s &quot;-record&quot;))
+         (lambda (+record)
+           (set! ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;))
+                 (cons +record
+                       ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;))))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;dump-&quot; +name-s &quot;-table&quot;))
+         (lambda ()
+           (format #t &quot;~{~{~a~^~%~}~^~2%~}&quot;
+                   ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;)))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;save-&quot; +name-s &quot;-table&quot;))
+         (lambda (+filename)
+           (with-output-to-file +filename
+             (lambda ()
+               (write ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;)))))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;load-&quot; +name-s &quot;-table&quot;))
+         (lambda (+filename)
+           (with-input-from-file +filename
+             (lambda ()
+               (set! ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;))
+                     (read))))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;where-&quot; +name-s))
+         (lambda +pairs
+           (lambda (+cd)
+             (let +loop ((+ls +pairs))
+               (if (null? +ls)
+                   #t
+                   (let ((+key (car +ls))
+                         (+value (cadr +ls)))
+                     (if (equal? +value
+                                 (cdr (assq +key +cd)))
+                         (+loop (cddr +ls))
+                         #f)))))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;select-&quot; +name-s))
+         (lambda (+select-fn)
+           (filter +select-fn ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;)))))
+ 
+       (define ,(string-&gt;symbol (string-append &quot;update-&quot; +name-s))
+         (lambda (+selector-fn . +pairs)
+           (for-each (lambda (+cd)
+                       (if (+selector-fn +cd)
+                           (let loop ((+ls +pairs))
+                             (if (not (null? +ls))
+                                 (let ((+key (car +ls))
+                                       (+value (cadr +ls)))
+                                   (let ((+temp (assq +key +cd)))
+                                     (if (not (pair? +temp))
+                                         (error &quot;Wrong arguments in update function!&quot;)
+                                         (set-cdr! +temp +value))
+                                     (loop (cddr +ls))))))))
+                     ,(string-&gt;symbol (string-append &quot;*&quot; +name-s &quot;-table*&quot;)))))
+ 
+       )))
+</code></pre>
+<p>运行以上代码后，我们就有了一个 create-table 宏：
+如果像下面运行该宏：</p>
+<pre><code>(create-table cd '(title artist rating ripped))
+</code></pre>
+<p>就会建立了一个 cd 数据库，即是定义了以下变量和过程：</p>
+<ul>
+<li><code>*cd-table*</code></li>
+<li><code>make-cd-record</code></li>
+<li><code>add-cd-record</code></li>
+<li><code>dump-cd-table</code></li>
+<li><code>save-cd-table</code></li>
+<li><code>load-cd-table</code></li>
+<li><code>where-cd</code></li>
+<li><code>select-cd</code></li>
+<li><code>update-cd</code></li>
+</ul>
+<p>应用如下：</p>
+<pre><code>scheme@(guile-user)&gt; (create-table cd '(title artist rating ripped))
+scheme@(guile-user)&gt; (add-cd-record (make-cd-record &quot;Roses&quot; &quot;Kathy Mattea&quot; 7 #t))
+scheme@(guile-user)&gt; (add-cd-record (make-cd-record &quot;Fly&quot; &quot;Dixie Chicks&quot; 8 #t))
+scheme@(guile-user)&gt; (add-cd-record (make-cd-record &quot;Home&quot; &quot;Dixie Chicks&quot; 9 #t))
+scheme@(guile-user)&gt; (dump-cd-table)
+(title . Home)
+(artist . Dixie Chicks)
+(rating . 9)
+(ripped . #t)
+ 
+(title . Fly)
+(artist . Dixie Chicks)
+(rating . 8)
+(ripped . #t)
+ 
+(title . Roses)
+(artist . Kathy Mattea)
+(rating . 7)
+(ripped . #t)#t
+scheme@(guile-user)&gt; ,pp (select-cd (where-cd 'artist &quot;Dixie Chicks&quot;))
+(((title . &quot;Home&quot;)
+  (artist . &quot;Dixie Chicks&quot;)
+  (rating . 9)
+  (ripped . #t))
+ ((title . &quot;Fly&quot;)
+  (artist . &quot;Dixie Chicks&quot;)
+  (rating . 8)
+  (ripped . #t)))
+scheme@(guile-user)&gt; (update-cd (where-cd 'artist &quot;Dixie Chicks&quot;)
+                                'artist &quot;Abc&quot;)
+scheme@(guile-user)&gt; (dump-cd-table)
+(title . Home)
+(artist . Abc)
+(rating . 9)
+(ripped . #t)
+ 
+(title . Fly)
+(artist . Abc)
+(rating . 8)
+(ripped . #t)
+ 
+(title . Roses)
+(artist . Kathy Mattea)
+(rating . 7)
+(ripped . #t)#t
+scheme@(guile-user)&gt; ,pp (select-cd (where-cd 'artist &quot;Abc&quot; 'rating 9))
+(((title . &quot;Home&quot;)
+  (artist . &quot;Abc&quot;)
+  (rating . 9)
+  (ripped . #t)))
+scheme@(guile-user)&gt; (save-cd-table &quot;cd.db&quot;)
+</code></pre>
+<p>上面最后用 <code>save-cd-table</code> 过程将 <code>cd</code> 数据库保存在 <code>cd.db</code> 文件中，当我们需要该数据库时，
+只需 <code>load-cd-table</code> 过程来加载这个文件即可：</p>
+<pre><code>scheme@(guile-user)&gt; (create-table cd '(title artist rating ripped))  ; 不可省略该步
+scheme@(guile-user)&gt; (load-cd-table &quot;cd.db&quot;)
+scheme@(guile-user)&gt; (dump-cd-table)
+(title . Home)
+(artist . Abc)
+(rating . 9)
+(ripped . #t)
+ 
+(title . Fly)
+(artist . Abc)
+(rating . 8)
+(ripped . #t)
+ 
+(title . Roses)
+(artist . Kathy Mattea)
+(rating . 7)
+(ripped . #t)#t
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2011-01-21 18:44:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

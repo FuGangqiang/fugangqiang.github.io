@@ -1,0 +1,1089 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>https://fugangqiang.github.io</id>
+  <title>Fu</title>
+  <updated>2018-04-07T15:21:35+08:00</updated>
+  <subtitle>Simple is Beautiful!</subtitle>
+  <icon>/static/favicon.png</icon>
+  <logo>/static/logo.png</logo>
+  <link rel="alternate" type="text/html" href="https://fugangqiang.github.io" />
+  <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
+  <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
+  <entry>
+    <id>https://fugangqiang.github.io/posts/python/python%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%88%AC%E8%99%AB%E6%A1%86%E6%9E%B6scrapy.html</id>
+    <title>python之网络爬虫框架scrapy</title>
+    <updated>2017-02-25T18:19:40+08:00</updated>
+    <published>2017-02-25T18:19:40+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/python/python%E4%B9%8B%E7%BD%91%E7%BB%9C%E7%88%AC%E8%99%AB%E6%A1%86%E6%9E%B6scrapy.html"/>
+    <summary>最近自己写了一个爬虫程序，用 scrapy 来爬取网上的几十万首诗词， 非常方便，本文总结一下。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>最近自己写了一个爬虫程序，用 scrapy 来爬取网上的几十万首诗词，
+非常方便，本文总结一下。</p>
+<h2>什么是网络爬虫？</h2>
+<p>现在已经步入互联网时代，我们接触的大多数信息都可以通过互联网来获取，
+最基本的就是通过浏览器，键入网页地址，浏览网站，获取网站信息。</p>
+<p>用户可以自行手工上网筛选信息的，当然这样效率是异常的低，
+而网络爬虫通过程序自动化来自动访问网页链接，
+自动分析网页内容，自动筛选出需要的信息，并将产生的信息数据加以保存起来，
+进而大大提高了获取信息的效率。</p>
+<p>爬虫程序之所以可以做到自动化，
+皆因互联网一切网页都是符合相关标准协议的，
+只需按照标准协议来解析网页数据，我们就可以结构化网页数据，并提取相关信息。</p>
+<p>由于爬虫程序的结构、功能大多类似，
+通过爬虫框架无疑会将我们从爬虫实现的细节中解脱出来，
+我们只需关注怎么筛选出需要的数据就可以了，
+本文讲解爬虫框架中最常见的 scrapy。</p>
+<h2>scrapy 框架</h2>
+<h3>安装 scrapy：</h3>
+<pre><code>pip install scrapy
+</code></pre>
+<h3>创建爬虫工程</h3>
+<p>scrapy 框架与 python django web 框架理念相似，
+提供了相似的命令行界面：</p>
+<pre><code>scrapy startproject tutorial
+</code></pre>
+<p>这样 scrapy 就创建了 <code>tutorial</code> 爬虫工程文件目录，
+里面初始化了爬虫所需的基本文件，
+从中可以看出 scrapy 爬虫程序的结构：</p>
+<pre><code>$ tree tutorial
+tutorial
+├── scrapy.cfg
+└── tutorial
+    ├── __init__.py
+    ├── items.py
+    ├── middlewares.py
+    ├── pipelines.py
+    ├── __pycache__
+    ├── settings.py
+    └── spiders
+        ├── __init__.py
+        └── __pycache__
+
+4 directories, 7 files
+</code></pre>
+<p>而我们写的相关爬虫程序只需在 <code>spiders</code> 目录里添加相关代码就可以了，
+其他文件都是 scrapy 为了更好的扩展而准备的，此时可以不必理这些文件。</p>
+<h3>自定义爬虫程序</h3>
+<p>创建 <code>tutorial/tuorial/spiders/quotes.py</code> 文件：</p>
+<pre><code>import scrapy
+
+
+class QuotesSpider(scrapy.Spider):
+    name = &quot;quotes&quot;
+    start_urls = [
+        'http://quotes.toscrape.com/page/1/',
+    ]
+
+    def parse(self, response):
+        for quote in response.css('div.quote'):
+            yield {
+                'text': quote.css('span.text::text').extract_first(),
+                'author': quote.css('small.author::text').extract_first(),
+                'tags': quote.css('div.tags a.tag::text').extract(),
+            }
+</code></pre>
+<p>从上面代码可以看出，我们只需指定：</p>
+<ul>
+<li><code>name</code>: 爬虫对应的 name，用于唯一标记爬虫程序</li>
+<li><code>start_urls</code>: 爬虫开始的第一个 url 地址</li>
+<li><code>parse</code>: 抓取页面中需要的信息</li>
+</ul>
+<p>其他与爬虫相关的所有细节，scrapy 已经提供好了，我们只需写这些就可以正是获取信息了。</p>
+<h3>运行爬虫程序</h3>
+<p>命令须在爬虫工程目录运行：</p>
+<pre><code>scrapy crawl quotes -o quotes.json
+</code></pre>
+<p>这样，所有结果就保存在 <code>quotes.json</code> 文件里了。</p>
+<h3>调试爬虫</h3>
+<p>为了更好的实时调试，查看代码作用，scrapy 提供了 <code>shell</code> 子命令：</p>
+<pre><code>scrapy shell 'http://quotes.toscrape.com/page/1/'
+</code></pre>
+<p>这样就进入了一个命令交互界面，可以运行相关 python 代码实时验证代码。</p>
+<h3>其他</h3>
+<p>上面只是一个简单的介绍，scrapy 提供了更多的抽象：</p>
+<ul>
+<li>Item</li>
+<li>ItemLoader</li>
+<li>ItemPipeline</li>
+<li>Middleware</li>
+<li>Setting</li>
+<li>Logging</li>
+<li>...</li>
+</ul>
+<p>具体请看 <a href="https://doc.scrapy.org/en/latest/">scrapy 文档</a></p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8B%E8%BF%9E%E6%8E%A5%E7%BC%93%E5%86%B2%E6%B1%A0pgbouncer.html</id>
+    <title>postgresql之连接缓冲池pgbouncer</title>
+    <updated>2017-02-24T16:55:12+08:00</updated>
+    <published>2017-02-24T16:55:12+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8B%E8%BF%9E%E6%8E%A5%E7%BC%93%E5%86%B2%E6%B1%A0pgbouncer.html"/>
+    <summary>数据库连接缓冲有两种方式：客户端缓冲池和服务端缓冲池， 本文讲解服务端缓冲池 PgBouncer。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>数据库连接缓冲有两种方式：客户端缓冲池和服务端缓冲池，
+本文讲解服务端缓冲池 PgBouncer。</p>
+<h2>为什么需要链接缓冲池？</h2>
+<p>postgresql 是一种 client/server 模型的数据库服务，
+server 端由 master 进程(postgres)控制，
+每当有客户端发起链接请求时，master 进程会 fork 一个新进程出来，
+由新进程来处理客户端发起的命令查询等。
+当客户端断开链接后，与之对应的进程也就被销毁，以释放相应的服务资源。</p>
+<p>当链接请求比较多或频繁时，
+服务端在进程的切换和新建上浪费了大量的资源，
+所以应该尽可能减少链接请求，
+也就出现了在客户端／服务端两种链接复用的方式来缓解服务端的压力。</p>
+<p>而 PgBouncer 就是被用来在服务端一侧来复用链接的。</p>
+<h2>安装</h2>
+<p>archlinux 系统：</p>
+<pre><code>pacman -S pgbouncer
+</code></pre>
+<h2>配置</h2>
+<p>/etc/pgbouncer/pgbouncer.ini:</p>
+<pre><code>[databases]
+template1 = host=127.0.0.1 port=5432 dbname=template1
+
+[pgbouncer]
+listen_port = 6543
+listen_addr = 127.0.0.1
+auth_type = md5
+auth_file = users.txt
+logfile = pgbouncer.log
+pidfile = pgbouncer.pid
+admin_users = someuser
+</code></pre>
+<p>/etc/pgbouncer/userlist.txt:</p>
+<pre><code>&quot;someuser&quot; &quot;same_password_as_in_server&quot;
+</code></pre>
+<h2>开启 PgBouncer 服务</h2>
+<pre><code>systemctl start pgbouncer
+</code></pre>
+<p>当然，也可以直接运行 <code>pgbouncer</code>：</p>
+<pre><code>pgbouncer -d /etc/pgbouncer/pgbouncer.ini
+</code></pre>
+<p>postgresql 客户端程序就可以通过 <code>6543</code> 端口来申请数据库链接了。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/%E6%89%8B%E5%86%99%20fwatcher%20%E5%B0%8F%E5%B7%A5%E5%85%B7.html</id>
+    <title>手写 fwatcher 小工具</title>
+    <updated>2017-02-20T19:15:41+08:00</updated>
+    <published>2017-02-20T19:15:41+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/%E6%89%8B%E5%86%99%20fwatcher%20%E5%B0%8F%E5%B7%A5%E5%85%B7.html"/>
+    <summary>在 web 开发过程中，我们经常需要在某个或某些文件被修改后运行一些命令。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>在 web 开发过程中，我们经常需要在某个或某些文件被修改后运行一些命令。</p>
+<p>例如：在 django web 开发时，当运行 <code>manage.py runserver</code> 后，
+如果我们修改了 django 工程相关的代码，<code>manage.py</code> 程序会在后台自动重启服务，
+使代码即时生效，以便于检验代码正确性。</p>
+<p>然而在 python 众多 web 框架中，许多都没有 django 这种类似功能，在其他语言也同样如此。
+而且这种当某些文件修改后及时运行某些指令的情况很常见，
+因此，自己决定写一个类似的监控文件的小程序 <code>fwatcher</code>，以便以后的自动化开发。</p>
+<p>fwatcher 用 rust 语言编写，
+不仅可以直接用于命令行，
+也可以通过 crate lib 来集成到 rust 程序中，以便于其他 rust 应用调用。</p>
+<p>代码库 repo: <a href="https://github.com/FuGangqiang/fwatcher.rs">https://github.com/FuGangqiang/fwatcher.rs</a></p>
+<h2>fwatcher 命令行</h2>
+<h4>安装</h4>
+<p>需要 rust 的 cargo 包管理器：</p>
+<pre><code class="language-sh">cargo install fwatcher
+</code></pre>
+<p>这样 <code>fwatcher</code> 就被安装在你的 <code>~/.cargo/bin</code> 目录中了。</p>
+<h4>用法</h4>
+<pre><code class="language-sh">$ fwatcher -h
+Usage:
+    fwatcher [options] CMD
+
+Options:
+    -h, --help          Display this message
+    -v, --version       Print version info
+    -r, --restart       Auto restart command
+    -d, --directory &lt;dir&gt;
+                        Watch directory, default to current directory
+    -p, --pattern &lt;pattern&gt;
+                        Watch file glob pattern, default to &quot;*&quot;
+    -i, --interval &lt;pattern&gt;
+                        Interval in seconds to scan filesystem, default to 1
+</code></pre>
+<p>如果你想在当前文件夹下递归搜索 python 文件，当其中一个被修改了，就立即运行 <code>pytest</code> 程序：</p>
+<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; &quot;pytest&quot;
+</code></pre>
+<p>当然，你也可以指定只监控哪些文件夹：</p>
+<pre><code class="language-sh">fwatcher -d src -d test -p &quot;**/*.py&quot; &quot;pytest&quot;
+</code></pre>
+<p>上面命令每检测到一个 python 文件被修改，就会运行 <code>pytest</code> 程序一次，即使上一次修改导致的 <code>pytest</code> 还再运行。</p>
+<p>当运行的程序比较耗时，又或者是一个服务并不会停止时，你如果需要重启上一次开启的程序，
+这时需要加 <code>--restart</code> 参数：</p>
+<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; --restart &quot;run_forever_cmd&quot;
+</code></pre>
+<h2>Rust Lib</h2>
+<p>Cargo.toml 依赖：</p>
+<pre><code class="language-toml">[dependencies]
+glob = &quot;0.2&quot;
+notify = &quot;4.0&quot;
+fwatcher = &quot;*&quot;
+</code></pre>
+<p>下面是一个示例：</p>
+<pre><code class="language-rust">extern crate glob;
+extern crate fwatcher;
+
+use fwatcher::Fwatcher;
+use glob::Pattern;
+use std::path::PathBuf;
+use std::time::Duration;
+
+
+fn main() {
+    let dirs =vec![PathBuf::from(&quot;src&quot;)];
+    let cmd = vec![&quot;pytest&quot;.to_string()];
+
+    let mut fwatcher = Fwatcher::new(dirs, cmd);
+    fwatcher.pattern(Pattern::new(&quot;**/*.py&quot;).unwrap())
+            .exclude_pattern(Pattern::new(&quot;**/.git/**&quot;).unwrap())
+            .interval(Duration::new(1, 0))
+            .restart(false)
+            .run();
+}
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8B%E7%89%A9%E7%90%86%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84.html</id>
+    <title>postgresql之物理存储结构</title>
+    <updated>2017-02-13T16:20:21+08:00</updated>
+    <published>2017-02-13T16:20:21+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8B%E7%89%A9%E7%90%86%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84.html"/>
+    <summary>为了更好的学习 postgresql，从底层数据如何存储可以更直观的了解其原理。 本文以 postgresql9.6 为介绍对象。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>为了更好的学习 postgresql，从底层数据如何存储可以更直观的了解其原理。
+本文以 postgresql9.6 为介绍对象。</p>
+<h2>postgresql 的数据目录</h2>
+<p>在安装完数据库，我们需要用 <code>initdb</code> 命令来初始化数据库：</p>
+<pre><code class="language-sh">initdb -D /var/lib/postgres/data/
+</code></pre>
+<p>这样，所有数据都存放到 <code>-D</code> 指定的参数文件夹中，
+当启动数据库服务时，我们需要将这个目录以参数的形式提供给启动数据库开启命令：</p>
+<pre><code class="language-sh">postgres -D /var/lib/postgres/data
+</code></pre>
+<p>这个目录就是在 postgresql 术语中经常碰到的 <code>PGDATA</code> 变量。</p>
+<p>当然，有可能你是从客户端连接到数据库的，并不知道数据库开启时的命令，
+你可以通过超级用户登陆 postgresql，运行下面语句来获取 <code>PGDATA</code>：</p>
+<pre><code class="language-sql">show data_directory;
+</code></pre>
+<h2>PGDATA 目录结构</h2>
+<p>首先我们来看一下 <code>PGDATA</code> 文件夹里面都有那些文件：</p>
+<pre><code class="language-sh">$ tree -FL 1 /var/lib/postgres/data/
+/var/lib/postgres/data/
+├── base/
+├── global/
+├── pg_clog/
+├── pg_commit_ts/
+├── pg_dynshmem/
+├── pg_hba.conf
+├── pg_ident.conf
+├── pg_logical/
+├── pg_multixact/
+├── pg_notify/
+├── pg_replslot/
+├── pg_serial/
+├── pg_snapshots/
+├── pg_stat/
+├── pg_stat_tmp/
+├── pg_subtrans/
+├── pg_tblspc/
+├── pg_twophase/
+├── PG_VERSION
+├── pg_xlog/
+├── postgresql.auto.conf
+├── postgresql.conf
+├── postmaster.opts
+└── postmaster.pid
+
+17 directories, 7 files
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>base/</code>：存储 database 数据（除了指定其他表空间的）</li>
+<li><code>global/</code>：存储 cluster-wide 表格数据</li>
+<li><code>pg_clog/</code>：存储事务提交的状态数据</li>
+<li><code>pg_commit_ts/</code>：存储事务提交的时间戳数据</li>
+<li><code>pg_dynshmem/</code>：存储动态共享内存子系统的文件</li>
+<li><code>pg_hba.conf</code>：postgresql 配置文件</li>
+<li><code>pg_ident.conf</code>：postgresql 配置文件</li>
+<li><code>pg_logical/</code>：存储 logical decoding 状态数据</li>
+<li><code>pg_multixact/</code>：存储多重事务状态数据的子目录（用于共享的行锁）</li>
+<li><code>pg_notify/</code>：存储 LISTEN/NOTIFY 状态数据</li>
+<li><code>pg_replslot/</code>：存储 replication slot 数据</li>
+<li><code>pg_serial/</code>：存储 committed serializable transactions 信息</li>
+<li><code>pg_snapshots/</code>：存储导出的 snapshots</li>
+<li><code>pg_stat/</code>：存储统计子系统的永久文件</li>
+<li><code>pg_stat_tmp/</code>：存储统计子系统的临时文件</li>
+<li><code>pg_subtrans/</code>：存储子事务状态数据</li>
+<li><code>pg_tblspc/</code>：存储指向表空间的符号链接</li>
+<li><code>pg_twophase/</code>：存储 prepared transactions 的状态文件</li>
+<li><code>PG_VERSION</code>：存储 postgresql 数据库的主版本号</li>
+<li><code>pg_xlog/</code>：存储 WAL (Write Ahead Log) 文件</li>
+<li><code>postgresql.auto.conf</code>：存储由 <code>ALTER SYSTEM</code> 设置的配置</li>
+<li><code>postgresql.conf</code>：postgresql 配置文件</li>
+<li><code>postmaster.opts</code>：存储上一次启动该数据库时用到的命令</li>
+<li><code>postmaster.pid</code>：锁文件，只有在 postgresql 服务运行时存在，存储当前 postmaster 的 PID，PGDATA，postmaster 启动时间，端口号，Unix-domain socket 目录，第一个有效的 listen_address，共享内存的 segment ID</li>
+</ul>
+<h2>database 数据存储在哪里？</h2>
+<p>postgresql 数据库中，每一个对象都对应一个 OID 唯一标识，
+而每一个 database 的目录名就存储在与其对应的 OID 目录中： <code>PGDATA/base/oid</code>，
+我们可以查询每一个 database 的 OID:</p>
+<pre><code class="language-sql">select oid, datname from pg_database;
+  oid  |  datname
+-------+-----------
+ 12410 | postgres
+     1 | template1
+ 12409 | template0
+ 17045 | test
+</code></pre>
+<p>进而我们知道，与 test 数据库相关的数据都存储在 <code>PGDATA/base/17045</code> 目录里面。</p>
+<h2>table 数据存储在哪里？</h2>
+<p>所有的 table 数据存储在所在数据库的目录里面，table 们是分开存放的，
+每一个存储 table 的文件均用 <code>pg_class.relfilenode</code> 命名。</p>
+<pre><code class="language-sql">-- 创建 foo table
+create table foo (
+    id integer,
+    content text
+);
+
+
+-- 查看 foo 的 relfilenode
+select relfilenode from pg_class where relname = 'foo';
+ relfilenode
+-------------
+       17238
+</code></pre>
+<p>因此我们就可以推断：foo 表格数据存储在 <code>PGDATA/base/17405/17238</code> 文件里面，
+当然我们可以通过下面语句来查询存储相关文件：</p>
+<pre><code class="language-sql">select pg_relation_filepath('foo');
+ pg_relation_filepath
+----------------------
+ base/17045/17238
+</code></pre>
+<p>为了避免有些文件系统不支持大文件，postgresql 限制标文件大小不能超过 1G，
+因此，当表文件超过 1G 时，会另建一有尾缀文件 <code>relfilenode.1</code>，<code>relfilenode.2</code>，
+并以此类推。</p>
+<p>当你查看 <code>PGDATA/base/17405/</code> 目录时，
+会发现有些文件命名为 <code>relfilenode_fsm</code>、<code>relfilenode_vm</code>、<code>relfilenode_init</code>，
+它们是用来存储与表格相关的 free space map 、visibility map 和 unlogged table 的 initialization fork。</p>
+<h2>row 数据是怎么存储的？</h2>
+<p>每一个 table 数据存储为一个 page 数组，每一个 page 都是固定大小（通常为 8Kb），
+它们在逻辑上是等价的，因此，一个记录 row 的数据可以存放到任何一个 page 中，
+一个 page 的内部结构如下：</p>
+<p><img src="/media/postgresql/page_structure.png" alt="page structure" /></p>
+<p>其中：</p>
+<ul>
+<li><code>page header</code>: 24 字节，存储 page 的基本信息，包括 checksum、free space start/end pointer、...</li>
+<li><code>item</code>：4 bytes，形为 <code>(offset, length)</code> 的二元组，指向相关 tuple</li>
+<li><code>tuple</code>: 用来存储 row 的数据</li>
+<li><code>special</code>：用来存储索引访问方法的特处数据，不同方法不一样，一般为空</li>
+<li>空白处：未申请空间，新的 item 从其首端申请，新的 tuple 从其尾端申请</li>
+</ul>
+<p>因此我们找 row 的数据需要知道哪一个 page，page 的哪一个 item，
+<code>(page_index, item_index)</code>，
+通常称它为 <code>CTID(ItemPointer)</code>，
+我们可以通过下面语句查看每一列的 CTID：</p>
+<pre><code class="language-sql">SELECT ctid, * from foo;
+</code></pre>
+<h2>postgresql 限制</h2>
+<p>从上面我们知道，postgresql 中，
+每一 row 的大小是不能超过 8Kb 的，因为他们是被存储在 page 里的，
+因此，postgresql 限制一个表格最多有 250~1600 列（根据列类型大小而定）。</p>
+<p>那如果列的数据超过了 8Kb 会怎么处理呢？
+TOAST(The Oversized-Attribute Storage Technique)机制就是专门处理这种情况的，
+它会将大数据列分割成几个小块单独存储在与表格相关的 TOAST 文件中，然后对这些小块进行索引。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8BMVCC%E6%9C%BA%E5%88%B6.html</id>
+    <title>postgresql之MVCC机制</title>
+    <updated>2017-02-11T21:05:18+08:00</updated>
+    <published>2017-02-11T21:05:18+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/database/postgresql/postgresql%E4%B9%8BMVCC%E6%9C%BA%E5%88%B6.html"/>
+    <summary>许多数据库用到了 MVCC(Multi Version Concurrency Control，多版本并发控制)技术， 不仅保证了数据库的 ACID 特性，也提高了并发性能，本文讲解 postgresql 的 MVCC 机制。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>许多数据库用到了 MVCC(Multi Version Concurrency Control，多版本并发控制)技术，
+不仅保证了数据库的 ACID 特性，也提高了并发性能，本文讲解 postgresql 的 MVCC 机制。</p>
+<p>在说明 MVCC 机制之前，我们需要了解一下事务 ID。</p>
+<h2>事务 ID</h2>
+<p>在 postgresql 中，每个事务都有一个唯一的事务 ID，被称为 <code>XID</code>。
+当一个事务开始时，postgresql 递增 <code>XID</code>，然后把它赋给这个事务，
+当前事务 <code>XID</code> 可以通过下面获取：</p>
+<pre><code class="language-sql">select txid_current();
+</code></pre>
+<h2>隐藏的属性</h2>
+<p>当我们向数据库中插入一条记录时，postgresql 会自动为这条记录添加一些隐藏属性：<code>xmin</code>、<code>xmax</code>。
+postgresql 就是利用这两个属性来判断这条记录是否对哪个事务可见的。</p>
+<p>首先来说一下 <code>xmin</code>，当记录被插入时，其 <code>xmin</code> 被赋为当前事务 ID，
+当事务被提交后，
+其它事务会利用自己的 <code>XID</code> 和该条记录的 <code>xmin</code> 比较，
+当 <code>XID &gt; xmin</code> 时，该条记录对事务可见，否则不可见。</p>
+<p><code>xmax</code> 是用来标示记录失效的，记录最初被插入时，<code>xmax</code> 被赋为 0。
+postgresql 中的修改并不是真正的原地修改记录，
+而是新插入一条被修改后的记录，
+并对原记录打标签（它的 <code>xmax</code> 会被赋为当前事务 ID），
+这样，当前事务提交后，
+其他事务会利用自己的 <code>XID</code> 和该条记录的 <code>xmax</code> 比较，
+当 <code>xmax != 0 &amp;&amp; XID &gt; xmax</code> 时，该条记录对事务失效，否则可见。</p>
+<p>删除记录同理，只是对记录打标签。</p>
+<pre><code>create table numbers (value int);
+</code></pre>
+<p><img src="/media/postgresql/mvcc_xmin_xmax.jpg" alt="xmin/xmax" /></p>
+<p><code>xmin</code> 和 <code>xmax</code> 的值通常会被隐藏的，但是你可以直接请求它们：</p>
+<pre><code class="language-sql">select *, xmin, xmax from tbl_name;
+</code></pre>
+<h2>VACUUM</h2>
+<p>从上面我们知道，当记录被修改或删除后，并没有真是的从数据库文件中移除，
+而是被打上了失效标签，以便于同时期的其他事务使用，
+但是当没有事务再可以访问它们时，它们就被称为 <code>dead rows</code> 了，
+它们需要定期的被收集并从数据库文件中真实删除。</p>
+<p>数据库每开启一个事务，事务 ID 就会增 1，
+而存储事务的 ID 只有 32 bit，
+因此当事务 ID 增加到最大值后会归 0，
+突然间所有的记录都变成了发生在将来的事务所产生的，所有的新事务都没有办法访问到这些旧记录了。</p>
+<p>针对以上问题，可以通过 <code>VACUUM</code> 命令来解决，
+当然 postgresql 也提供了 auto_vacuum 守护进程来定期运行。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/python/python%E5%BC%82%E6%AD%A5io%20web%E6%A1%86%E6%9E%B6%E4%B9%8Baiohttp.html</id>
+    <title>python异步io web框架之aiohttp</title>
+    <updated>2017-02-10T16:09:15+08:00</updated>
+    <published>2017-02-10T16:09:15+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/python/python%E5%BC%82%E6%AD%A5io%20web%E6%A1%86%E6%9E%B6%E4%B9%8Baiohttp.html"/>
+    <summary>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了， 无疑利用 asyncio 写 web 应用将会极为方便。 虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)， 但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)， 所以决定尝试一下 [aiohttp][] 的 web 框架。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了，
+无疑利用 asyncio 写 web 应用将会极为方便。
+虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)，
+但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)，
+所以决定尝试一下 <a href="https://github.com/KeepSafe/aiohttp/">aiohttp</a> 的 web 框架。</p>
+<h2>安装</h2>
+<pre><code>pip install aiohttp
+</code></pre>
+<h2>hello world</h2>
+<p>虽然 aiohttp 经常用于客户端编程，但是它也可以用于服务端 web 开发，
+而且写法也极为优美，下面是一个 hello world 示例：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def hello(request):
+    name = request.match_info.get('name', 'Anonymous')
+    text = f'Hello, {name}'
+    return web.Response(text=text)
+
+
+app = web.Application()
+app.router.add_get('/', hello)
+app.router.add_get('/{name}', hello)
+
+web.run_app(app)
+</code></pre>
+<h2>websocket</h2>
+<p>aiohttp 也原生支持 websocket：</p>
+<pre><code class="language-python">from aiohttp import web
+
+
+async def ws_hello(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+
+    async for msg in ws:
+        if msg.type == web.MsgType.text:
+            ws.send_str(f'Hello, {msg.data}')
+        elif msg.type == web.MsgType.binary:
+            ws.send_bytes(msg.data)
+        elif msg.type == web.MsgType.close:
+            break
+
+    return ws
+
+
+app = web.Application()
+app.router.add_get('/echo', ws_hello)
+
+web.run_app(app)
+</code></pre>
+<h2>目录结构</h2>
+<p>虽然写一个简单的 web 服务一个文件就可以了，
+但是当 web 服务比较复杂时，清晰的目录结构可以更有效的组织代码，
+自己写一个服务时利用了以下代码结构：</p>
+<pre><code>backend
+├── app/
+│   ├── model/
+│   ├── sql/
+│   ├── api/
+│   ├── config.py
+│   ├── db.py
+│   ├── middlewares.py
+│   ├── permissions.py
+│   ├── urls.py
+│   └── utils.py
+├── requirements/
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── tests/
+├── init／
+├── deploy/
+├── run.py
+└── README.md
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>app</code> 目录存放所有服务相关的代码</li>
+<li><code>app/model</code> 目录存放服务相关的 model 定义</li>
+<li><code>app/sql</code> 目录存放数据库表格定义/修改的 sql 脚本</li>
+<li><code>app/config.py</code> 存放所有相关配置信息</li>
+<li><code>app/db.py</code> 存放与数据库操作与初始化相关的代码</li>
+<li><code>app/middlewares.py</code> 存放 web 服务的中间件</li>
+<li><code>app/permissions.py</code> 存放与权限检测相关的代码</li>
+<li><code>app/urls.py</code> 存放 web 服务的路由定义</li>
+<li><code>app/utils.py</code> 存放一些辅助工具函数</li>
+<li><code>requirements</code> 目录存放 pip 安装 requirements 文件</li>
+<li><code>init</code> 目录提供一些与数据库初始化和测试样例数据初始化的代码</li>
+<li><code>deploy</code> 目录存放与服务部署相关的代码</li>
+<li><code>run.py</code> 是服务的入口脚本，与 <code>flask-cli</code> 类似</li>
+</ul>
+<h2>相关包</h2>
+<p>asyncio 周边已经存在大量辅助包了，这里列一些比较常用的包：</p>
+<ul>
+<li>uvloop</li>
+<li>aiofiles</li>
+<li>asyncpg</li>
+<li>aioredis</li>
+<li>aiokafka</li>
+<li>aioes</li>
+</ul>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio%20codec%E3%80%81proto%E3%80%81service.html</id>
+    <title>rust之tokio codec、proto、service</title>
+    <updated>2017-01-22T20:29:30+08:00</updated>
+    <published>2017-01-22T20:29:30+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio%20codec%E3%80%81proto%E3%80%81service.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇是这一系列的最后一篇，涉及到 tokio 框架的 Trait <code>CodeC</code>、<code>ServerProto</code>、<code>Service</code>。</p>
+<h2>网络应用结构</h2>
+<p>我们知道，大多数网路应用的结构都被设计成一个分层结构：</p>
+<ul>
+<li>字节流层(byte streams)</li>
+<li>分帧层(framing)</li>
+<li>请求/响应交换层(request / response exchange)</li>
+<li>应用层(application)</li>
+</ul>
+<p>这样的设计可以使应用程序结构化、模块化，使各层程序只需关注自己所关注的事情，
+便于维护，更具可读性。</p>
+<h3>字节流层(byte streams)</h3>
+<p>这一层是最底一层，数据直接由 TCP/UDP socket 提供的数据，
+在这一层进行的所有操作大多通过缓冲区来操作字节数组(byte arrays)。</p>
+<h3>分帧层(framing)</h3>
+<p>字节流通常被分割成数个有意义的单位，每个单位被称为一个数据帧(frame)，
+比如：
+HTTP 协议包含请求头(request headers)、响应头(response headers)和包体块(body chunks)。
+一种基于行的协议由换行符<code>\n</code>分割。
+抽象出分帧层，我们就不必直接操作裸字节流了，以后所有操作可以基于数据帧了。</p>
+<h3>请求/响应交换层(request / response exchange)</h3>
+<p>在 server/client 应用中，通常客户端发起一个 request，服务端就会返回一个 reponse，
+每个 request 有可能有多个数据帧组成，
+这样我们需要维护 request/response/transport 之间的对应关系。</p>
+<h3>应用层(application)</h3>
+<p>在这一层，我们并不关心 request/response 和 transport 的对应关系，
+只能看到请求对象，然后根据应用逻辑产生对应的相应对象。</p>
+<h3>相关 Trait</h3>
+<p>每一层虽然进行的操作各有不同，但在相邻层间的转换存在一个模式，可以把它们抽象出来，
+因此有了：</p>
+<ul>
+<li><code>tokio_core::io::Codec</code></li>
+<li><code>tokio_proto::pipeline::ServerProto</code> 和 <code>tokio_proto::multiplex::ServerProto</code></li>
+<li><code>tokio_service::Service</code></li>
+</ul>
+<h2>示例</h2>
+<p>最后我们通过经典的 <code>echo server</code> 示例代码来看一下这几个 Trait 的用法：</p>
+<pre><code class="language-rust">extern crate byteorder;
+extern crate futures;
+extern crate tokio_core;
+extern crate tokio_proto;
+extern crate tokio_service;
+
+use std::io;
+use std::str;
+use std::net::SocketAddr;
+
+use byteorder::{BigEndian, ByteOrder};
+use futures::Future;
+use futures::future::{self, BoxFuture};
+use tokio_core::io::{Io, Framed, EasyBuf, Codec};
+use tokio_proto::TcpServer;
+use tokio_proto::multiplex::{RequestId, ServerProto};
+use tokio_service::Service;
+
+struct LineCodec;
+struct LineProto;
+struct EchoService;
+
+
+/// # Frame Struct:
+///
+/// * request id: 4 byte
+/// * payload: zero or more bytes
+/// * linefeed: `\n`
+///
+/// +-- request id --+------- frame payload --------+
+/// |                |                              |
+/// |   \x00000001   | This is the frame payload \n |
+/// |                |                              |
+/// +----------------+------------------------------+
+///
+impl Codec for LineCodec {
+    type In = (RequestId, String);
+    type Out = (RequestId, String);
+
+    fn decode(&amp;mut self, buf: &amp;mut EasyBuf) -&gt; Result&lt;Option&lt;(RequestId, String)&gt;, io::Error&gt;
+    {
+        if buf.len() &lt; 5 {
+            return Ok(None);  // We don't yet have a full message
+        }
+
+        let newline = buf.as_ref()[4..].iter().position(|b| *b == b'\n');
+        if let Some(n) = newline {
+            let line = buf.drain_to(n + 4);
+            buf.drain_to(1);
+            let id = BigEndian::read_u32(&amp;line.as_ref()[0..4]);
+            return match str::from_utf8(&amp;line.as_ref()[4..]) {
+                Ok(s) =&gt; Ok(Some((id as RequestId, s.to_string()))),
+                Err(_) =&gt; Err(io::Error::new(io::ErrorKind::Other, &quot;invalid string&quot;)),
+            }
+        }
+
+        Ok(None)  // We don't yet have a full message
+    }
+
+    fn encode(&amp;mut self, msg: (RequestId, String), buf: &amp;mut Vec&lt;u8&gt;) -&gt; io::Result&lt;()&gt;
+    {
+        let (id, msg) = msg;
+        let mut encoded_id = [0; 4];
+
+        BigEndian::write_u32(&amp;mut encoded_id, id as u32);
+        buf.extend(&amp;encoded_id);
+        buf.extend(msg.as_bytes());
+        buf.push(b'\n');
+
+        Ok(())
+    }
+}
+
+
+impl&lt;T: Io + 'static&gt; ServerProto&lt;T&gt; for LineProto {
+    type Request = String;
+    type Response = String;
+
+    // `Framed&lt;T, LineCodec&gt;` is the return value of `io.framed(LineCodec)`
+    type Transport = Framed&lt;T, LineCodec&gt;;
+    type BindTransport = Result&lt;Self::Transport, io::Error&gt;;
+
+    fn bind_transport(&amp;self, io: T) -&gt; Self::BindTransport {
+        Ok(io.framed(LineCodec))
+    }
+}
+
+
+impl Service for EchoService {
+    type Request = String;
+    type Response = String;
+    type Error = io::Error;
+    type Future = BoxFuture&lt;Self::Response, Self::Error&gt;;
+
+    fn call(&amp;self, req: Self::Request) -&gt; Self::Future {
+        future::ok(req).boxed()
+    }
+}
+
+
+fn main() {
+    let mut args = ::std::env::args();
+    let cmd = args.next().unwrap();
+    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
+    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
+    let server = TcpServer::new(LineProto, addr);
+    server.serve(|| Ok(EchoService));
+}
+</code></pre>
+<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-echo">tokio-echo</a> 下载。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio-core.html</id>
+    <title>rust之tokio-core</title>
+    <updated>2017-01-20T16:07:40+08:00</updated>
+    <published>2017-01-20T16:07:40+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio-core.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/tokio-rs/tokio-core">tokio-core</a>。</p>
+<p>直接通过 mio 我们也是可以写出异步 IO 程序的，但是 mio 提供的接口太过于底层，
+以至于直接用 mio 时需要保存 token 和链接的关系，并且还要在链接就绪后去执行特定的程序，
+这些都太过于繁杂，但是这个过程存在一个事件分派模式，
+我们可以把这个模式抽象出来，所以 tokio-core 应运而生。</p>
+<p>tokio-core 基于 mio 和 futures-rs，
+通过 mio 来管理 IO 事件，通过 futures-rs 来表达对各种 IO 事件的处理，
+这样 tokio-core 提供了更方便的接口供用户使用。</p>
+<p>我们可以通过以下代码示例来说明 tokio-core 的用法：</p>
+<pre><code class="language-rust">extern crate futures;
+extern crate tokio_core;
+
+use std::net::SocketAddr;
+
+use futures::Future;
+use futures::stream::Stream;
+use tokio_core::io::{copy, Io};
+use tokio_core::net::TcpListener;
+use tokio_core::reactor::Core;
+
+
+fn main() {
+    let mut args = ::std::env::args();
+    let cmd = args.next().unwrap();
+    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
+    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
+
+    let mut core = Core::new().unwrap();  // the Event Loop
+    let handle = core.handle();
+
+    let socket = TcpListener::bind(&amp;addr, &amp;handle).unwrap();
+    let done = socket.incoming().for_each(|(socket, addr)| {
+        let pair = futures::lazy(|| Ok(socket.split()));
+        let amt = pair.and_then(|(reader, _)| copy(reader, ::std::io::stdout()));
+        println!(&quot;Accepted connection: {}&quot;, addr);
+        handle.spawn(amt.then(move |_| {
+            println!(&quot;Closing connection on {}&quot;, addr);
+            Ok(())
+        }));
+        Ok(())
+    });
+
+    // Start Event Loop
+    core.run(done).unwrap();
+}
+</code></pre>
+<p>上面代码实现的功能与 epoll/mio 篇中实现的功能完全一样，通过对比，
+我们可以看出 tokio-core 写出的代码更具有可读性，
+它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
+又通过各种自定义的 futures 来定义事件处理程序。</p>
+<p>上面程序需要注意的一点是：
+<code>tokio_core::net</code> 中提供的所有 udp/tcp 相关的方法都已通过 futures-rs 进行了包装，
+这样就可以通过 futures 之间的组合方法来编写各种各样链接的处理方法了。</p>
+<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-core">tokio-core-example</a> 下载。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html</id>
+    <title>rust之futures-rs</title>
+    <updated>2017-01-19T21:58:59+08:00</updated>
+    <published>2017-01-19T21:58:59+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures-rs</a>。</p>
+<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
+并在此基础上引入轻量级进程或协程的概念。</p>
+<h2>为什么需要 futures？</h2>
+<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
+当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
+处理这些链接的方法大多用两种方式：</p>
+<ul>
+<li>callbacks</li>
+<li>futures</li>
+</ul>
+<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
+为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
+<h2>什么是 futures？</h2>
+<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
+其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
+<ul>
+<li>一个 RPC 调用</li>
+<li>一个数据库查询</li>
+<li>一个计时器</li>
+<li>一个非常耗时的任务</li>
+<li>从 socket 中读数据</li>
+</ul>
+<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
+<ul>
+<li>顺序组合(sequential composition)：
+<code>f.and_then(|val| some_new_future(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
+<li>映射组合(Mapping)：
+<code>f.map(|val| some_new_value(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
+<li>合并组合(Joining)：
+<code>f.join(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
+<li>选择组合(Selecting)：
+<code>f.select(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
+</ul>
+<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
+<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
+    get_row(id)
+}).map(|row| {
+    json::encode(row)
+}).and_then(|encoded| {
+    write_string(my_socket, encoded)
+})
+</code></pre>
+<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
+<h2>futures-rs future 种类</h2>
+<p>从上面看 future 只是代表一个单值，只代表一个事件，
+但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
+因此我们还需要另一种 future 抽象用来关联多个事件：</p>
+<ul>
+<li>Stream：读入流，与 incoming events 关联</li>
+<li>Sink：写出流，与 outgoing events 关联</li>
+</ul>
+<p>因此 futures-rs 分别提供了三种 trait：</p>
+<ul>
+<li>Future</li>
+<li>Stream</li>
+<li>Sink</li>
+</ul>
+<h2>trait 定义</h2>
+<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
+<pre><code class="language-rust">trait Future {
+    // The type of value that the future yields on successful completion.
+    type Item;
+
+    // The type of value that the future yields on failure.
+    type Error;
+
+    // The only required method, which attempts to complete the future.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
+
+    ...
+}
+
+</code></pre>
+<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
+其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
+<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
+<pre><code class="language-rust">trait Stream {
+    // The type of item yielded each time the stream's event occurs
+    type Item;
+
+    // The error type; errors terminate the stream.
+    type Error;
+
+    // Try to produce a value.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
+
+    ...
+}
+
+trait Sink {
+    // The type of value that the sink accepts.
+    type SinkItem;
+
+    // The type of value produced by the sink when an error occurs.
+    type SinkError;
+
+    // The analog to `poll`, used for sending and then flushing items.
+    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
+
+    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
+
+    ...
+}
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html</id>
+    <title>rust之mio</title>
+    <updated>2017-01-18T20:55:38+08:00</updated>
+    <published>2017-01-18T20:55:38+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
+<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/carllerche/mio">mio</a>。</p>
+<p>mio(Metal IO) 是 rust 语言中的异步 io crate，tokio 框架就是基于这个 crate 的。
+从源码上看 mio 基本就是对 linux epoll(bsd kqueue) 的简单包装，只是披了一层 rust 外衣，
+性能与原生相同，接口调用方式与 linux epoll 极为相似，mio 本身实现了可以监控以下几种事件：</p>
+<ul>
+<li>tcp io</li>
+<li>udp io</li>
+<li>timer</li>
+<li>channel(mpsc)</li>
+</ul>
+<p>同时，mio 也提供了一种扩展机制，可以很轻松的实现以下类似事件：</p>
+<ul>
+<li>uds(unix domain socket)</li>
+<li>signal</li>
+<li>pipe</li>
+<li>thread</li>
+<li>subprocess</li>
+</ul>
+<p>当然在看这篇文章之前，你需要了解 linux epoll 的知识，
+可以查看博文<a href="/blog/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
+<p>我们可以通过以下示例来看一下 mio 的用法：</p>
+<pre><code class="language-rust">extern crate mio;
+extern crate slab;
+
+use std::net::SocketAddr;
+use std::io::{Read, Write, ErrorKind};
+use mio::*;
+use mio::tcp::TcpListener;
+
+type Slab&lt;T&gt; = slab::Slab&lt;T, Token&gt;;
+
+const SERVER_TOKEN: Token = Token(::std::usize::MAX-1);
+
+
+fn main() {
+    let mut args = ::std::env::args();
+    let cmd = args.next().unwrap();
+    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
+    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
+    let server = TcpListener::bind(&amp;addr).expect(&quot;socket binding error&quot;);
+    let poll = Poll::new().expect(&quot;poll create error&quot;);
+    let mut conns = Slab::with_capacity(1024);
+    let mut events = Events::with_capacity(1024);
+    let mut buf: [u8; 1024] = [0; 1024];
+    let stdout = ::std::io::stdout();
+
+    poll.register(&amp;server, SERVER_TOKEN, Ready::readable(), PollOpt::edge())
+        .expect(&quot;poll register error&quot;);
+    // the event loop
+    loop {
+        poll.poll(&amp;mut events, None).expect(&quot;poll error&quot;);
+        for event in events.iter() {
+            let (token, kind) = (event.token(), event.kind());
+
+            if kind.is_error() || kind.is_hup() || !kind.is_readable() {
+                println!(&quot;kind error&quot;);
+                if token == SERVER_TOKEN {
+                    ::std::process::exit(1);
+                }
+                conns.remove(token);
+            } else if token == SERVER_TOKEN {
+                loop {
+                    let sock = match server.accept() {
+                        Ok((sock, addr)) =&gt; {
+                            println!(&quot;Accepted connection: {}&quot;, addr);
+                            sock
+                        }
+                        Err(_) =&gt; break
+                    };
+                    let new_token = conns.insert(sock).expect(&quot;add connection error&quot;);
+                    poll.register(&amp;conns[new_token], new_token, Ready::readable(), PollOpt::edge())
+                        .expect(&quot;poll register error&quot;);
+
+                }
+            } else {
+                let mut need_to_close = false;
+                {
+                    let ref mut client = conns[token];
+                    loop {
+                        match client.read(&amp;mut buf) {
+                            Ok(n) =&gt; {
+                                if n == 0 {
+                                    need_to_close = true;
+                                    break;
+                                } else {
+                                    let mut handle = stdout.lock();
+                                    handle.write(&amp;buf[..n]).expect(&quot;write error&quot;);
+                                    handle.flush().expect(&quot;flush error&quot;);
+                                }
+                            },
+                            Err(e) =&gt; {
+                                if e.kind() != ErrorKind::WouldBlock {
+                                    need_to_close = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if need_to_close {
+                    println!(&quot;Closing connection on token={:?}&quot;, token);
+                    conns.remove(token);
+                }
+
+            }
+        }
+    }
+}
+</code></pre>
+<p>我们从源码上面看，代码结构与 linux epoll 大致一样，
+有一个显著的不同就是 mio 用了 token(usize 类型) 来绑定 tcp 链接，
+这个应该主要是因为在 linux 系统中，每一个 socket 都是一个文件，对应一个文件描述符(usize 类型)，
+而 rust 语言标准库里并没有跨平台的文件描述符类型，
+而且也为了扩展其他事件类型，
+引入 token 机制，统一了事件的索引类型。</p>
+<p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
+当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
+<p>示例代码 repo 可以到<a href="https://github.com/FuGangqiang/example/tree/master/mio">mio-example</a>下载。</p>
+
+        ]]>
+    </content>
+  </entry>
+</feed>

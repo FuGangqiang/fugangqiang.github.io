@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>linux command之curl</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>linux command之curl</h1>
+    <article>
+      <p>curl(Client for URLs，发音为 'see URL')，一个网络命令行工具，
+支持许多协议（DICT，FILE，FTP，FTPS，GOPHER，HTTP，HTTPS，IMAP，IMAPS，LDAP，LDAPS，
+POP3，POP3S，RTMP，RTSP，SCP，SFTP，SMB，SMBS，SMTP，SMTPS，TELNET 和  TFTP），
+本篇只针对 HTTP 协议。</p>
+<p>curl 可以制作 http 请求，获取 http 响应。
+一个 http 请求由 request method(GET、POST、HEAD、PUT、DELETE等)、request headers 和 request body 组成，
+一个 http 响应由 status line、response headers 和 response body 组成。</p>
+<h2>example</h2>
+<p>获取一个网页：</p>
+<pre><code>curl http://example.com/
+</code></pre>
+<p>也可以给网址添加 query string：</p>
+<pre><code>curl www.baidu.com/s?wd=abc
+</code></pre>
+<p>同时获取两个网页：</p>
+<pre><code>curl http://example1.com/ http://example2.com/
+</code></pre>
+<p>如果你进行 web 调试或者想看一下 curl 和 服务器之间的交互情况，通常可以利用 <code>-v</code> 或 <code>--verbose</code> 参数：</p>
+<pre><code>curl -v http://example.com/
+</code></pre>
+<p>有时 <code>-v</code> 还不能满足你的要求，你可以用 <code>--trace</code> 或 <code>--trace-ascii</code> 参数：</p>
+<pre><code>curl --trace output.txt http://example.com/
+</code></pre>
+<p>如果你还想查看 http 在传输过程中所用的时间可以添加 <code>--trace-time</code> 参数：</p>
+<pre><code>curl --trace-ascii d.txt --trace-time http://example.com/
+</code></pre>
+<p>curl 命令通常将结果输出到标准输出，如果想要结果重定向某文件，可以使用 <code>-o</code> 或 <code>--output</code> 参数：</p>
+<pre><code>curl -o filename http://example.com/
+</code></pre>
+<p>也可以用 <code>-O</code> 或 <code>--remote-name</code> 参数使输出文件名与远程文件一样：</p>
+<pre><code>curl -O filename http://example.com/
+</code></pre>
+<p>仅获取 headers，可以利用 <code>-I</code> 或 <code>--head</code> 参数：</p>
+<pre><code>curl -I www.baidu.com
+</code></pre>
+<p>自动进行重定向可以利用 <code>-L</code> 或 <code>--location</code> 参数：</p>
+<pre><code>curl -L http://redirect.test.com
+</code></pre>
+<p>指定 http 请求方法：<code>GET</code>、<code>POST</code>、<code>PUT</code>、<code>DELETE</code>等</p>
+<pre><code>curl -X POST http://example.com/
+</code></pre>
+<p>添加或删除 http 请求某头信息可以利用 <code>-H</code> 或 <code>--header</code> 参数：</p>
+<pre><code>curl -H &quot;Accept:&quot; http://example.com/
+curl -H &quot;Accept: application/json&quot; -H &quot;Authorization: OAuth 2c3455d1aeffc&quot; http://example.com/
+</code></pre>
+<p>利用参数 <code>-d</code> 或 <code>--data</code> 发送 POST 请求包体：</p>
+<pre><code>curl -d &quot;firstname=abc&quot; -d &quot;lastname=def&quot; http://example.com/
+</code></pre>
+<p>上面发送的消息头里还有 <code>Content-Type: application/x-www-form-urlencoded</code>，
+而 request body 为 <code>firstname=abc&amp;lastname=def</code>。</p>
+<p>当然，你也可以想下面这样：</p>
+<pre><code>curl -d &quot;firstname=abc&amp;lastname=def&quot; http://example.com/
+</code></pre>
+<p><code>-d</code> 参数发送的数据必须是已经转义后的格式，比如空格是 <code>%20</code>，如果要 curl 帮你转义，可以利用 <code>--data-urlencode</code> 参数：</p>
+<pre><code>curl --data &quot;birthyear=1905&amp;press=%20OK%20&quot;  http://example.com
+curl --data-urlencode &quot;birthyear=1905&amp;press= OK &quot;  http://example.com
+</code></pre>
+<p>当参数 <code>-d</code> 或 <code>--data</code> 去 POST 多个 url 时，POST 会发送相同的数据到那些 url：</p>
+<pre><code>curl --data name=curl http://example1.com/ http://example2.com/
+</code></pre>
+<p>如果要避免同时发送数据，可以利用 <code>-:</code> 或 <code>--next</code> 参数，下面是先发送一个 POST 请求，然后在发送一个 GET 请求：</p>
+<pre><code>curl -d name=curl http://example1.com/ --next http://example2.com/
+</code></pre>
+<p>POST 时，当 <code>enctype='multipart/form-data'</code> 时，可以利用 <code>-F</code> 或 <code>--form</code> 参数：</p>
+<pre><code>curl -F upload=@filename -F press=OK http://example.com
+</code></pre>
+<p>可以利用 <code>-T</code> 或 <code>--upload-file</code> 来 PUT 一个文件:</p>
+<pre><code>curl -T uploadfile http://abc.test.com
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+      <li>日期： 2014-05-29 21:52:08</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-5</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-5</h1>
+    <article>
+      <h1>第五贴：词法变量</h1>
+<p>今天开始试用 <code>guile 1.9.13</code> (guile2.0 的不稳定版本)，以后的笔记都会使用这个版本，直到 <code>guile2.0</code> 发行，虽然不再是以前的 <code>guile1.8.7</code> 了，不过没关系，对于这个笔记上的例子是都可以运行的，而用户界面唯一变得就是 guile repl 中提示符变为:<code>scheme@(guile user)&gt;</code> 了。</p>
+<p>scheme 变量的作用域是属于词法作用域<code>lexical scope</code>，即它们在程序代码中只对特定范围的代码结构可见。
+前面我们学习到的变量有些是全局变量，对此也不例外，全局变量的作用域是整个程序，也是一种特定的作用范围。
+其实我们已经看到过一些词法变量，只是当时没指明，它们就是 lambda 过程参数，
+每当过程被调用时，这些变量就会被绑定为给定的值，而它们的作用域就是这个过程体。</p>
+<p>例如：</p>
+<pre><code>scheme@(guile-user)&gt; (define x 9)
+scheme@(guile-user)&gt; (define add2 (lambda (x) (+ x 2)))
+scheme@(guile-user)&gt; x
+9
+scheme@(guile-user)&gt; (add2 3)
+5
+scheme@(guile-user)&gt; (add2 x)
+11
+scheme@(guile-user)&gt; x
+9
+</code></pre>
+<p>这里有一个全局变量 <code>x</code>，还有一个局部变量 <code>x</code>，就是过程 <code>add2</code> 中看到的那个。
+全局变量 <code>x</code> 的值一直是 <code>9</code>。第一次调用 <code>add2</code> 过程时，局部变量 <code>x</code> 会被绑定为 <code>3</code>，
+而第二次调用 <code>add2</code> 时，局部变量 <code>x</code> 被绑定为全局变量 <code>x</code> 的值，即 <code>9</code>。
+当 <code>add2</code> 过程调用结束时，全部变量 <code>x</code> 仍然是 <code>9</code>。</p>
+<p>而 <code>set!</code> 语句可修改这种词法变量值：</p>
+<pre><code>scheme@(guile-user)&gt; (set! x 20)
+</code></pre>
+<p>上面将全局变量 <code>x</code> 的值 <code>9</code> 修改为 <code>20</code>，因为对于 <code>set!</code> 来说，全局变量 <code>x</code> 是可见的。
+如果 <code>set!</code> 语句出现在 <code>add2</code> 过程体内，那局部变量 <code>x</code> 就会被修改：</p>
+<pre><code>scheme@(guile-user)&gt; (define add2
+...                     (lambda (x)
+...                        (set! x (+ x 2))
+...                        x))
+scheme@(guile-user)&gt; (add2 x)
+22
+</code></pre>
+<p>这里 <code>set!</code> 语句将局部变量 <code>x</code> 加上 <code>2</code>，并且将返回的值再绑定到局部变量 <code>x</code>。
+(从结果来看，我们无法区分这个过程和前面定义的 <code>add2</code> 过程)。
+我们可以像前面那样使用全局的 <code>x</code> 作为参数来调用 <code>add2</code>：</p>
+<pre><code>scheme@(guile-user)&gt; (add2 x)
+22
+</code></pre>
+<p>注意：这里的全局变量 <code>x</code> 的值为 <code>20</code>，而不是 <code>9</code> 了!</p>
+<p><code>add2</code> 过程内的 <code>set!</code> 语句只能改变局部变量 <code>x</code> 的值。
+尽管局部变量 <code>x</code> 被绑定为全局变量 <code>x</code> 的值，但后者不会因为 <code>set!</code> 改变局部变量 <code>x</code> 的值而受影响。</p>
+<pre><code>scheme@(guile-user)&gt; x
+20
+</code></pre>
+<p>注意：前面讨论的局部变量和全局变量使用了同样的标识符 <code>x</code>。
+在代码中，这个 <code>x</code> 标识符指的就是词法闭包中的局部 <code>x</code> 变量，它会使闭包外的全局变量 <code>x</code> 的值不可见。
+比如，在 <code>add2</code> 过程中，参数 <code>x</code> 的出现，就会使全局变量 <code>x</code> 的值不可见，在 <code>add2</code> 过程体中，
+所有对 <code>x</code> 的引用，都是指 <code>add2</code> 过程参数变量 <code>x</code>，而不是全局变量 <code>x</code>。</p>
+<pre><code>scheme@(guile-user)&gt; (define counter 0)
+scheme@(guile-user)&gt; (define next-counter
+...                     (lambda ()
+...                        (set! counter (+ counter 1))
+...                        counter))
+</code></pre>
+<p>上面 <code>next-counter</code> 过程没有参数，它没有引入局部变量，因此就不会使一些全局变量不可见。
+在每次调用 <code>next-counter</code> 时，它会修改全局变量 <code>counter</code> 的值，对其加 <code>1</code>，然后返回修改后的值。
+下面就是对 <code>next-counter</code> 调用时的结果：</p>
+<pre><code>scheme@(guile-user)&gt; (next-counter)
+1
+scheme@(guile-user)&gt; (next-counter)
+2
+scheme@(guile-user)&gt; (next-counter)
+3
+scheme@(guile-user)&gt; (next-counter)
+4
+</code></pre>
+<h2>let 和 let*</h2>
+<p>局部变量也可以不通过显式的创建过程产生。特殊语句 <code>let</code> 可以创建一个局部变量列表，以便在 <code>let</code> 体中使用:</p>
+<pre><code>scheme@(guile-user)&gt; (let ((x 1)
+...                        (y 2)
+...                        (z 3))
+...                     (list x y z))
+(1 2 3)
+</code></pre>
+<p>和 <code>lambda</code> 语句一样，这里局部变量 <code>x</code> 会使全局变量 <code>x</code>&lt;值为 <code>20</code>&gt; 不可见。</p>
+<p>局部变量 <code>x</code>、<code>y</code>、<code>z</code> 被赋值时&lt;<code>x=1,y=2,z=3</code>&gt;，不被作为 <code>let</code> 体的一部分。
+因此，在局部变量被赋值时，所有对 <code>x</code> 的引用都为全局变量 <code>x</code>，而不是局部变量 <code>x</code>。</p>
+<pre><code>scheme@(guile-user)&gt; (let ((x 1)
+...                        (y x))
+...                     (+ x y))
+21
+</code></pre>
+<p>上面结果是因为局部变量 <code>x</code> 被赋值为 <code>1</code>，而 <code>y</code> 被赋值为全局变量 <code>x</code> 的值 <code>20</code>。</p>
+<p>上面的 <code>x</code>,<code>y</code> 赋值没有先后顺序，有时为了方便，我们想要先对局部变量 <code>x</code> 赋值为 <code>1</code>，
+然后再引用这个 <code>x</code> 变量对局部变量 <code>y</code> 赋值，scheme 中的 <code>let*</code> 语句就是这种作用：</p>
+<pre><code>scheme@(guile-user)&gt; (let* ((x 1)
+...                         (y x))
+...                     (+ x y))
+2
+</code></pre>
+<p>这里对局部变量 <code>y</code> 赋值时使用变量 <code>x</code> 就是前面刚创建好的局部变量 <code>x</code>。
+这个语句完全等价于下面的 <code>let</code> 语句嵌套，实际上，<code>let*</code> 语句就是 <code>let</code> 语句的嵌套缩写。</p>
+<pre><code>scheme@(guile-user)&gt; (let ((x 1))
+...                     (let ((y x))
+...                        (+ x y)))
+2
+</code></pre>
+<p>通过 <code>let</code> 语句，我们也可以把一个过程作为值赋给一个局部变量，因为过程在 scheme 中，过程是第一等公民：</p>
+<pre><code>scheme@(guile-user)&gt; (let ((cons (lambda (x y)
+...                                 (+ x y))))
+...                     (cons 1 2))
+3
+</code></pre>
+<p>上面这个 <code>let</code> 体中，局部变量 <code>cons</code> 被赋值为一个过程，使其两个参数进行相加，在这个 <code>let</code> 体中，对 <code>cons</code> 的引用就不会是全局 <code>cons</code> 过程那样来创建点对，而是对其两个参数相加，返回结果。
+而在 <code>let</code> <code>体的外面，cons</code> 仍还是用来创建点对：</p>
+<pre><code>scheme@(guile-user)&gt; (cons 1 2)
+(1 . 2)
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2010-12-15 23:11:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>memcached简介</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>memcached简介</h1>
+    <article>
+      <p>许多 Web 应用都将数据保存到 RDBMS 中，应用服务器从中读取数据并在浏览器中显示。
+但随着数据量的增大、访问的集中，就会出现 RDBMS 的负担加重、数据库响应恶化、网站显示延迟等重大影响。
+这时的解决办法之一就是利用内存来缓存数据库的查询结果，此后再次访问相同的数据，直接从内存读取，
+而不再查询数据库，进而减轻数据库的负担。</p>
+<p>memcached 就是为解决此种问题而产生的。</p>
+<h2>简介</h2>
+<p>memcached 是高性能的分布式内存缓存服务器，
+通过缓存数据库查询结果，减少数据库访问次数，以提高动态应用的速度、提高可扩展性。</p>
+<p>为了提高性能，memcached 将数据都存储在内存存储空间中，基于一个存储键/值对的 hashmap。
+由于数据仅存在于内存中，因此重启 memcached、重启操作系统都会导致全部数据消失。
+另外，内容容量达到指定值之后，就基于 LRU(Least Recently Used)算法自动删除不使用的缓存。
+memcached 本身是为缓存而设计的服务器，因此并没有过多考虑数据的永久性问题。</p>
+<p>memcached 作为高速运行的分布式缓存服务器，具有以下的特点：</p>
+<ul>
+<li>协议简单</li>
+<li>基于 libevent 的事件处理</li>
+<li>内置内存存储方式</li>
+<li>memcached 不互相通信的分布式</li>
+</ul>
+<h2>Archlinxu 安装</h2>
+<pre><code>pacman -S memcached
+</code></pre>
+<h2>运行</h2>
+<pre><code>memcached -d -p 1234 -m 1024
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>-d</code>：以守护进程运行 memcached</li>
+<li><code>-p</code>：指定 memcached 服务器监听端口号默认为 11211</li>
+<li><code>-m</code>：设置 memcached 可以使用内存的大小，单位为 M</li>
+</ul>
+<h2>客户端</h2>
+<p>memcached 使用简单的文本行协议，
+因此可以用 telnet 与 memcached 服务器进行交互，
+例如访问本机上监听 1234 端口的 memcached 服务器：</p>
+<pre><code>telnet localhost 1234
+</code></pre>
+<p>这样就可以键入 memcached 命令与之交互了。</p>
+<p>memcached 服务端是用 ANSI C 写成的，
+但客户端可以用任何语言利用 socket 来与之通信。</p>
+<p>例如：python3 中的 python3-memcached 模块就是利用其 socket 模块写成的。</p>
+<h2>python客户端安装</h2>
+<pre><code>pip install python3-memcached
+</code></pre>
+<h2>命令</h2>
+<p>memcached 协议提供的命令很简单：</p>
+<ul>
+<li>set：无论如何都进行存储</li>
+</ul>
+<pre><code>set key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>add：只有数据不存在时才进行添加</li>
+</ul>
+<pre><code>add key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>replace：只有数据存在时才进行替换</li>
+</ul>
+<pre><code>replace key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>append：当数据存在时，添加数据至其首</li>
+</ul>
+<pre><code>append key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>prepend：当数据存在时，添加数据至其尾</li>
+</ul>
+<pre><code class="language-prepend">value
+</code></pre>
+<ul>
+<li>cas：check and set之意，只有unique_cas_token与gets所获取的参数匹配才能存储</li>
+</ul>
+<pre><code>cas key flags exptime bytes unique_cas_token [noreply]
+value
+</code></pre>
+<ul>
+<li>get：读取</li>
+</ul>
+<pre><code>get key1 [key2 key3]
+</code></pre>
+<ul>
+<li>gets：读取</li>
+</ul>
+<pre><code>gets key1 [key2 key3]
+</code></pre>
+<ul>
+<li>delete：删除</li>
+</ul>
+<pre><code>delete key [noreply]
+</code></pre>
+<ul>
+<li>incr：当值为数字时，增加其值</li>
+</ul>
+<pre><code>incr key increment_value
+</code></pre>
+<ul>
+<li>decr：当值为数字时，减少其值</li>
+</ul>
+<pre><code>decr key decrement_value
+</code></pre>
+<ul>
+<li>
+<p>stats：统计信息</p>
+</li>
+<li>
+<p>flush_all：清除</p>
+</li>
+</ul>
+<pre><code>flush_all [time] [noreply]
+</code></pre>
+<h2>python 客户端示例</h2>
+<p>摘自python3-memcached源码：</p>
+<pre><code class="language-python">import memcache
+mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+
+mc.set(&quot;some_key&quot;, &quot;Some value&quot;)
+value = mc.get(&quot;some_key&quot;)
+
+mc.set(&quot;another_key&quot;, 3)
+mc.delete(&quot;another_key&quot;)
+
+mc.set(&quot;key&quot;, &quot;1&quot;)   # note that the key used for incr/decr must be a string.
+mc.incr(&quot;key&quot;)
+mc.decr(&quot;key&quot;)
+</code></pre>
+<p>一般用下面的方法来缓存数据库：</p>
+<pre><code class="language-python">key = derive_key(obj)
+obj = mc.get(key)
+if not obj:
+    obj = backend_api.get(...)
+    mc.set(key, obj)
+
+# we now have obj, and future passes through this code
+# will use the object from the cache.
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/数据库.html">数据库<sup>19</sup></a><a href="https://fugangqiang.github.io/tags/缓存.html">缓存<sup>2</sup></a></li>
+      <li>日期： 2015-02-04 22:17:24</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

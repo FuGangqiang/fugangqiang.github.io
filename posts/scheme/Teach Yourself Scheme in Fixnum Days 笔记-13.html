@@ -1,0 +1,316 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-13</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-13</h1>
+    <article>
+      <h1>第十三贴：跳转</h1>
+<p>scheme 一个显著的特性是其支持跳转<Jump>或非局部控制<nonlocal contral>。具体地说，scheme 允许程序控制流跳转到程序的任意地方，不像通过条件语句和函数调用等控制跳转那么局限。
+scheme 跳转操作是通过 <code>call-with-current-continuation</code> &lt;简写形式：call/cc&gt;过程来实现的。下面我们将会看到如何通过该过程来实现许多惊人的控制流程<control idioms>。</p>
+<h2>call-with-current-continuation</h2>
+<p><code>call-with-current-continuation</code> 过程的参数是一个单参数<unary>过程，单参数过程的参数被绑定为&quot;current continuation&quot;。</p>
+<p>在程序的任何地方，&quot;current continuation&quot; 都是 &quot;the rest of the program&quot; 的抽象。因此，下面语句中：</p>
+<pre><code>(+ 1 (call/cc
+      (lambda (k)
+        (+ 2 (k 3)))))
+</code></pre>
+<p><code>call/cc</code> 过程的 &quot;the rest of the program&quot; 就是下面的有一个 <code>[]</code> 的语句：</p>
+<pre><code>(+ 1 [])
+</code></pre>
+<p>也就是说，这个 continuation 就是用任何值来来替 <code>[]</code> 进而与 <code>1</code> 相加的程序。</p>
+<p>下面是 <code>call/cc</code> 过程的参数&lt;必须为一个单参数过程&gt;：</p>
+<pre><code>(lambda (k)
+  (+ 2 (k 3)))
+</code></pre>
+<p>其中，<code>k</code> 就是 &quot;the continuation&quot;，在这个过程体中，用 <code>3</code> 调用 <code>k</code> <the continuation>，这就会使程序流程跳转到：</p>
+<pre><code>(+ 1 [])
+</code></pre>
+<p>&lt;过程体 <code>k</code> 调用随后的语句不会被执行，直接跳转&gt;,
+随后用 <code>3</code> 代替 <code>[]</code>：</p>
+<pre><code>(+ 1 3)  ;结果为 4
+</code></pre>
+<p>上面用例子说明了用来跳出计算的 escaping continuation。但是，在 scheme 中，continuation 也可以被用来多次跳转到程序已经执行过的地方。
+先睹为快，看下面程序：</p>
+<pre><code>(define r #f)
+(+ 1 (call/cc
+      (lambda (k)
+        (set! r k)
+        (+ 2 (k 3)))))
+</code></pre>
+<p>最后一个表达式返回 <code>4</code>，这里的 <code>call/cc</code> 调用与前面的例子中有一个不同，就是在跳转前我们把 &quot;the continuation&quot; 绑定到 <code>r</code> 全局变量中。现在，我们就有了一个在 <code>r</code> 变量存储的 &quot;the continuation&quot; 记录，该 &quot;the continuation&quot; 为 <code>(+ 1 [])</code>，因此，以后，我们以一个数值调用 <code>r</code> 时，都会使程序控制流跳转到程序中的 &quot;the continuation&quot; 的位置，并且用该数值代替 <code>[]</code> 进行以后的计算。
+因此，当我们用 <code>5</code> 调用 <code>r</code> 时返回 <code>6</code>：</p>
+<pre><code>scheme@(guile-user)&gt; (r 5)
+6
+</code></pre>
+<p>而把 r 调用嵌入在某些环境中更能证明 continuation 跳转的作用：</p>
+<pre><code>scheme@(guile-user)&gt; (+ 3 (r 5))
+6
+</code></pre>
+<p><code>r</code> 调用会将程序控制流直接跳转到 &quot;the continuation&quot; <code>(+ 1 [])</code> 处，再用 <code>5</code> 替换 <code>[]</code>，执行那里的代码。</p>
+<h2>Escaping continuations</h2>
+<p>escaping continuations 是 <code>call/cc</code> 最简单的应用，但是对于跳出过程体或循环特别有用处。
+让我们看一下下面的 <code>list-product</code> 过程，其以一个列表为参数，返回所有列表元素的乘积：</p>
+<pre><code>(define (list-product ls)
+   (let loop ((ls ls))
+      (if (null? ls)
+          1
+          (* (car ls)
+             (loop (cdr ls))))))
+</code></pre>
+<p>但是上面的计算方法有一个问题，就是列表中有一个元素为 <code>0</code> 并且其后还有许多个元素，当计算到 <code>0</code> 时，结果就可以确定为 <code>0</code>，而不用在与其后的元素相乘。
+此时，我们可以用 escaping continuations 重写 <code>list-product</code> 过程来避免这些无效的计算：</p>
+<pre><code>(define (list-product ls)
+   (call/cc
+      (lambda (exit)
+         (let loop ((ls ls))
+            (cond ((null? ls) 1)
+                  ((= (car ls) 0) (exit 0))
+                  (else (* (car s)
+                           (loop (cdr ls)))))))))
+</code></pre>
+<p>一旦遇到 <code>0</code>，就会调用 <code>exit</code> 返回 <code>0</code>。</p>
+<h2>Tree matching</h2>
+<p>一个更复杂的应用 continuation 的例子就是判断两个树的先序排列<fringe>是否相同，比如：</p>
+<pre><code>scheme@(guile-user)&gt; (same-fringe? '(1 (2 3)) '((1 2) 3))
+#t
+scheme@(guile-user)&gt; (same-fringe? '(1 2 3) '(1 (3 2)))
+#f
+</code></pre>
+<p>一个简单的方法就是先计算出两个树的先序排列表再比较它们：</p>
+<pre><code>(define (flatten tree)
+  (cond ((null? tree) '())
+        ((pair? (car tree))
+         (append (flatten (car tree))
+                 (flatten (cdr tree))))
+        (else
+         (cons (car tree)
+               (flatten (cdr tree))))))
+(define (same-fringe? tree1 tree2)
+  (let loop ((ftree1 (flatten tree1))
+             (ftree2 (flatten tree2)))
+    (cond ((and (null? ftree1)
+                (null? ftree2))
+           #t)
+          ((or (null? ftree1)
+               (null? ftree2))
+           #f)
+          ((eqv? (car ftree1)
+                 (car ftree2))
+           (loop (cdr ftree1)
+                 (cdr ftree2)))
+          (else #f))))
+</code></pre>
+<p>但是这个效率比较低下。</p>
+<p>我们可以用 <code>call/cc</code> 过程定义一个 <code>tree-&gt;generator</code> 过程来解决不必要的计算：</p>
+<pre><code>(define (tree-&gt;generator tree)
+  (let ((leaf #f) (walk-tree #f))
+    (define (walk-tree)
+      (let loop ((tree tree))
+        (cond ((null? tree) 'skip)
+              ((pair? tree) (loop (car tree))
+                            (loop (cdr tree)))
+              (else (call/cc
+                     (lambda (rest-of-tree)
+                       (set! walk-tree
+                             (lambda ()
+                               (rest-of-tree 'resume)))
+                       (leaf tree))))))
+      (leaf '()))
+    (define (next)
+      (call/cc
+       (lambda (k)
+         (set! leaf k)
+         (walk-tree))))
+    next))
+</code></pre>
+<p><code>tree-&gt;generator</code> 过程将其返回值映射到其参数树上，每次调用该返回值都会顺序返回该树先序排列所对应的元素：</p>
+<pre><code>scheme@(guile-user)&gt; (define gen (tree-&gt;generator '((1 2) 3)))
+scheme@(guile-user)&gt; (gen)
+1
+scheme@(guile-user)&gt; (gen)
+2
+scheme@(guile-user)&gt; (gen)
+3
+scheme@(guile-user)&gt; (gen)
+()
+</code></pre>
+<p>利用这一特性，当我们利用 <code>tree-&gt;generator</code> 过程返回值调用来比较两个树的每一个元素时，当两个被比较的元素不相同时，我们就可以判定这两个树的先序排列不相同直接返回而不用在去理会其他未比较的元素，<code>tree-&gt;generator</code> 版的 <code>same-fringe?</code> 过程如下：</p>
+<pre><code>(define (same-fringe? tree1 tree2)
+  (let ((gen1 (tree-&gt;generator tree1))
+        (gen2 (tree-&gt;generator tree2)))
+    (let loop ((leaf1 (gen1))
+               (leaf2 (gen2)))
+      (if (eqv? leaf1 leaf2)
+          (if (null? leaf1)
+              #t
+              (loop (gen1) (gen2)))
+          #f))))
+</code></pre>
+<h2>Coroutines</h2>
+<pre><code>(define-macro (coroutine x . body)
+  `(letrec ((+local-control-state (lambda (,x)
+                                    ,@body))
+            (resume (lambda (c v)
+                      (call/cc (lambda (k)
+                                 (set! +local-control-state k)
+                                 (c v))))))
+     (lambda (v)
+       (+local-control-state v))))
+ 
+(define (make-matcher-coroutine tree-cor-1 tree-cor-2)
+  (coroutine dont-need-an-init-arg
+             (let loop ()
+               (let ((leaf1 (resume tree-cor-1 'get-a-leaf))
+                     (leaf2 (resume tree-cor-2 'get-a-leaf)))
+                 (if (eqv? leaf1 leaf2)
+                     (if (null? leaf1)
+                         #t
+                         (loop))
+                     #f)))))
+ 
+(define (make-leaf-gen-coroutine tree matcher-cor)
+  (coroutine dont-need-an-init-arg
+             (let loop ((tree tree))
+               (cond ((null? tree) 'skip)
+                     ((pair? tree)
+                      (loop (car tree))
+                      (loop (cdr tree)))
+                     (else
+                      (resume matcher-cor tree))))
+             (resume matcher-cor '())))
+ 
+(define (same-fringe? tree1 tree2)
+  (letrec ((tree-cor-1 (make-leaf-gen-coroutine tree1
+                                                (lambda (v) (matcher-cor v))))
+           (tree-cor-2 (make-leaf-gen-coroutine tree2
+                                                (lambda (v) (matcher-cor v))))
+           (matcher-cor (make-matcher-coroutine (lambda (v) (tree-cor-1 v))
+                                                (lambda (v) (tree-cor-2 v)))))
+    (matcher-cor 'start-ball-rolling)))
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2011-01-04 11:16:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

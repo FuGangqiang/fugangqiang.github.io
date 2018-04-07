@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>linux command之netcat</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>linux command之netcat</h1>
+    <article>
+      <p><code>netcat</code>(或 <code>nc</code>)是一个使用 <code>TCP</code> 和 <code>UDP</code> 协议来读写网络的命令工具。
+顾名思义，<code>cat</code> 是 Unix/Linux 系统中通过标准输入输出用来显示文本的命令，
+而 <code>netcat</code> 是将标准输入输出链接到 <code>TCP</code> 或 <code>UDP</code> socket，用来读写网络数据的命令。</p>
+<p><code>netcat</code> 被称为网络工具中的瑞士军刀，经常被用来调试和研究网络。</p>
+<h2>Server-Client</h2>
+<p><code>netcat</code> 可以很方便的模拟 socket 的 Server-Client 模式：</p>
+<p>服务端监听 6666 端口：</p>
+<pre><code>nc -l 6666
+</code></pre>
+<p>客户端连接：</p>
+<pre><code>nc localhost 6666
+</code></pre>
+<p>这样服务端和客户端之间就可以键入任何数据进行会话了。</p>
+<h2>IPV4 和 IPV6</h2>
+<p><code>-4</code> 和 <code>-6</code> 选项可以强制使 <code>netcat</code> 使用何种形式的网络地址：</p>
+<p>使用 IPV4：</p>
+<pre><code>nc -4 -l 6666
+nc -4 localhost 6666
+</code></pre>
+<p>使用 IPV6：</p>
+<pre><code>nc -6 -l 6666
+nc -6 localhost 6666
+</code></pre>
+<h2>TCP 和 UDP</h2>
+<p><code>netcat</code> 默认使用 TCP 协议，但是可以利用 <code>-u</code> 参数强制使用 UDP 协议：</p>
+<pre><code>nc -4 -u -l 6666
+nc -4 -u localhost 6666
+</code></pre>
+<h2>端口扫描</h2>
+<p>尽管 <code>nmap</code> 更适合端口扫描，但 <code>netcat</code> 也可以做到：</p>
+<pre><code>nc -z -v -n 8.8.8.8 21-25
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>-z</code>：代表 zero IO，一旦链接上立马断开链接，不传输任何数据</li>
+<li><code>-v</code>：verbose 输出</li>
+<li><code>-n</code>：不使用 DNS lookup</li>
+</ul>
+<h2>传输文件</h2>
+<p>服务端发送文件：</p>
+<pre><code>nc -l 12345 &lt; hello.c
+</code></pre>
+<p>客户端接收文件：</p>
+<pre><code>nc localhost 12345 &gt; hello.c
+</code></pre>
+<p>当然，你也可以服务端接收文件，客户端发送文件，但是两种方式服务端必须先前于客户端启动。</p>
+<h2>传输文件夹</h2>
+<p>服务端发送文件夹：</p>
+<pre><code>tar -cvf – dir_name | nc -l 6666
+</code></pre>
+<p>客户端接收文件夹：</p>
+<pre><code>nc -n ip_addr 6666 | tar -xvf -
+</code></pre>
+<h2>在线观看视频</h2>
+<p>服务端发送视频：</p>
+<pre><code>cat video.avi | nc -l 6666
+</code></pre>
+<p>客户端接收并观看视频：</p>
+<pre><code>nc ip_addr 6666 | mplayer -vo x11 -cache 3000 -
+</code></pre>
+<h2>复制设备</h2>
+<p>服务端发送设备 raw 数据：</p>
+<pre><code>dd if=/dev/sda | nc -l 6666
+</code></pre>
+<p>客户端接收设备 raw 数据并写入到新设备：</p>
+<pre><code>nc -n ip_addr 6666 | dd of=/dev/sda
+</code></pre>
+<p>通常利用这一功能来简化安装系统。</p>
+<h2>获取网页</h2>
+<pre><code>printf &quot;GET / HTTP/1.0\r\n\r\n&quot; | nc www.example.com 80
+</code></pre>
+<h2>建立一个单页静态网站</h2>
+<pre><code>while true
+do
+    { echo -ne &quot;HTTP/1.0 200 OK\r\nContent-Length: $(wc -c &lt; index.html)\r\n\r\n&quot;; cat index.html; } | nc -l 6666
+done
+</code></pre>
+<h2>远程 shell</h2>
+<p><code>ssh</code> 通常是用来连接远程的 shell 的，<code>netcat</code> 也是可以这样做的：</p>
+<p>远程运行命令：</p>
+<pre><code>nc -l 6666 -e /bin/bash -i
+</code></pre>
+<p>本地链接：</p>
+<pre><code>nc -n ip_addr 6666
+</code></pre>
+<p>当然远程也可以这样做：</p>
+<pre><code>mkfifo /tmp/tmp_fifo
+cat /tmp/tmp_fifo | /bin/sh -i 2&gt;&amp;1 | nc -l 1567 &gt; /tmp/tmp_fifo
+</code></pre>
+<p>当然你也可以远程登陆 windows：</p>
+<pre><code>nc -l 6666 -e cmd.exe
+</code></pre>
+<h2>socat</h2>
+<p>听说比 netcat 更为强大的是 socat，不过这个没有试过。</p>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+      <li>日期： 2015-03-07 21:32:45</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

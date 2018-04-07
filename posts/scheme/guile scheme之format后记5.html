@@ -1,0 +1,238 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>guile scheme之format后记5</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>guile scheme之format后记5</h1>
+    <article>
+      <h2>控制指令</h2>
+<p><code>~newline</code>: Continuation line，<code>~</code> 后紧跟回车，无 params。
+这个指令可以把一个长的 format 字符串打断为数行，增加可读性。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;abc~           ; ~newline 忽略回车和紧跟其后的空格
+                                 ~d def~
+                                 ~d&quot; 1 2)
+&quot;abc1 def2&quot;
+scheme@(guile-user)&gt; (format #f &quot;abc~:          ; ~:newline 忽略回车但保留紧跟其后的空格
+                                 ~d def~:
+                                 ~d&quot; 1 2)
+&quot;abc                                 1 def                                 2&quot;
+scheme@(guile-user)&gt; (format #f &quot;abc~@          ; ~@newline 保留回车但忽略紧跟其后的空格
+                                 ~d def~@
+                                 ~d&quot; 1 2)
+&quot;abc
+1 def
+2&quot;
+</code></pre>
+<p><code>~?</code>,<code>~k</code>: Sub-format 指令，无 params。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~?&quot; &quot;~d ~d&quot; '(1 2))            ; ~? 指令用相应的参数作为指令，且将下一个参数&lt;一个列表&gt;作为指令所对应参数
+&quot;1 2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~k&quot; &quot;~d ~d&quot; '(1 2))            ; ~k 与 ~? 同
+&quot;1 2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@? ~s&quot; &quot;~d ~d&quot; 1 2 &quot;foo&quot;)     ; ~@? 指令用相应的参数作为指令，且将接着几个参数作为指令所对应参数
+&quot;1 2 \&quot;foo\&quot;&quot;
+</code></pre>
+<p><code>~(~)</code>: 大小写转换指令<Case conversion>，无 params。</p>
+<ul>
+<li><code>~(...~)</code> 将会使其间的字符串转换为小写；</li>
+<li><code>~:@(...~)</code> 将会使其间的字符串转换为大写；</li>
+</ul>
+<p>现在 format 过程只支持这两种转换，以后会推出增强版本，使其像 Common Lisp 一样也支持 <code>~:(...~)</code> 和 <code>~@(...~)</code> 使每个单词的第一个字母大写</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~(HEllo~)&quot;)    ; 小写形式
+&quot;hello&quot;
+scheme@(guile-user)&gt; (format #f &quot;~:@(HEllo~)&quot;)  ; 大写形式
+&quot;HELLO&quot;
+</code></pre>
+<p><code>~[~;~]</code>: 条件指令，其 params: <code>selector</code>。
+一个条件指令块由<code>~[、~;、~]</code> 分割成数个子句，由 <code>~[</code> 所对应的参数<integer>来选择对应的子句，第一个子句所对应的整数为 0。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~[peach~;banana~;mango~]&quot; 1)           ; 第一个子句为 peach，第二个为 banana，第三个为 mango，~[ 所对应的参数为 1，因此选择第二个子句输出，注意：0 对应第一个子句
+&quot;banana&quot;
+scheme@(guile-user)&gt; (format #f &quot;~2[peach~;banana~;mango~]&quot;)            ; 当提供 selector 时，~[ 不需要参数，selector 与之对应
+&quot;mango&quot;
+scheme@(guile-user)&gt; (format #f &quot;~[peach~;banana~;mango~]&quot; 9)           ; 当所个参数超出子句数时，不输出任何字符
+&quot;&quot;
+scheme@(guile-user)&gt; (format #f &quot;~[peach~;banana~;mango~:;fruit~]&quot; 9)   ; 当提供 ~:; 时，其后子句为所给参数超出子句数时默认值
+&quot;fruit&quot;
+scheme@(guile-user)&gt; (format #f &quot;~:[false~;not false~]&quot; #f)             ; ~:[ 只需两个子句，当其所对应参数值为 #f 选择第一个子句，否则选择第二个语句
+&quot;false&quot;
+scheme@(guile-user)&gt; (format #f &quot;~:[false~;not false~]&quot; #t)
+&quot;not false&quot;
+scheme@(guile-user)&gt; (format #f &quot;~:[false~;not false~]&quot; 'abc)
+&quot;not false&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@[temperature=~d~]&quot; 27)               ; ~@[ 只需一个子句，当其所对应参数为 #t 时，选择其子句，并对其应用该参数，否则不应用该参数
+&quot;temperature=27&quot;
+</code></pre>
+<p><code>~{~}</code>: 列表迭代指令<Iteration>，其 params: <code>maxreps</code>。
+<code>~{</code> 和 <code>~}</code> 之间的部分会被迭代，默认对参数列表中的每一个元素进行迭代。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~{~d~}&quot; '(1 2 3))      ; 每次迭代消耗一个列表元素
+&quot;123&quot;
+scheme@(guile-user)&gt; (format #f &quot;~{~a=~d ~}&quot; '(&quot;x&quot; 1 &quot;y&quot; 2 &quot;z&quot; 3)) ; 每次迭代消耗两个列表元素
+&quot;x=1 y=2 z=3 &quot;
+</code></pre>
+<p><code>~:{</code> 其对应的参数为一个列表的列表，每一个子列表将会被迭代</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~:{~dx~d ~}&quot; '((1 2) (3 4) (5 6)))
+&quot;1x2 3x4 5x6 &quot;
+</code></pre>
+<p><code>~@{</code> 对其以后参数进行迭代：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~@{~d~}&quot; 1 2 3)
+&quot;123&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@{~a=~d ~}&quot; &quot;x&quot; 1 &quot;y&quot; 2 &quot;z&quot; 3)
+&quot;x=1 y=2 z=3 &quot;
+</code></pre>
+<p><code>~:@</code> 也对其以后的参数进行迭代，但每个参数须为列表：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~:@{~dx~d ~}&quot; '(1 2) '(3 4) '(5 6))
+&quot;1x2 3x4 5x6 &quot;
+</code></pre>
+<p><code>~^</code>: 跳出<Escape>指令，其 params：<code>val1,val2,val3</code>。
+如果没有对应的参数就退出格式化过程：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~d~^ ~d&quot; 1)
+&quot;1&quot;
+scheme@(guile-user)&gt; (format #f &quot;~d ~d&quot; 1)
+ERROR:missing argument(s)
+scheme@(guile-user)&gt; (format #f &quot;~d~^ ~d&quot; 1 2)
+&quot;1 2&quot;
+</code></pre>
+<p>当 <code>~^</code> 指令处于 <code>~{ ~}</code> 指令中时，如果没有多余的参数，<code>~^</code> 指令就跳出当前迭代&lt;可处于嵌套循环中&gt;：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~{~d~^/~} go&quot; '(1 2 3))
+&quot;1/2/3 go&quot;
+scheme@(guile-user)&gt; (format #f &quot;~{~d/~} go&quot; '(1 2 3))
+&quot;1/2/3/ go&quot;
+</code></pre>
+<p>当 <code>~^</code> 指令处于 <code>~?</code> 指令相对应的参数中时，只是退出 sub-format：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~? items&quot; &quot;~d~^ ~d&quot; '(1))
+&quot;1 items&quot;
+scheme@(guile-user)&gt; (format #f &quot;~? items&quot; &quot;~d~^ ~d&quot; '(1 2))
+&quot;1 2 items&quot;
+</code></pre>
+<p><code>~*</code>: 跳转指令，其 params: <code>n</code>。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~d ~2*~d&quot; 1 2 3 4)             ; ~2* 表示向后跳 2 个参数
+&quot;1 4&quot;
+scheme@(guile-user)&gt; (format #f &quot;~d ~d ~2:*~d ~d&quot; 1 2 3 4)      ; ~2:* 表示向前跳 2 个参数
+&quot;1 2 1 2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~d ~2@* ~d&quot; 1 2 3 4)           ; ~2@* 表示跳到第 2 个参数，n=0 表示第一个参数
+&quot;1  3&quot;
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+      <li>日期： 2011-01-20 13:10:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>

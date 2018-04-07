@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <title>MetaPost 学习笔记之 Hello MetaPost</title>
+</head>
+<body>
+<header class="clearfix">
+  <section id="imglogo">
+    <a href="https://fugangqiang.github.io/index.html" title="Fu">
+    <img src="https://fugangqiang.github.io/static/logo.png"></a>
+  </section>
+  <section id="textlogo">
+    <h1 id="site-name">
+      <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+    </h1>
+    <h2 id="site-motto">Simple is Beautiful!</h2>
+  </section>
+  <nav>
+    <ul>
+      <li><a href="https://fugangqiang.github.io/index.html">博文</a></li>
+      <li><a href="https://github.com/FuGangqiang/myblog/issues/new" target="_blank">留言</a></li>
+    </ul>
+  </nav>
+</header>
+<div id="container" class="clearfix">
+  <main>
+  
+    <h1>MetaPost 学习笔记之 Hello MetaPost</h1>
+    <article>
+      <p>MetaPost 是一门关于绘制图形的编程语言，本文与其他编程语言手册一样，以经典的 &quot;hello world&quot; 开篇，来对 MetaPost 语言进行大致的了解。
+以下为 MetaPost 的一个程序文件：hello.mp</p>
+<pre><code>% hello.mp
+% 这里是注释
+ 
+beginfig(1);
+  draw (0cm,0cm)--(1cm,0cm)--(1cm,1cm)--(0cm,1cm)--cycle;
+endfig;
+ 
+end;
+</code></pre>
+<h2>MetaPost 输出文件</h2>
+<p>在我们的编辑器里，敲入以上文件代码，保存为 hello.mp，然后运行命令：</p>
+<pre><code>mpost hello
+</code></pre>
+<p>mpost 是 MetaPost 的编译器，它会自动识别文件后缀名 &quot;mp&quot;,所以我们编译此文件时可以省略文件后缀名，mpost 会把它自动补上。
+运行以上命令后，在同一文件夹下会产生 hello.1 和 hello.log 这两个文件，否则就会在终端显示错误提示信息，如果这样，建议你再检查一下你的 hello.mp 文件是否正确输入。
+hello.1 就是我们所想得到的图形文件，它是 eps 格式的,这个文件名是 mpost 的自动设置的，我们可以通过 MetaPost 中的 filenametemplate 命令来改变输出文件名的格式，其格式参数类似于 C 语言中的 printf 函数，如下：</p>
+<pre><code>% hello.mp
+% 这里是注释
+ 
+filenametemplate &quot;%j-%c.eps&quot;;
+ 
+beginfig(1);
+  draw (0cm,0cm)--(1cm,0cm)--(1cm,1cm)--(0cm,1cm)--cycle;
+endfig;
+ 
+end;
+</code></pre>
+<p>运行 <code>mpost hello</code> 后，就得到了一个名为 hello-1.eps 的图形文件，而不是 hello.1，我们可以用 ghostscript 把它打开，它是一个用黑色线条绘制的边长为 1cm 的正方形。</p>
+<h2>MetaPost 语句及注释</h2>
+<p>MetaPost 文件里，所有语句均已分号<code>;</code>结束，
+<code>%</code> 代表注释的开始，直至行尾。
+在 hello.mp 文件的头两行就是注释内容。</p>
+<h2>MetaPost 文件结构</h2>
+<p>一个 MetaPost 程序文件可以输出数个图形文件，每一个图形文件都是在 beginfig 和其相对应的 endfig 之间的命令来生成的，其大致结构如下：</p>
+<pre><code>&lt;seq&gt;
+ 
+beginfig(1);
+    &lt;seq&gt;
+endfig;
+ 
+beginfig(2);
+    &lt;seq&gt;
+endfig;
+ 
+...
+ 
+ 
+beginfig(n);
+    &lt;seq&gt;
+endfig;
+ 
+end;
+</code></pre>
+<p>在 hello.mp 文件中只有一对 beginfig--endfig，所以我们只得到一个图形文件 hello.1，如果像上面一样，我们就会得到 hello.1，hello.2，...，hello.n 等 n 个图形文件。</p>
+<h2>MetaPost 中绘制命令 draw 和路径<path></h2>
+<p>hello.mp 中的 draw 是 MetaPost 中最常用的绘图命令，其后跟了一个路径<path>，在这里是 <code>(0cm,0cm)--(1cm,0cm)--(1cm,1cm)--(0cm,1cm)--cycle</code>，
+其中二元运算符 <code>--</code> 生成一个以其两参数为端点的线段，比如 <code>(0cm,0cm)--(1cm,0cm)</code> 生成一个路径<path>，这个路径就是以点<code>(0cm,0cm)</code>和点<code>(1cm,0cm)</code>为端点的线段，
+<code>--</code> 也可以将一些点顺序相连生成连续线段，比如 <code>(0cm,0cm)--(1cm,0cm)--(1cm,1cm)--(0cm,1cm)</code> 就生成三条线段，它们首尾顺序相连，
+如果想产生一个闭合路径<path>，将路径<path>首尾两点相连，就要用到 <code>cycle</code> 命令，
+hello.mp 中，<code>(0cm,0cm)--(1cm,0cm)--(1cm,1cm)--(0cm,1cm)--cycle</code> 中的 cycle 就表示该路径起点<code>(0cm,0cm)</code>和终点<code>(0cm,1cm)</code>相连。</p>
+<h2>MetaPost 点<point></h2>
+<p>MetaPost 中的点<point>是由一个二元组<pair>来表示的，在 hello.mp 中，<code>(0cm, 1cm)</code> 就代表 <code>x</code> 坐标为 0cm 而 <code>y</code> 坐标为 1cm 的点。</p>
+<h2>MetaPost 单位</h2>
+<p>MetaPost 的默认单位为 Postscript points，因为 Postscript points 比打印机的 points 略大些，也被称为 &quot;big points&quot;，
+Postscript points 和 打印机的 points 的简写形式分别为 bp 和 pt,在 TeX 中其关系如下：</p>
+<pre><code>1 bp = 1/72 inches
+1 pt = 1/72.27 inches
+</code></pre>
+<p>当然，MetaPost 也理解其他单位，cm(厘米)、mm(毫米)、in(英寸)和 pc(picas:1pc = 1/6in) 等，
+这里给出的单位其实都是 MetaPost 内部定义的数值常量，比如 cm 常量就是数值 28.34645， 1cm 其实是 1*cm 的简写形式，也就是数值 28.34645，
+注意，这里的 1cm 其实是一个数值，数值的单位就是 MetaPost 的默认单位 bp。
+我们也可以任意自定义一个“单位”，比如 u:=2cm，以后我们就可以用这个单位来表示一个点，</p>
+<pre><code>(1u, 2u) = (1*2cm, 2*2cm) = (2cm, 4cm) = (56.6929, 113.3858) = (56.6929bp, 113.3858bp)
+</code></pre>
+<h2>退出 MetaPost</h2>
+<p>在 MetaPost 程序文件中，如果最后没有 end 命令，当运行 <code>mpost &lt;filename&gt;</code> 命令后，MetaPost 运行 <filename> 程序文件后，不会自动退出，而是进入一个命令行解释器中，在其中我们可以运行 MetaPost 所允许的命令语句,在其中键入 end; 语句后退出解释器。</p>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+      <li>日期： 2012-06-17 16:35:00</li>
+      </ul>
+    </article>
+  </main>
+  <aside>
+    <section class="tags clearfix">
+      <h1>标签</h1>
+      <ul>
+        <li><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/OAuth.html">OAuth<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/aiohttp.html">aiohttp<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/asymptote.html">asymptote<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/bezier.html">bezier<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/c.html">c<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/docker.html">docker<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/javascript.html">javascript<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/markdown.html">markdown<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/matplotlib.html">matplotlib<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>13</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E5%AE%B9%E5%99%A8.html">容器<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E5%AD%A6.html">数学<sup>3</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>19</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%9C%BA%E6%A2%B0.html">机械<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.html">消息队列<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%88%AC%E8%99%AB.html">爬虫<sup>1</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/%E8%87%AA%E5%8A%A8%E5%8C%96.html">自动化<sup>4</sup></a></li>
+      </ul>
+    </section>
+    <section class="links clearfix">
+      <h1>链接</h1>
+      <ul>
+        <li><a href="https://github.com/FuGangqiang" target="_blank">Github</a></li>
+      </ul>
+    </section>
+    <div>
+      <a href="https://fugangqiang.github.io/atom.xml" target="_blank">
+        <img id="feed" src="https://fugangqiang.github.io/static/feed.png">
+      </a>
+    </div>
+  </aside>
+</div>
+<footer>
+  <p>
+    博学之　审问之　慎思之　明辨之　笃行之
+  </p>
+</footer>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
+</body>
+</html>
