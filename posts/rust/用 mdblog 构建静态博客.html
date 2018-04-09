@@ -118,21 +118,21 @@ tags: [blog]
 
 this is a new post!
 </code></pre>
-<p>从上面可以看到，一片博客分为两部分：</p>
+<p>从上面可以看到，一篇博客分为两部分：</p>
 <ul>
 <li><code>header</code>：博客元信息，yaml 格式</li>
 <li><code>body</code>：博客 markdown 内容</li>
 </ul>
 <p><code>header</code> 和 <code>body</code> 由第一个空行分割开，其中 <code>header</code> 有以下几个配置项：</p>
 <ul>
-<li><code>created</code>：必填项，用户博客索引页的排序</li>
-<li><code>tags</code>：选填项，用于分类博客，默认: <code>[]</code></li>
-<li><code>hidden</code>：选填项，是否隐藏博客，默认：<code>false</code></li>
-<li><code>description</code>：选填项，用于博客的概述，默认：body 的第一段或前 100 个字符</li>
+<li><code>created</code>：必填项，博客生成日期</li>
+<li><code>tags</code>：选填项，博客标签，默认: <code>[]</code></li>
+<li><code>hidden</code>：选填项，博客是否隐藏，默认：<code>false</code></li>
+<li><code>description</code>：选填项，博客概述，默认：body 的第一段或前 100 个字符</li>
 </ul>
 <h2>测试博客</h2>
 <p>对刚才新创建的 <code>posts/another.md</code> 文件进行一些修改，
-就可以测试查看一下最终的博客产生页面，运行：</p>
+就可以检测一下最终的博客产生页面，运行：</p>
 <pre><code>mdblog serve
 </code></pre>
 <p>该命令会自动打开浏览器，并进入博客的索引页面，你就可以点击查看新的博客文章了。</p>
@@ -145,7 +145,7 @@ this is a new post!
 <p>这样所有的博客静态文件就被写入到 <code>_build</code> 文件夹里了。</p>
 <h2>配置博客</h2>
 <p><a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 提供了许多可供自定义配置的选项，
-可以通过 <code>config.toml</code> 文件查看都是有那些可配置项已经默认值：</p>
+可以通过 <code>config.toml</code> 文件查看都是有哪些可配置项以及它们的默认值：</p>
 <pre><code>site_url = &quot;&quot;
 site_name = &quot;Mdblog&quot;
 site_motto = &quot;Simple is Beautiful!&quot;
@@ -157,8 +157,8 @@ theme_root_dir = &quot;_themes&quot;
 rebuild_interval = 2
 posts_per_page = 20
 </code></pre>
-<p>其中 <code>media_dir</code>、<code>build_dir</code>、<code>theme_root_dir</code> 是指定目录路径的，
-可以利用 shell 环境变量来制定路径，比如：</p>
+<p>其中 <code>media_dir</code>、<code>build_dir</code>、<code>theme_root_dir</code> 是目录路径设置，
+可以利用 shell 环境变量来指定路径，比如：</p>
 <ul>
 <li><code>$HOME/blog/media</code></li>
 <li><code>~/blog/build</code></li>
