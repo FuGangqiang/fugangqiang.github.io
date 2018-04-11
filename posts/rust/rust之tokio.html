@@ -5,7 +5,7 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>rust之tokio codec、proto、service</title>
+  <title>rust之tokio</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,168 +29,62 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>rust之tokio codec、proto、service</h1>
+    <h1>rust之tokio</h1>
     <article>
       <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
 <ul>
 <li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
 </ul>
-<p>本篇是这一系列的最后一篇，涉及到 tokio 框架的 Trait <code>CodeC</code>、<code>ServerProto</code>、<code>Service</code>。</p>
-<h2>网络应用结构</h2>
-<p>我们知道，大多数网路应用的结构都被设计成一个分层结构：</p>
-<ul>
-<li>字节流层(byte streams)</li>
-<li>分帧层(framing)</li>
-<li>请求/响应交换层(request / response exchange)</li>
-<li>应用层(application)</li>
-</ul>
-<p>这样的设计可以使应用程序结构化、模块化，使各层程序只需关注自己所关注的事情，
-便于维护，更具可读性。</p>
-<h3>字节流层(byte streams)</h3>
-<p>这一层是最底一层，数据直接由 TCP/UDP socket 提供的数据，
-在这一层进行的所有操作大多通过缓冲区来操作字节数组(byte arrays)。</p>
-<h3>分帧层(framing)</h3>
-<p>字节流通常被分割成数个有意义的单位，每个单位被称为一个数据帧(frame)，
-比如：
-HTTP 协议包含请求头(request headers)、响应头(response headers)和包体块(body chunks)。
-一种基于行的协议由换行符<code>\n</code>分割。
-抽象出分帧层，我们就不必直接操作裸字节流了，以后所有操作可以基于数据帧了。</p>
-<h3>请求/响应交换层(request / response exchange)</h3>
-<p>在 server/client 应用中，通常客户端发起一个 request，服务端就会返回一个 reponse，
-每个 request 有可能有多个数据帧组成，
-这样我们需要维护 request/response/transport 之间的对应关系。</p>
-<h3>应用层(application)</h3>
-<p>在这一层，我们并不关心 request/response 和 transport 的对应关系，
-只能看到请求对象，然后根据应用逻辑产生对应的相应对象。</p>
-<h3>相关 Trait</h3>
-<p>每一层虽然进行的操作各有不同，但在相邻层间的转换存在一个模式，可以把它们抽象出来，
-因此有了：</p>
-<ul>
-<li><code>tokio_core::io::Codec</code></li>
-<li><code>tokio_proto::pipeline::ServerProto</code> 和 <code>tokio_proto::multiplex::ServerProto</code></li>
-<li><code>tokio_service::Service</code></li>
-</ul>
-<h2>示例</h2>
-<p>最后我们通过经典的 <code>echo server</code> 示例代码来看一下这几个 Trait 的用法：</p>
-<pre><code class="language-rust">extern crate byteorder;
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_proto;
-extern crate tokio_service;
+<p>本篇主要讲解 <a href="https://github.com/tokio-rs/tokio">tokio</a>。</p>
+<p>直接通过 mio 我们也是可以写出异步 IO 程序的，但是 mio 提供的接口太过于底层，
+以至于直接用 mio 时需要保存 token 和链接的关系，并且还要在链接就绪后去执行特定的程序，
+这些都太过于繁杂，但是这个过程存在一个事件分派模式，
+我们可以把这个模式抽象出来，所以 tokio 应运而生。</p>
+<p>tokio 基于 mio 和 futures，
+通过 mio 来管理 IO 事件，通过 futures 来表达对各种 IO 事件的处理，
+这样 tokio 提供了更方便的接口供用户使用。</p>
+<p>我们可以通过以下代码示例来说明 tokio 的用法：</p>
+<pre><code class="language-rust">extern crate tokio;
 
-use std::io;
-use std::str;
-use std::net::SocketAddr;
-
-use byteorder::{BigEndian, ByteOrder};
-use futures::Future;
-use futures::future::{self, BoxFuture};
-use tokio_core::io::{Io, Framed, EasyBuf, Codec};
-use tokio_proto::TcpServer;
-use tokio_proto::multiplex::{RequestId, ServerProto};
-use tokio_service::Service;
-
-struct LineCodec;
-struct LineProto;
-struct EchoService;
-
-
-/// # Frame Struct:
-///
-/// * request id: 4 byte
-/// * payload: zero or more bytes
-/// * linefeed: `\n`
-///
-/// +-- request id --+------- frame payload --------+
-/// |                |                              |
-/// |   \x00000001   | This is the frame payload \n |
-/// |                |                              |
-/// +----------------+------------------------------+
-///
-impl Codec for LineCodec {
-    type In = (RequestId, String);
-    type Out = (RequestId, String);
-
-    fn decode(&amp;mut self, buf: &amp;mut EasyBuf) -&gt; Result&lt;Option&lt;(RequestId, String)&gt;, io::Error&gt;
-    {
-        if buf.len() &lt; 5 {
-            return Ok(None);  // We don't yet have a full message
-        }
-
-        let newline = buf.as_ref()[4..].iter().position(|b| *b == b'\n');
-        if let Some(n) = newline {
-            let line = buf.drain_to(n + 4);
-            buf.drain_to(1);
-            let id = BigEndian::read_u32(&amp;line.as_ref()[0..4]);
-            return match str::from_utf8(&amp;line.as_ref()[4..]) {
-                Ok(s) =&gt; Ok(Some((id as RequestId, s.to_string()))),
-                Err(_) =&gt; Err(io::Error::new(io::ErrorKind::Other, &quot;invalid string&quot;)),
-            }
-        }
-
-        Ok(None)  // We don't yet have a full message
-    }
-
-    fn encode(&amp;mut self, msg: (RequestId, String), buf: &amp;mut Vec&lt;u8&gt;) -&gt; io::Result&lt;()&gt;
-    {
-        let (id, msg) = msg;
-        let mut encoded_id = [0; 4];
-
-        BigEndian::write_u32(&amp;mut encoded_id, id as u32);
-        buf.extend(&amp;encoded_id);
-        buf.extend(msg.as_bytes());
-        buf.push(b'\n');
-
-        Ok(())
-    }
-}
-
-
-impl&lt;T: Io + 'static&gt; ServerProto&lt;T&gt; for LineProto {
-    type Request = String;
-    type Response = String;
-
-    // `Framed&lt;T, LineCodec&gt;` is the return value of `io.framed(LineCodec)`
-    type Transport = Framed&lt;T, LineCodec&gt;;
-    type BindTransport = Result&lt;Self::Transport, io::Error&gt;;
-
-    fn bind_transport(&amp;self, io: T) -&gt; Self::BindTransport {
-        Ok(io.framed(LineCodec))
-    }
-}
-
-
-impl Service for EchoService {
-    type Request = String;
-    type Response = String;
-    type Error = io::Error;
-    type Future = BoxFuture&lt;Self::Response, Self::Error&gt;;
-
-    fn call(&amp;self, req: Self::Request) -&gt; Self::Future {
-        future::ok(req).boxed()
-    }
-}
-
+use tokio::io;
+use tokio::net::TcpListener;
+use tokio::prelude::*;
 
 fn main() {
-    let mut args = ::std::env::args();
-    let cmd = args.next().unwrap();
-    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
-    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
-    let server = TcpServer::new(LineProto, addr);
-    server.serve(|| Ok(EchoService));
+    let addr = &quot;127.0.0.1:12345&quot;.parse().unwrap();
+    let tcp = TcpListener::bind(&amp;addr).unwrap();
+
+    let server = tcp.incoming().for_each(|tcp| {
+        let (reader, writer) = tcp.split();
+        let conn = io::copy(reader, writer)
+            .map(|(n, _, _)| {
+                println!(&quot;wrote {} bytes&quot;, n)
+            })
+            .map_err(|err| {
+                println!(&quot;IO error {:?}&quot;, err)
+            });
+
+        tokio::spawn(conn);
+        Ok(())
+    })
+    .map_err(|err| {
+        println!(&quot;server error {:?}&quot;, err);
+    });
+
+    tokio::run(server);
 }
 </code></pre>
-<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-echo">tokio-echo</a> 下载。</p>
+<p>上面代码实现的功能与 epoll/mio 篇中实现的功能完全一样，通过对比，
+我们可以看出 tokio 写出的代码更具有可读性，
+它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
+又通过各种自定义的 futures 来定义事件处理程序。</p>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
-      <li>日期： 2017-01-22 20:29:30</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/network.html">network<sup>8</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>8</sup></a><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>3</sup></a></li>
+      <li>日期： 2018-04-11 15:10:40</li>
       </ul>
     </article>
   </main>
@@ -218,18 +112,18 @@ fn main() {
         <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>8</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>12</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>8</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>

@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-10T11:09:26+08:00</updated>
+  <updated>2018-04-11T15:21:35+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,332 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio.html</id>
+    <title>rust之tokio</title>
+    <updated>2018-04-11T15:10:40+08:00</updated>
+    <published>2018-04-11T15:10:40+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/tokio-rs/tokio">tokio</a>。</p>
+<p>直接通过 mio 我们也是可以写出异步 IO 程序的，但是 mio 提供的接口太过于底层，
+以至于直接用 mio 时需要保存 token 和链接的关系，并且还要在链接就绪后去执行特定的程序，
+这些都太过于繁杂，但是这个过程存在一个事件分派模式，
+我们可以把这个模式抽象出来，所以 tokio 应运而生。</p>
+<p>tokio 基于 mio 和 futures，
+通过 mio 来管理 IO 事件，通过 futures 来表达对各种 IO 事件的处理，
+这样 tokio 提供了更方便的接口供用户使用。</p>
+<p>我们可以通过以下代码示例来说明 tokio 的用法：</p>
+<pre><code class="language-rust">extern crate tokio;
+
+use tokio::io;
+use tokio::net::TcpListener;
+use tokio::prelude::*;
+
+fn main() {
+    let addr = &quot;127.0.0.1:12345&quot;.parse().unwrap();
+    let tcp = TcpListener::bind(&amp;addr).unwrap();
+
+    let server = tcp.incoming().for_each(|tcp| {
+        let (reader, writer) = tcp.split();
+        let conn = io::copy(reader, writer)
+            .map(|(n, _, _)| {
+                println!(&quot;wrote {} bytes&quot;, n)
+            })
+            .map_err(|err| {
+                println!(&quot;IO error {:?}&quot;, err)
+            });
+
+        tokio::spawn(conn);
+        Ok(())
+    })
+    .map_err(|err| {
+        println!(&quot;server error {:?}&quot;, err);
+    });
+
+    tokio::run(server);
+}
+</code></pre>
+<p>上面代码实现的功能与 epoll/mio 篇中实现的功能完全一样，通过对比，
+我们可以看出 tokio 写出的代码更具有可读性，
+它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
+又通过各种自定义的 futures 来定义事件处理程序。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html</id>
+    <title>rust之futures-rs</title>
+    <updated>2018-04-11T15:08:33+08:00</updated>
+    <published>2018-04-11T15:08:33+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures</a>。</p>
+<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
+并在此基础上引入轻量级进程或协程的概念。</p>
+<h2>为什么需要 futures？</h2>
+<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
+当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
+处理这些链接的方法大多用两种方式：</p>
+<ul>
+<li>callbacks</li>
+<li>futures</li>
+</ul>
+<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
+为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
+<h2>什么是 futures？</h2>
+<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
+其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
+<ul>
+<li>一个 RPC 调用</li>
+<li>一个数据库查询</li>
+<li>一个计时器</li>
+<li>一个非常耗时的任务</li>
+<li>从 socket 中读数据</li>
+</ul>
+<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
+<ul>
+<li>顺序组合(sequential composition)：
+<code>f.and_then(|val| some_new_future(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
+<li>映射组合(Mapping)：
+<code>f.map(|val| some_new_value(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
+<li>合并组合(Joining)：
+<code>f.join(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
+<li>选择组合(Selecting)：
+<code>f.select(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
+</ul>
+<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
+<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
+    get_row(id)
+}).map(|row| {
+    json::encode(row)
+}).and_then(|encoded| {
+    write_string(my_socket, encoded)
+})
+</code></pre>
+<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
+<h2>futures-rs future 种类</h2>
+<p>从上面看 future 只是代表一个单值，只代表一个事件，
+但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
+因此我们还需要另一种 future 抽象用来关联多个事件：</p>
+<ul>
+<li>Stream：读入流，与 incoming events 关联</li>
+<li>Sink：写出流，与 outgoing events 关联</li>
+</ul>
+<p>因此 futures-rs 分别提供了三种 trait：</p>
+<ul>
+<li>Future</li>
+<li>Stream</li>
+<li>Sink</li>
+</ul>
+<h2>trait 定义</h2>
+<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
+<pre><code class="language-rust">trait Future {
+    // The type of value that the future yields on successful completion.
+    type Item;
+
+    // The type of value that the future yields on failure.
+    type Error;
+
+    // The only required method, which attempts to complete the future.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
+
+    ...
+}
+
+</code></pre>
+<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
+其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
+<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
+<pre><code class="language-rust">trait Stream {
+    // The type of item yielded each time the stream's event occurs
+    type Item;
+
+    // The error type; errors terminate the stream.
+    type Error;
+
+    // Try to produce a value.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
+
+    ...
+}
+
+trait Sink {
+    // The type of value that the sink accepts.
+    type SinkItem;
+
+    // The type of value produced by the sink when an error occurs.
+    type SinkError;
+
+    // The analog to `poll`, used for sending and then flushing items.
+    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
+
+    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
+
+    ...
+}
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html</id>
+    <title>rust之mio</title>
+    <updated>2018-04-11T15:02:25+08:00</updated>
+    <published>2018-04-11T15:02:25+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html"/>
+    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
+<ul>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
+</ul>
+<p>本篇主要讲解 <a href="https://github.com/carllerche/mio">mio</a>。</p>
+<p>mio(Metal IO) 是 rust 语言中的异步 io 的基础 crate，tokio 框架就是基于这个 crate 的。
+从源码上看 mio 基本就是对 linux epoll(bsd kqueue) 的简单包装，只是披了一层 rust 外衣，
+性能与原生相同，接口调用方式与 linux epoll 极为相似，mio 本身实现了可以监控以下几种事件：</p>
+<ul>
+<li>tcp io</li>
+<li>udp io</li>
+<li>timer</li>
+<li>channel(mpsc)</li>
+</ul>
+<p>同时，mio 也提供了一种扩展机制，可以很轻松的实现以下类似事件：</p>
+<ul>
+<li>uds(unix domain socket)</li>
+<li>signal</li>
+<li>pipe</li>
+<li>thread</li>
+<li>subprocess</li>
+</ul>
+<p>当然在看这篇文章之前，你需要了解 linux epoll 的知识，
+可以查看博文<a href="/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
+<p>我们可以通过以下示例来看一下 mio 的用法：</p>
+<pre><code class="language-rust">extern crate mio;
+extern crate slab;
+
+use std::net::SocketAddr;
+use std::io::{Read, Write, ErrorKind};
+use mio::*;
+use mio::tcp::TcpListener;
+
+type Slab&lt;T&gt; = slab::Slab&lt;T, Token&gt;;
+
+const SERVER_TOKEN: Token = Token(::std::usize::MAX-1);
+
+
+fn main() {
+    let mut args = ::std::env::args();
+    let cmd = args.next().unwrap();
+    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
+    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
+    let server = TcpListener::bind(&amp;addr).expect(&quot;socket binding error&quot;);
+    let poll = Poll::new().expect(&quot;poll create error&quot;);
+    let mut conns = Slab::with_capacity(1024);
+    let mut events = Events::with_capacity(1024);
+    let mut buf: [u8; 1024] = [0; 1024];
+    let stdout = ::std::io::stdout();
+
+    poll.register(&amp;server, SERVER_TOKEN, Ready::readable(), PollOpt::edge())
+        .expect(&quot;poll register error&quot;);
+    // the event loop
+    loop {
+        poll.poll(&amp;mut events, None).expect(&quot;poll error&quot;);
+        for event in events.iter() {
+            let (token, kind) = (event.token(), event.kind());
+
+            if kind.is_error() || kind.is_hup() || !kind.is_readable() {
+                println!(&quot;kind error&quot;);
+                if token == SERVER_TOKEN {
+                    ::std::process::exit(1);
+                }
+                conns.remove(token);
+            } else if token == SERVER_TOKEN {
+                loop {
+                    let sock = match server.accept() {
+                        Ok((sock, addr)) =&gt; {
+                            println!(&quot;Accepted connection: {}&quot;, addr);
+                            sock
+                        }
+                        Err(_) =&gt; break
+                    };
+                    let new_token = conns.insert(sock).expect(&quot;add connection error&quot;);
+                    poll.register(&amp;conns[new_token], new_token, Ready::readable(), PollOpt::edge())
+                        .expect(&quot;poll register error&quot;);
+
+                }
+            } else {
+                let mut need_to_close = false;
+                {
+                    let ref mut client = conns[token];
+                    loop {
+                        match client.read(&amp;mut buf) {
+                            Ok(n) =&gt; {
+                                if n == 0 {
+                                    need_to_close = true;
+                                    break;
+                                } else {
+                                    let mut handle = stdout.lock();
+                                    handle.write(&amp;buf[..n]).expect(&quot;write error&quot;);
+                                    handle.flush().expect(&quot;flush error&quot;);
+                                }
+                            },
+                            Err(e) =&gt; {
+                                if e.kind() != ErrorKind::WouldBlock {
+                                    need_to_close = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+                if need_to_close {
+                    println!(&quot;Closing connection on token={:?}&quot;, token);
+                    conns.remove(token);
+                }
+
+            }
+        }
+    }
+}
+</code></pre>
+<p>我们从源码上面看，代码结构与 linux epoll 大致一样，
+有一个显著的不同就是 mio 用了 token(usize 类型) 来绑定 tcp 链接，
+这个应该主要是因为在 linux 系统中，每一个 socket 都是一个文件，对应一个文件描述符(usize 类型)，
+而 rust 语言标准库里并没有跨平台的文件描述符类型，
+而且也为了扩展其他事件类型，
+引入 token 机制，统一了事件的索引类型。</p>
+<p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
+当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/%E7%94%A8%20mdblog%20%E6%9E%84%E5%BB%BA%E9%9D%99%E6%80%81%E5%8D%9A%E5%AE%A2.html</id>
     <title>用 mdblog 构建静态博客</title>
     <updated>2018-04-09T10:34:00+08:00</updated>
@@ -770,379 +1096,6 @@ web.run_app(app)
 <li>aiokafka</li>
 <li>aioes</li>
 </ul>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio%20codec%E3%80%81proto%E3%80%81service.html</id>
-    <title>rust之tokio codec、proto、service</title>
-    <updated>2017-01-22T20:29:30+08:00</updated>
-    <published>2017-01-22T20:29:30+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio%20codec%E3%80%81proto%E3%80%81service.html"/>
-    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
-</ul>
-<p>本篇是这一系列的最后一篇，涉及到 tokio 框架的 Trait <code>CodeC</code>、<code>ServerProto</code>、<code>Service</code>。</p>
-<h2>网络应用结构</h2>
-<p>我们知道，大多数网路应用的结构都被设计成一个分层结构：</p>
-<ul>
-<li>字节流层(byte streams)</li>
-<li>分帧层(framing)</li>
-<li>请求/响应交换层(request / response exchange)</li>
-<li>应用层(application)</li>
-</ul>
-<p>这样的设计可以使应用程序结构化、模块化，使各层程序只需关注自己所关注的事情，
-便于维护，更具可读性。</p>
-<h3>字节流层(byte streams)</h3>
-<p>这一层是最底一层，数据直接由 TCP/UDP socket 提供的数据，
-在这一层进行的所有操作大多通过缓冲区来操作字节数组(byte arrays)。</p>
-<h3>分帧层(framing)</h3>
-<p>字节流通常被分割成数个有意义的单位，每个单位被称为一个数据帧(frame)，
-比如：
-HTTP 协议包含请求头(request headers)、响应头(response headers)和包体块(body chunks)。
-一种基于行的协议由换行符<code>\n</code>分割。
-抽象出分帧层，我们就不必直接操作裸字节流了，以后所有操作可以基于数据帧了。</p>
-<h3>请求/响应交换层(request / response exchange)</h3>
-<p>在 server/client 应用中，通常客户端发起一个 request，服务端就会返回一个 reponse，
-每个 request 有可能有多个数据帧组成，
-这样我们需要维护 request/response/transport 之间的对应关系。</p>
-<h3>应用层(application)</h3>
-<p>在这一层，我们并不关心 request/response 和 transport 的对应关系，
-只能看到请求对象，然后根据应用逻辑产生对应的相应对象。</p>
-<h3>相关 Trait</h3>
-<p>每一层虽然进行的操作各有不同，但在相邻层间的转换存在一个模式，可以把它们抽象出来，
-因此有了：</p>
-<ul>
-<li><code>tokio_core::io::Codec</code></li>
-<li><code>tokio_proto::pipeline::ServerProto</code> 和 <code>tokio_proto::multiplex::ServerProto</code></li>
-<li><code>tokio_service::Service</code></li>
-</ul>
-<h2>示例</h2>
-<p>最后我们通过经典的 <code>echo server</code> 示例代码来看一下这几个 Trait 的用法：</p>
-<pre><code class="language-rust">extern crate byteorder;
-extern crate futures;
-extern crate tokio_core;
-extern crate tokio_proto;
-extern crate tokio_service;
-
-use std::io;
-use std::str;
-use std::net::SocketAddr;
-
-use byteorder::{BigEndian, ByteOrder};
-use futures::Future;
-use futures::future::{self, BoxFuture};
-use tokio_core::io::{Io, Framed, EasyBuf, Codec};
-use tokio_proto::TcpServer;
-use tokio_proto::multiplex::{RequestId, ServerProto};
-use tokio_service::Service;
-
-struct LineCodec;
-struct LineProto;
-struct EchoService;
-
-
-/// # Frame Struct:
-///
-/// * request id: 4 byte
-/// * payload: zero or more bytes
-/// * linefeed: `\n`
-///
-/// +-- request id --+------- frame payload --------+
-/// |                |                              |
-/// |   \x00000001   | This is the frame payload \n |
-/// |                |                              |
-/// +----------------+------------------------------+
-///
-impl Codec for LineCodec {
-    type In = (RequestId, String);
-    type Out = (RequestId, String);
-
-    fn decode(&amp;mut self, buf: &amp;mut EasyBuf) -&gt; Result&lt;Option&lt;(RequestId, String)&gt;, io::Error&gt;
-    {
-        if buf.len() &lt; 5 {
-            return Ok(None);  // We don't yet have a full message
-        }
-
-        let newline = buf.as_ref()[4..].iter().position(|b| *b == b'\n');
-        if let Some(n) = newline {
-            let line = buf.drain_to(n + 4);
-            buf.drain_to(1);
-            let id = BigEndian::read_u32(&amp;line.as_ref()[0..4]);
-            return match str::from_utf8(&amp;line.as_ref()[4..]) {
-                Ok(s) =&gt; Ok(Some((id as RequestId, s.to_string()))),
-                Err(_) =&gt; Err(io::Error::new(io::ErrorKind::Other, &quot;invalid string&quot;)),
-            }
-        }
-
-        Ok(None)  // We don't yet have a full message
-    }
-
-    fn encode(&amp;mut self, msg: (RequestId, String), buf: &amp;mut Vec&lt;u8&gt;) -&gt; io::Result&lt;()&gt;
-    {
-        let (id, msg) = msg;
-        let mut encoded_id = [0; 4];
-
-        BigEndian::write_u32(&amp;mut encoded_id, id as u32);
-        buf.extend(&amp;encoded_id);
-        buf.extend(msg.as_bytes());
-        buf.push(b'\n');
-
-        Ok(())
-    }
-}
-
-
-impl&lt;T: Io + 'static&gt; ServerProto&lt;T&gt; for LineProto {
-    type Request = String;
-    type Response = String;
-
-    // `Framed&lt;T, LineCodec&gt;` is the return value of `io.framed(LineCodec)`
-    type Transport = Framed&lt;T, LineCodec&gt;;
-    type BindTransport = Result&lt;Self::Transport, io::Error&gt;;
-
-    fn bind_transport(&amp;self, io: T) -&gt; Self::BindTransport {
-        Ok(io.framed(LineCodec))
-    }
-}
-
-
-impl Service for EchoService {
-    type Request = String;
-    type Response = String;
-    type Error = io::Error;
-    type Future = BoxFuture&lt;Self::Response, Self::Error&gt;;
-
-    fn call(&amp;self, req: Self::Request) -&gt; Self::Future {
-        future::ok(req).boxed()
-    }
-}
-
-
-fn main() {
-    let mut args = ::std::env::args();
-    let cmd = args.next().unwrap();
-    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
-    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
-    let server = TcpServer::new(LineProto, addr);
-    server.serve(|| Ok(EchoService));
-}
-</code></pre>
-<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-echo">tokio-echo</a> 下载。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio-core.html</id>
-    <title>rust之tokio-core</title>
-    <updated>2017-01-20T16:07:40+08:00</updated>
-    <published>2017-01-20T16:07:40+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio-core.html"/>
-    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
-</ul>
-<p>本篇主要讲解 <a href="https://github.com/tokio-rs/tokio-core">tokio-core</a>。</p>
-<p>直接通过 mio 我们也是可以写出异步 IO 程序的，但是 mio 提供的接口太过于底层，
-以至于直接用 mio 时需要保存 token 和链接的关系，并且还要在链接就绪后去执行特定的程序，
-这些都太过于繁杂，但是这个过程存在一个事件分派模式，
-我们可以把这个模式抽象出来，所以 tokio-core 应运而生。</p>
-<p>tokio-core 基于 mio 和 futures-rs，
-通过 mio 来管理 IO 事件，通过 futures-rs 来表达对各种 IO 事件的处理，
-这样 tokio-core 提供了更方便的接口供用户使用。</p>
-<p>我们可以通过以下代码示例来说明 tokio-core 的用法：</p>
-<pre><code class="language-rust">extern crate futures;
-extern crate tokio_core;
-
-use std::net::SocketAddr;
-
-use futures::Future;
-use futures::stream::Stream;
-use tokio_core::io::{copy, Io};
-use tokio_core::net::TcpListener;
-use tokio_core::reactor::Core;
-
-
-fn main() {
-    let mut args = ::std::env::args();
-    let cmd = args.next().unwrap();
-    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
-    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
-
-    let mut core = Core::new().unwrap();  // the Event Loop
-    let handle = core.handle();
-
-    let socket = TcpListener::bind(&amp;addr, &amp;handle).unwrap();
-    let done = socket.incoming().for_each(|(socket, addr)| {
-        let pair = futures::lazy(|| Ok(socket.split()));
-        let amt = pair.and_then(|(reader, _)| copy(reader, ::std::io::stdout()));
-        println!(&quot;Accepted connection: {}&quot;, addr);
-        handle.spawn(amt.then(move |_| {
-            println!(&quot;Closing connection on {}&quot;, addr);
-            Ok(())
-        }));
-        Ok(())
-    });
-
-    // Start Event Loop
-    core.run(done).unwrap();
-}
-</code></pre>
-<p>上面代码实现的功能与 epoll/mio 篇中实现的功能完全一样，通过对比，
-我们可以看出 tokio-core 写出的代码更具有可读性，
-它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
-又通过各种自定义的 futures 来定义事件处理程序。</p>
-<p>上面程序需要注意的一点是：
-<code>tokio_core::net</code> 中提供的所有 udp/tcp 相关的方法都已通过 futures-rs 进行了包装，
-这样就可以通过 futures 之间的组合方法来编写各种各样链接的处理方法了。</p>
-<p>示例代码 repo 可以到 <a href="https://github.com/FuGangqiang/example/tree/master/tokio-core">tokio-core-example</a> 下载。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html</id>
-    <title>rust之futures-rs</title>
-    <updated>2017-01-19T21:58:59+08:00</updated>
-    <published>2017-01-19T21:58:59+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html"/>
-    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
-</ul>
-<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures-rs</a>。</p>
-<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
-并在此基础上引入轻量级进程或协程的概念。</p>
-<h2>为什么需要 futures？</h2>
-<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
-当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
-处理这些链接的方法大多用两种方式：</p>
-<ul>
-<li>callbacks</li>
-<li>futures</li>
-</ul>
-<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
-为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
-<h2>什么是 futures？</h2>
-<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
-其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
-<ul>
-<li>一个 RPC 调用</li>
-<li>一个数据库查询</li>
-<li>一个计时器</li>
-<li>一个非常耗时的任务</li>
-<li>从 socket 中读数据</li>
-</ul>
-<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
-<ul>
-<li>顺序组合(sequential composition)：
-<code>f.and_then(|val| some_new_future(val))</code>，
-获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
-<li>映射组合(Mapping)：
-<code>f.map(|val| some_new_value(val))</code>，
-获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
-<li>合并组合(Joining)：
-<code>f.join(g)</code>，
-使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
-<li>选择组合(Selecting)：
-<code>f.select(g)</code>，
-使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
-</ul>
-<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
-<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
-    get_row(id)
-}).map(|row| {
-    json::encode(row)
-}).and_then(|encoded| {
-    write_string(my_socket, encoded)
-})
-</code></pre>
-<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
-<h2>futures-rs future 种类</h2>
-<p>从上面看 future 只是代表一个单值，只代表一个事件，
-但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
-因此我们还需要另一种 future 抽象用来关联多个事件：</p>
-<ul>
-<li>Stream：读入流，与 incoming events 关联</li>
-<li>Sink：写出流，与 outgoing events 关联</li>
-</ul>
-<p>因此 futures-rs 分别提供了三种 trait：</p>
-<ul>
-<li>Future</li>
-<li>Stream</li>
-<li>Sink</li>
-</ul>
-<h2>trait 定义</h2>
-<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
-<pre><code class="language-rust">trait Future {
-    // The type of value that the future yields on successful completion.
-    type Item;
-
-    // The type of value that the future yields on failure.
-    type Error;
-
-    // The only required method, which attempts to complete the future.
-    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
-
-    ...
-}
-
-</code></pre>
-<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
-其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
-<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
-<pre><code class="language-rust">trait Stream {
-    // The type of item yielded each time the stream's event occurs
-    type Item;
-
-    // The error type; errors terminate the stream.
-    type Error;
-
-    // Try to produce a value.
-    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
-
-    ...
-}
-
-trait Sink {
-    // The type of value that the sink accepts.
-    type SinkItem;
-
-    // The type of value produced by the sink when an error occurs.
-    type SinkError;
-
-    // The analog to `poll`, used for sending and then flushing items.
-    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
-
-    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
-
-    ...
-}
-</code></pre>
 
         ]]>
     </content>

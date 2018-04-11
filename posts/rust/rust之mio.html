@@ -35,13 +35,11 @@
 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
 <ul>
 <li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures-rs</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-core">tokio-core</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-proto">tokio-proto</a></li>
-<li><a href="https://github.com/tokio-rs/tokio-service">tokio-service</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
 </ul>
 <p>本篇主要讲解 <a href="https://github.com/carllerche/mio">mio</a>。</p>
-<p>mio(Metal IO) 是 rust 语言中的异步 io crate，tokio 框架就是基于这个 crate 的。
+<p>mio(Metal IO) 是 rust 语言中的异步 io 的基础 crate，tokio 框架就是基于这个 crate 的。
 从源码上看 mio 基本就是对 linux epoll(bsd kqueue) 的简单包装，只是披了一层 rust 外衣，
 性能与原生相同，接口调用方式与 linux epoll 极为相似，mio 本身实现了可以监控以下几种事件：</p>
 <ul>
@@ -59,7 +57,7 @@
 <li>subprocess</li>
 </ul>
 <p>当然在看这篇文章之前，你需要了解 linux epoll 的知识，
-可以查看博文<a href="/blog/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
+可以查看博文<a href="/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
 <p>我们可以通过以下示例来看一下 mio 的用法：</p>
 <pre><code class="language-rust">extern crate mio;
 extern crate slab;
@@ -157,11 +155,10 @@ fn main() {
 引入 token 机制，统一了事件的索引类型。</p>
 <p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
 当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
-<p>示例代码 repo 可以到<a href="https://github.com/FuGangqiang/example/tree/master/mio">mio-example</a>下载。</p>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
-      <li>日期： 2017-01-18 20:55:38</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/network.html">network<sup>8</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>8</sup></a><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>3</sup></a></li>
+      <li>日期： 2018-04-11 15:02:25</li>
       </ul>
     </article>
   </main>
@@ -189,18 +186,18 @@ fn main() {
         <li><a href="https://fugangqiang.github.io/tags/metapost.html">metapost<sup>2</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/mysql.html">mysql<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/nanomsg.html">nanomsg<sup>1</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/network.html">network<sup>8</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/python.html">python<sup>12</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/rabbitmq.html">rabbitmq<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>8</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/security.html">security<sup>1</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>4</sup></a></li>
-        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>4</sup></a></li>
+        <li><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/%E5%8D%9A%E5%AE%A2.html">博客<sup>3</sup></a></li>
         <li><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a></li>
