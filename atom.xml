@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-11T15:21:35+08:00</updated>
+  <updated>2018-04-13T12:20:56+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,71 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/ops/vagrant%E6%90%AD%E5%BB%BA%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83.html</id>
+    <title>vagrant搭建开发环境</title>
+    <updated>2018-04-13T12:07:57+08:00</updated>
+    <published>2018-04-13T12:07:57+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/ops/vagrant%E6%90%AD%E5%BB%BA%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83.html"/>
+    <summary>[Vagrant][] 让我们可以通过 ruby 脚本来快速、可重复的在本地搭建虚拟机测试集群， 与 ansible/chef 等组合使用更是方便，是本地统一开发测试的极佳运维工具。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p><a href="https://www.vagrantup.com/">Vagrant</a> 让我们可以通过 ruby 脚本来快速、可重复的在本地搭建虚拟机测试集群，
+与 ansible/chef 等组合使用更是方便，是本地统一开发测试的极佳运维工具。</p>
+<p>本文讲解如何制作最初始的 vagrant box。</p>
+<h2>安装软件</h2>
+<ul>
+<li>安装 virtualbox</li>
+<li>安装 vagrant</li>
+</ul>
+<h2>制作虚拟机</h2>
+<ul>
+<li>下载 debian iso 镜像</li>
+<li>利用下载的镜像在 virtualbox 安装一个名为 <code>vmname</code> 的 linux 操作系统</li>
+</ul>
+<h2>debian 虚拟机配置</h2>
+<ul>
+<li>在虚拟机中创建 <code>vagrant</code> 用户和用户目录，密码为 <code>vagrant</code></li>
+<li>在虚拟机中添加 <code>vagrant</code> 用户公共密钥
+<pre><code>curl https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub &gt; .ssh/authorized_keys
+</code></pre>
+</li>
+<li>基础包安装 <code>apt install ...</code>
+<ul>
+<li>sudo</li>
+<li>gcc</li>
+<li>make</li>
+<li>perl</li>
+<li>openssh-client</li>
+<li>openssh-server</li>
+<li>linux-headers-amd64</li>
+</ul>
+</li>
+<li>安装 virtualbox guest additions（有可能需要重启）
+<ul>
+<li>选择虚拟机菜单 <code>Devices</code> -&gt; <code>Insert Guest Additons CD image...</code></li>
+<li>挂载 cdrom <code>mount /dev/cdrom /mnt</code></li>
+<li>进入 cdrom 目录 <code>cd /mnt</code></li>
+<li>安装 virtualbox guest additions <code>./VBoxLinuxAdditions.run</code></li>
+</ul>
+</li>
+<li>将 <code>vagrant</code> 加入 <code>sudo</code> 用户组中，visudo 修改 <code>%sudo ALL=(ALL:ALL) NOPASSWD:ALL</code></li>
+</ul>
+<h2>导出 box</h2>
+<ul>
+<li>在本机中执行 <code>vagrant package --base vmname /path/to/debian.box</code></li>
+</ul>
+<h2>导入 box</h2>
+<p><code>vagrant box add debian /path/to/debian.box</code></p>
+<h2>创建 box 虚拟机</h2>
+<ul>
+<li>创建 vagrant 目录 <code>mkdir debian &amp;&amp; cd debian</code></li>
+<li>初始化运行环境, <code>vagrant init debian</code></li>
+<li>创建虚拟机 <code>vagrant up</code></li>
+</ul>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Btokio.html</id>
     <title>rust之tokio</title>
     <updated>2018-04-11T15:10:40+08:00</updated>
@@ -982,120 +1047,6 @@ postgresql 中的修改并不是真正的原地修改记录，
 突然间所有的记录都变成了发生在将来的事务所产生的，所有的新事务都没有办法访问到这些旧记录了。</p>
 <p>针对以上问题，可以通过 <code>VACUUM</code> 命令来解决，
 当然 postgresql 也提供了 auto_vacuum 守护进程来定期运行。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/python/python%E5%BC%82%E6%AD%A5io%20web%E6%A1%86%E6%9E%B6%E4%B9%8Baiohttp.html</id>
-    <title>python异步io web框架之aiohttp</title>
-    <updated>2017-02-10T16:09:15+08:00</updated>
-    <published>2017-02-10T16:09:15+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/python/python%E5%BC%82%E6%AD%A5io%20web%E6%A1%86%E6%9E%B6%E4%B9%8Baiohttp.html"/>
-    <summary>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了， 无疑利用 asyncio 写 web 应用将会极为方便。 虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)， 但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)， 所以决定尝试一下 [aiohttp][] 的 web 框架。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 CPython3.6 的发布，asyncio(异步 io 标准库)的 API 正式稳定下来了，
-无疑利用 asyncio 写 web 应用将会极为方便。
-虽然 python 现有已经存在一些异步 IO 网络框架(twisted, tornado, gevent)，
-但它们都不能很好的利用 python3 的新特性(比如 async/await 关键字)，
-所以决定尝试一下 <a href="https://github.com/KeepSafe/aiohttp/">aiohttp</a> 的 web 框架。</p>
-<h2>安装</h2>
-<pre><code>pip install aiohttp
-</code></pre>
-<h2>hello world</h2>
-<p>虽然 aiohttp 经常用于客户端编程，但是它也可以用于服务端 web 开发，
-而且写法也极为优美，下面是一个 hello world 示例：</p>
-<pre><code class="language-python">from aiohttp import web
-
-
-async def hello(request):
-    name = request.match_info.get('name', 'Anonymous')
-    text = f'Hello, {name}'
-    return web.Response(text=text)
-
-
-app = web.Application()
-app.router.add_get('/', hello)
-app.router.add_get('/{name}', hello)
-
-web.run_app(app)
-</code></pre>
-<h2>websocket</h2>
-<p>aiohttp 也原生支持 websocket：</p>
-<pre><code class="language-python">from aiohttp import web
-
-
-async def ws_hello(request):
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-
-    async for msg in ws:
-        if msg.type == web.MsgType.text:
-            ws.send_str(f'Hello, {msg.data}')
-        elif msg.type == web.MsgType.binary:
-            ws.send_bytes(msg.data)
-        elif msg.type == web.MsgType.close:
-            break
-
-    return ws
-
-
-app = web.Application()
-app.router.add_get('/echo', ws_hello)
-
-web.run_app(app)
-</code></pre>
-<h2>目录结构</h2>
-<p>虽然写一个简单的 web 服务一个文件就可以了，
-但是当 web 服务比较复杂时，清晰的目录结构可以更有效的组织代码，
-自己写一个服务时利用了以下代码结构：</p>
-<pre><code>backend
-├── app/
-│   ├── model/
-│   ├── sql/
-│   ├── api/
-│   ├── config.py
-│   ├── db.py
-│   ├── middlewares.py
-│   ├── permissions.py
-│   ├── urls.py
-│   └── utils.py
-├── requirements/
-│   ├── base.txt
-│   ├── dev.txt
-│   └── prod.txt
-├── tests/
-├── init／
-├── deploy/
-├── run.py
-└── README.md
-</code></pre>
-<p>其中：</p>
-<ul>
-<li><code>app</code> 目录存放所有服务相关的代码</li>
-<li><code>app/model</code> 目录存放服务相关的 model 定义</li>
-<li><code>app/sql</code> 目录存放数据库表格定义/修改的 sql 脚本</li>
-<li><code>app/config.py</code> 存放所有相关配置信息</li>
-<li><code>app/db.py</code> 存放与数据库操作与初始化相关的代码</li>
-<li><code>app/middlewares.py</code> 存放 web 服务的中间件</li>
-<li><code>app/permissions.py</code> 存放与权限检测相关的代码</li>
-<li><code>app/urls.py</code> 存放 web 服务的路由定义</li>
-<li><code>app/utils.py</code> 存放一些辅助工具函数</li>
-<li><code>requirements</code> 目录存放 pip 安装 requirements 文件</li>
-<li><code>init</code> 目录提供一些与数据库初始化和测试样例数据初始化的代码</li>
-<li><code>deploy</code> 目录存放与服务部署相关的代码</li>
-<li><code>run.py</code> 是服务的入口脚本，与 <code>flask-cli</code> 类似</li>
-</ul>
-<h2>相关包</h2>
-<p>asyncio 周边已经存在大量辅助包了，这里列一些比较常用的包：</p>
-<ul>
-<li>uvloop</li>
-<li>aiofiles</li>
-<li>asyncpg</li>
-<li>aioredis</li>
-<li>aiokafka</li>
-<li>aioes</li>
-</ul>
 
         ]]>
     </content>
