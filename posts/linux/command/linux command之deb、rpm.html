@@ -31,10 +31,12 @@
   
     <h1>linux command之deb、rpm</h1>
     <article>
-      <h1>解压 deb 和 rpm 包</h1>
-<p>deb 包是 debian、ubuntu系列特有的格式，
-rpm 包是 redhat、fedora、centos 系列特有的格式，
-有时想要安装另一个系列的包，可以通过解压包直接拿来用即可。</p>
+      <h2>查看某个包中安装的文件列表 deb</h2>
+<pre><code>dpkg -L pkg_name
+</code></pre>
+<h2>查看系统中某个文件属于哪个包</h2>
+<pre><code>dpkg -S /file/path
+</code></pre>
 <h2>解压 deb 包</h2>
 <p>如果系统中有 <code>dpkg-deb</code> 命令，可以用下面命令解压：</p>
 <pre><code>dpkg-deb --fsys-tarfile filename.deb | tar xvf -
