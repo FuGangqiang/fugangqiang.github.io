@@ -5,7 +5,7 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>web性能之缓存</title>
+  <title>搭建zookeeper集群</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,78 +29,130 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>web性能之缓存</h1>
+    <h1>搭建zookeeper集群</h1>
     <article>
-      <p>为了减少网络延迟以及降低服务器压力，web 开发中用了大量的缓存机制。
-缓存的目的就是把需要花费昂贵开销的计算结果保存起来，在以后需要的时候直接取出，进而避免重复计算。</p>
-<p>web 缓存有以下几种：</p>
+      <p><a href="https://zookeeper.apache.org/">zookeeper</a> 是一个为分布式应用提供高效、高可用的分布式协调服务，
+提供了诸如数据发布/订阅、负载均衡、命名服务、分布式协调/通知和分布式锁等分布式基础服务。</p>
+<p>本博客讲解 debian9.4 系统下 zookeeper 集群的搭建，集群机器 ip 如下：</p>
 <ul>
-<li>客户端缓存</li>
-<li>代理服务器缓存</li>
-<li>CDN 缓存</li>
-<li>数据库查询缓存</li>
-<li>应用计算缓存</li>
+<li><code>10.0.0.2</code></li>
+<li><code>10.0.0.3</code></li>
+<li><code>10.0.0.4</code></li>
 </ul>
-<h2>客户端缓存</h2>
-<p>客户端（浏览器）缓存机制，其实主要就是 HTTP 协议定义的缓存机制，
-通过以下 HTTP 协议头字段来控制 html 页面缓存：</p>
-<table><thead><tr><th> 规则 </th><th> 消息头 </th><th> 值 </th><th> 类型 </th><th> 作用</th></tr></thead><tbody>
-<tr><td> 新鲜度 </td><td> Expires </td><td> Sun, 16 Oct 2016 05:43:02 GMT </td><td> 响应 </td><td> 告诉浏览器在过期时间前可以使用副本（有可能存在时间不一致问题）</td></tr>
-<tr><td>       </td><td> Pragma </td><td> no-cache </td><td> 响应 </td><td> 告诉浏览器忽略资源的缓存副本</td></tr>
-<tr><td>       </td><td> Cache-Control </td><td> no-cache </td><td> 响应 </td><td> 告诉浏览器忽略资源的缓存副本，强制每次请求直接发送给源服务器</td></tr>
-<tr><td>       </td><td>               </td><td> no-store </td><td> 响应 </td><td> 强制缓存在任何情况下都不要保留任何副本</td></tr>
-<tr><td>       </td><td>               </td><td> max-age=[秒] </td><td> 响应 </td><td> 指明缓存副本的有效时长，从请求时间开始到过期时间之间的秒数</td></tr>
-<tr><td>       </td><td>               </td><td> public </td><td> 响应 </td><td> 任何途径的缓存者（本地缓存、代理服务器），可以无条件的缓存该资源</td></tr>
-<tr><td>       </td><td>               </td><td> private </td><td> 响应 </td><td> 只针对单个用户或实体（不同用户、窗口）缓存资源</td></tr>
-<tr><td>       </td><td> Last-Modified </td><td> Sun, 16 Oct 2016 05:43:02 GMT </td><td> 响应 </td><td> 告诉浏览器当前资源的最后修改时间</td></tr>
-<tr><td>       </td><td> If-Modified-Since </td><td> Sun, 16 Oct 2016 05:43:02 GMT </td><td> 请求 </td><td> 如果浏览器第一次请求时响应中 Last-Modified 非空，第二次请求同一资源时，会把它作为该项的值发给服务器</td></tr>
-<tr><td> 校验值 </td><td> ETag </td><td> 50b1c1d4f775c61:df3 </td><td> 请求 </td><td> 告知浏览器当前资源在服务器的唯一标识符（生成规则由服务器决定）</td></tr>
-<tr><td>       </td><td> If-None-Match </td><td> 50b1c1d4f775c61:df3 </td><td> 请求 </td><td> 如果浏览器第一次请求时响应中 ETag 非空，第二次请求同一资源时，会把它作为该项发给服务器</td></tr>
-<tr><td> 辅助 </td><td> Vary </td><td> Accept-Encoding </td><td> 响应 </td><td> 辅助从多个缓存副本中筛选合适的版本（不同压缩算法产生的副本）</td></tr>
-</tbody></table>
-<p>其中 <code>Cache-Control</code> 的缓存控制方式比较多，如下图：</p>
-<p><img src="/media/web/http_cache_control.png" alt="http CacheControl" /></p>
-<p>客户端和服务端对这些 HTTP 协议头字段的处理如下图：</p>
-<p><img src="/media/web/browser_http_cache_headers.png" alt="browser http cache headers" /></p>
-<p>用户在使用浏览器时各种操作对缓存的影响如下：</p>
-<table><thead><tr><th>用户操作      </th><th> Expires/Cache-Control </th><th> Last-Modified/Etag</th></tr></thead><tbody>
-<tr><td>地址栏回车    </td><td>          有效          </td><td>       有效</td></tr>
-<tr><td>页面链接跳转   </td><td>          有效          </td><td>       有效</td></tr>
-<tr><td>新开窗口      </td><td>          有效          </td><td>       有效</td></tr>
-<tr><td>前进、后退    </td><td>          有效          </td><td>       有效</td></tr>
-<tr><td>F5 刷新      </td><td>          无效          </td><td>       有效</td></tr>
-<tr><td>Ctrl+F5 刷新 </td><td>          无效          </td><td>       无效</td></tr>
-</tbody></table>
-<h2>代理服务器缓存</h2>
-<p>Web 代理服务器使用与客户端同样的缓存原理，只是规模更大。
-代理服务器群为成百上千用户服务使用同样的机制，
-大公司和 ISP 经常在他们的防火墙上架设代理缓存或者单独的缓存设备。</p>
-<p>由于代理服务器缓存并非客户端或者源服务器的一部分，而是位于原网络之外，请求必须路由到它们才能起作用。</p>
+<h2>安装包</h2>
+<p>分别在集群机器上安装 java 环境包和 zookeeperd 包：</p>
+<pre><code>apt install openjdk-8-jre-headless
+apt install zookeeperd
+</code></pre>
+<h2>创建工作目录</h2>
+<pre><code>mkdir -p /var/lib/zookeeper
+mkdir -p /var/log/zookeeper
+</code></pre>
+<h2>配置 zookeeper myid</h2>
+<p>zookeeper 利用 <code>myid</code> 来唯一标识 zookeeper 节点，从而利用它来辨别集群中的每一个节点，
+因此集群中的每一个 zookeeper 节点的 <code>myid</code> 不能重复出现，
+我们将 <code>myid</code> 写在 <code>/var/lib/zookeeper/myid</code> 文件中：</p>
+<p>在此将三台机器的 ip 尾数作为 zookeeper 节点的 <code>myid</code>，比如 <code>10.0.0.3</code> 节点的 <code>myid</code> 为 <code>3</code>，
+因此在 <code>10.0.0.3</code> 机器上的 <code>/var/lib/zookeeper/myid</code> 文件内容为：</p>
+<pre><code>3
+</code></pre>
+<h2>配置 zookeeper zoo.cfg</h2>
+<p>每一个节点机器上都需要配置 <code>/etc/zookeeper/conf/zoo.cfg</code> 文件，配置如下：</p>
+<pre><code>dataDir=/var/lib/zookeeper
+dataLogDir=/var/log/zookeeper
+tickTime=2000
+clientPort=2181
+initLimit=5
+syncLimit=2
+autopurge.purgeInterval=48
+autopurge.snapRetainCount=10
+
+server.2=10.0.0.2:2888:3888
+server.3=10.0.0.3:2888:3888
+server.4=10.0.0.4:2888:3888
+</code></pre>
+<h2>配置 systemd service</h2>
+<p>zookeeper 的 service 已经被安装在 <code>/lib/systemd/system/zookeeper.service</code> 中，
+内容如下：</p>
+<pre><code>[Unit]
+Description=Coordination service for distributed applications
+After=network.target
+ConditionPathExists=/var/lib/zookeeper/myid
+
+[Service]
+Type=simple
+User=zookeeper
+SyslogIdentifier=zookeeper
+EnvironmentFile=/etc/zookeeper/conf/environment
+EnvironmentFile=-/etc/default/zookeeper
+ExecStart=/usr/bin/java -cp ${CLASSPATH} $JAVA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxre
+SuccessExitStatus=143
+# ZooKeeper is &quot;fail-fast&quot;, see https://zookeeper.apache.org/doc/r3.4.8/zookeeperAdmin.html#sc_supervision
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<p>在每一台机器上运行开启 zookeeper：</p>
+<pre><code>systemctl start zookeeper
+</code></pre>
+<p>可以将 zookeeper 设为开机自启动：</p>
+<pre><code>systemctl enable zookeeper
+</code></pre>
+<h2>检测 zookeeper</h2>
+<p>随便 ssh 进入一台机器，运行以下命令查看 zookeeper 集群健康情况：</p>
+<pre><code>echo mntr | nc 127.0.0.1 2181
+</code></pre>
+<p>类似四字命令也有：</p>
 <ul>
-<li>手工设置你的浏览器：告诉浏览器使用哪个代理</li>
-<li>通过中间服务器：用户不必配置代理，所有的 web 请求均发送到中间服务器，其后将请求转发到后台网络</li>
+<li>conf</li>
+<li>cons</li>
+<li>crst</li>
+<li>dump</li>
+<li>envi</li>
+<li>ruok</li>
+<li>srst</li>
+<li>srvr</li>
+<li>stat</li>
+<li>wchs</li>
+<li>wchc</li>
+<li>wchp</li>
 </ul>
-<p>代理服务器缓存是一个共享缓存，不只为一个用户服务，经常为大量用户使用，因此在减少相应时间和带宽使用方面很有效。</p>
-<h2>CDN 缓存</h2>
-<p>由于网络通信的传播速度是存在物理极限的，
-既然不能改变传播速度，那我们就可以缩短用户与服务的距离，
-于是就引入了 CDN（Content Delivery Network，内容分发网络）。</p>
-<p>CDN 缓存属于 Cache 服务器的一种，
-其目的是通过在现有的 Internet 中增加一层新的网络架构，
-将网站的内容发布到最接近用户的网络“边缘”，使用户可以就近取得所需的内容，
-从而解决 Internet 网络拥塞状况，提高用户访问网站的响应速度。</p>
-<h2>数据库查询缓存</h2>
-<p>大多服务端的性能瓶颈是数据库查询，因为应用关系较复杂，数据表格繁多，频繁进行数据库查询又涉及到大量的磁盘 IO 和计算，
-所以服务端引入了专门的缓存服务（redis、memcached 或应用自建缓存服务）以保存查询结果，
-以便于下次查询时，直接从内存缓存直接返回，提供响应效率。</p>
-<h2>应用计算缓存</h2>
-<p>有些 Web 应用会有一些大量的 CPU 密集型的计算，这些计算结果也有可能保存在缓存服务内以便后用。</p>
-<p>这些应用计算不仅可以在服务端，而且可以在客户端。</p>
-<p>服务端缓存服务大多由 redis 或 memcached 提供，而客户端缓存服务可以由浏览器的 LocalStorage 或 SessionStorage API 提供。</p>
+<p>具体详情请看：<a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">zookeeper Admin 文档</a>。</p>
+<h2>测试 zookeeper 命令</h2>
+<p>开启 zookeeper cli 客户端：</p>
+<pre><code>cd /usr/share/zookeeper
+./bin/zkCli.sh -server 127.0.0.1
+</code></pre>
+<p>进入 cli 环境后就可以测试各种 zookeeper 命令了：</p>
+<pre><code>[zk: 127.0.0.1(CONNECTED) 0] help
+ZooKeeper -server host:port cmd args
+    stat path [watch]
+    set path data [version]
+    ls path [watch]
+    delquota [-n|-b] path
+    ls2 path [watch]
+    setAcl path acl
+    setquota -n|-b val path
+    history 
+    redo cmdno
+    printwatches on|off
+    delete path [version]
+    sync path
+    listquota path
+    rmr path
+    get path [watch]
+    create [-s] [-e] path data acl
+    addauth scheme auth
+    quit 
+    getAcl path
+    close 
+    connect host:port
+</code></pre>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a><a href="https://fugangqiang.github.io/tags/性能.html">性能<sup>5</sup></a></li>
-      <li>日期： 2016-10-06 14:53:34</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/zookeeper.html">zookeeper<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/分布式.html">分布式<sup>1</sup></a></li>
+      <li>日期： 2018-04-16 11:06:18</li>
       </ul>
     </article>
   </main>
