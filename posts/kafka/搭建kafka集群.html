@@ -5,7 +5,7 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>搭建zookeeper集群</title>
+  <title>搭建kafka集群</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,130 +29,116 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>搭建zookeeper集群</h1>
+    <h1>搭建kafka集群</h1>
     <article>
-      <p><a href="https://zookeeper.apache.org/">zookeeper</a> 是一个为分布式应用提供高效、高可用的分布式协调服务，
-提供了诸如数据发布/订阅、负载均衡、命名服务、分布式协调/通知和分布式锁等分布式基础服务。</p>
-<p>本博客讲解 debian9.4 系统下 zookeeper 集群的搭建，集群机器 ip 如下：</p>
+      <p><a href="https://kafka.apache.org">kafka</a> 是一个分布式的基于 push-subscribe 的消息系统，快速、可扩展、可持久化，
+可以实时的处理大量数据以满足各种需求场景，具有以下特点：</p>
 <ul>
-<li><code>10.0.0.2</code></li>
-<li><code>10.0.0.3</code></li>
-<li><code>10.0.0.4</code></li>
+<li>高吞吐量、低延迟：每秒可以处理几十万条消息，它的延迟最低只有几毫秒</li>
+<li>可扩展性：集群支持热扩展</li>
+<li>持久性、可靠性：消息被持久化到本地磁盘，并且支持数据备份防止数据丢失</li>
+<li>容错性：允许集群中节点失败（若副本数量为 n,则允许 n-1 个节点失败）</li>
+<li>高并发：支持数千个客户端同时读写</li>
 </ul>
-<h2>安装包</h2>
-<p>分别在集群机器上安装 java 环境包和 zookeeperd 包：</p>
-<pre><code>apt install openjdk-8-jre-headless
-apt install zookeeperd
+<p>本博客讲解 debian9.4 系统下 kafka 集群的搭建。</p>
+<h2>集群节点配置</h2>
+<ul>
+<li><code>10.0.0.2</code>: zookeeper, kafka</li>
+<li><code>10.0.0.3</code>: zookeeper, kafka</li>
+<li><code>10.0.0.4</code>: zookeeper, kafka</li>
+</ul>
+<h2>安装 zookeeper</h2>
+<p>kafka 使用 zookeeper 来维护集群的状态，因此应该首先搭建一个 zookeeper 集群，
+具体步骤请见博文：<a href="/posts/zookeeper/%E6%90%AD%E5%BB%BAzookeeper%E9%9B%86%E7%BE%A4.html">搭建zookeeper集群</a>。</p>
+<h2>安装 kafka</h2>
+<h3>下载 kafka</h3>
+<pre><code>wget http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/1.1.0/kafka_2.12-1.1.0.tgz
 </code></pre>
-<h2>创建工作目录</h2>
-<pre><code>mkdir -p /var/lib/zookeeper
-mkdir -p /var/log/zookeeper
+<h3>安装 kafka</h3>
+<p>分别在三台节点机器上运行解压命令，解压到 <code>/opt</code> 目录：</p>
+<pre><code>tar -xzvf kafka_2.12-1.1.0.tgz -C /opt
 </code></pre>
-<h2>配置 zookeeper myid</h2>
-<p>zookeeper 利用 <code>myid</code> 来唯一标识 zookeeper 节点，从而利用它来辨别集群中的每一个节点，
-因此集群中的每一个 zookeeper 节点的 <code>myid</code> 不能重复出现，
-我们将 <code>myid</code> 写在 <code>/var/lib/zookeeper/myid</code> 文件中：</p>
-<p>在此将三台机器的 ip 尾数作为 zookeeper 节点的 <code>myid</code>，比如 <code>10.0.0.3</code> 节点的 <code>myid</code> 为 <code>3</code>，
-因此在 <code>10.0.0.3</code> 机器上的 <code>/var/lib/zookeeper/myid</code> 文件内容为：</p>
-<pre><code>3
+<h2>创建 kafka 用户、组</h2>
+<pre><code>groupadd kafka
+useradd -g kafka -M -s /usr/sbin/nologin kafka
 </code></pre>
-<h2>配置 zookeeper zoo.cfg</h2>
-<p>每一个节点机器上都需要配置 <code>/etc/zookeeper/conf/zoo.cfg</code> 文件，配置如下：</p>
-<pre><code>dataDir=/var/lib/zookeeper
-dataLogDir=/var/log/zookeeper
-tickTime=2000
-clientPort=2181
-initLimit=5
-syncLimit=2
-autopurge.purgeInterval=48
-autopurge.snapRetainCount=10
-
-server.2=10.0.0.2:2888:3888
-server.3=10.0.0.3:2888:3888
-server.4=10.0.0.4:2888:3888
+<h3>配置 kafka</h3>
+<p>创建 kafka 数据目录：</p>
+<pre><code>mkdir -p /var/lib/kafka
 </code></pre>
+<p>配置 <code>/opt/kafka_2.12-1.1.0/config/server.properties</code> 文件(<code>10.0.0.2</code> 节点)如下：</p>
+<pre><code>broker.id=2
+listeners=PLAINTEXT://10.0.0.2:9092
+num.network.threads=3
+num.io.threads=8
+socket.send.buffer.bytes=102400
+socket.receive.buffer.bytes=102400
+socket.request.max.bytes=104857600
+log.dirs=/var/lib/kafka
+num.partitions=1
+num.recovery.threads.per.data.dir=1
+offsets.topic.replication.factor=1
+transaction.state.log.replication.factor=1
+transaction.state.log.min.isr=1
+log.retention.hours=168
+log.segment.bytes=1073741824
+log.retention.check.interval.ms=300000
+zookeeper.connect=10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka
+zookeeper.connection.timeout.ms=6000
+group.initial.rebalance.delay.ms=0
+</code></pre>
+<p>其中 <code>broker.id</code> 同 <code>zookeeper</code> 的 <code>myid</code> 类似，是集群中的唯一标识，在此设为 ip 地址尾数。</p>
 <h2>配置 systemd service</h2>
-<p>zookeeper 的 service 已经被安装在 <code>/lib/systemd/system/zookeeper.service</code> 中，
-内容如下：</p>
+<p>文件 <code>/etc/systemd/system/kafka.service</code> 文件如下：</p>
 <pre><code>[Unit]
-Description=Coordination service for distributed applications
-After=network.target
-ConditionPathExists=/var/lib/zookeeper/myid
+Description=Kafka
+After=zookeeper.service
 
 [Service]
 Type=simple
-User=zookeeper
-SyslogIdentifier=zookeeper
-EnvironmentFile=/etc/zookeeper/conf/environment
-EnvironmentFile=-/etc/default/zookeeper
-ExecStart=/usr/bin/java -cp ${CLASSPATH} $JAVA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxre
-SuccessExitStatus=143
-# ZooKeeper is &quot;fail-fast&quot;, see https://zookeeper.apache.org/doc/r3.4.8/zookeeperAdmin.html#sc_supervision
+User=kafka
+Group=kafka
+ExecStart=/opt/kafka_2.12-1.1.0/bin/kafka-server-start.sh /opt/kafka_2.12-1.1.0/config/server.properties
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 </code></pre>
-<p>在每一台机器上运行开启 zookeeper：</p>
-<pre><code>systemctl start zookeeper
+<p>在每一台机器上运行开启 kafka</p>
+<pre><code>systemctl start kafka
 </code></pre>
-<p>可以将 zookeeper 设为开机自启动：</p>
-<pre><code>systemctl enable zookeeper
+<p>可以将 kafka 设为开机自启动：</p>
+<pre><code>systemctl enable kafka
 </code></pre>
-<h2>检测 zookeeper</h2>
-<p>随便 ssh 进入一台机器，运行以下命令查看 zookeeper 集群健康情况：</p>
-<pre><code>echo mntr | nc 127.0.0.1 2181
+<h2>测试 kafka 集群</h2>
+<h3>创建 topic</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-topics.sh \
+    --zookeeper 10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka \
+    --create \
+    --replication-factor 1 \
+    --partitions 1 \
+    --topic test
 </code></pre>
-<p>类似四字命令也有：</p>
-<ul>
-<li>conf</li>
-<li>cons</li>
-<li>crst</li>
-<li>dump</li>
-<li>envi</li>
-<li>ruok</li>
-<li>srst</li>
-<li>srvr</li>
-<li>stat</li>
-<li>wchs</li>
-<li>wchc</li>
-<li>wchp</li>
-</ul>
-<p>具体详情请看：<a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">zookeeper Admin 文档</a>。</p>
-<h2>测试 zookeeper 命令</h2>
-<p>开启 zookeeper cli 客户端：</p>
-<pre><code>cd /usr/share/zookeeper
-./bin/zkCli.sh -server 127.0.0.1
+<h3>查看已经存在的 topic</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-topics.sh \
+    --zookeeper 10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka \
+    --list
 </code></pre>
-<p>进入 cli 环境后就可以测试各种 zookeeper 命令了：</p>
-<pre><code>[zk: 127.0.0.1(CONNECTED) 0] help
-ZooKeeper -server host:port cmd args
-    stat path [watch]
-    set path data [version]
-    ls path [watch]
-    delquota [-n|-b] path
-    ls2 path [watch]
-    setAcl path acl
-    setquota -n|-b val path
-    history 
-    redo cmdno
-    printwatches on|off
-    delete path [version]
-    sync path
-    listquota path
-    rmr path
-    get path [watch]
-    create [-s] [-e] path data acl
-    addauth scheme auth
-    quit 
-    getAcl path
-    close 
-    connect host:port
+<h3>接收消息</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-console-consumer.sh \
+    --bootstrap-server 10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092 \
+    --topic test \
+    --from-beginning
+</code></pre>
+<h3>发送消息</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-console-producer.sh \
+    --broker-list 10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092 \
+    --topic test
 </code></pre>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/zookeeper.html">zookeeper<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/分布式.html">分布式<sup>2</sup></a></li>
-      <li>日期： 2018-04-16 11:06:18</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/kafka.html">kafka<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/分布式.html">分布式<sup>2</sup></a></li>
+      <li>日期： 2018-04-17 11:21:28</li>
       </ul>
     </article>
   </main>

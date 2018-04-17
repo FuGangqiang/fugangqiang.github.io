@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-16T16:16:15+08:00</updated>
+  <updated>2018-04-17T18:32:07+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,122 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/kafka/%E6%90%AD%E5%BB%BAkafka%E9%9B%86%E7%BE%A4.html</id>
+    <title>搭建kafka集群</title>
+    <updated>2018-04-17T11:21:28+08:00</updated>
+    <published>2018-04-17T11:21:28+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/kafka/%E6%90%AD%E5%BB%BAkafka%E9%9B%86%E7%BE%A4.html"/>
+    <summary>[kafka][] 是一个分布式的基于 push-subscribe 的消息系统，快速、可扩展、可持久化， 可以实时的处理大量数据以满足各种需求场景，具有以下特点：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p><a href="https://kafka.apache.org">kafka</a> 是一个分布式的基于 push-subscribe 的消息系统，快速、可扩展、可持久化，
+可以实时的处理大量数据以满足各种需求场景，具有以下特点：</p>
+<ul>
+<li>高吞吐量、低延迟：每秒可以处理几十万条消息，它的延迟最低只有几毫秒</li>
+<li>可扩展性：集群支持热扩展</li>
+<li>持久性、可靠性：消息被持久化到本地磁盘，并且支持数据备份防止数据丢失</li>
+<li>容错性：允许集群中节点失败（若副本数量为 n,则允许 n-1 个节点失败）</li>
+<li>高并发：支持数千个客户端同时读写</li>
+</ul>
+<p>本博客讲解 debian9.4 系统下 kafka 集群的搭建。</p>
+<h2>集群节点配置</h2>
+<ul>
+<li><code>10.0.0.2</code>: zookeeper, kafka</li>
+<li><code>10.0.0.3</code>: zookeeper, kafka</li>
+<li><code>10.0.0.4</code>: zookeeper, kafka</li>
+</ul>
+<h2>安装 zookeeper</h2>
+<p>kafka 使用 zookeeper 来维护集群的状态，因此应该首先搭建一个 zookeeper 集群，
+具体步骤请见博文：<a href="/posts/zookeeper/%E6%90%AD%E5%BB%BAzookeeper%E9%9B%86%E7%BE%A4.html">搭建zookeeper集群</a>。</p>
+<h2>安装 kafka</h2>
+<h3>下载 kafka</h3>
+<pre><code>wget http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/1.1.0/kafka_2.12-1.1.0.tgz
+</code></pre>
+<h3>安装 kafka</h3>
+<p>分别在三台节点机器上运行解压命令，解压到 <code>/opt</code> 目录：</p>
+<pre><code>tar -xzvf kafka_2.12-1.1.0.tgz -C /opt
+</code></pre>
+<h2>创建 kafka 用户、组</h2>
+<pre><code>groupadd kafka
+useradd -g kafka -M -s /usr/sbin/nologin kafka
+</code></pre>
+<h3>配置 kafka</h3>
+<p>创建 kafka 数据目录：</p>
+<pre><code>mkdir -p /var/lib/kafka
+</code></pre>
+<p>配置 <code>/opt/kafka_2.12-1.1.0/config/server.properties</code> 文件(<code>10.0.0.2</code> 节点)如下：</p>
+<pre><code>broker.id=2
+listeners=PLAINTEXT://10.0.0.2:9092
+num.network.threads=3
+num.io.threads=8
+socket.send.buffer.bytes=102400
+socket.receive.buffer.bytes=102400
+socket.request.max.bytes=104857600
+log.dirs=/var/lib/kafka
+num.partitions=1
+num.recovery.threads.per.data.dir=1
+offsets.topic.replication.factor=1
+transaction.state.log.replication.factor=1
+transaction.state.log.min.isr=1
+log.retention.hours=168
+log.segment.bytes=1073741824
+log.retention.check.interval.ms=300000
+zookeeper.connect=10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka
+zookeeper.connection.timeout.ms=6000
+group.initial.rebalance.delay.ms=0
+</code></pre>
+<p>其中 <code>broker.id</code> 同 <code>zookeeper</code> 的 <code>myid</code> 类似，是集群中的唯一标识，在此设为 ip 地址尾数。</p>
+<h2>配置 systemd service</h2>
+<p>文件 <code>/etc/systemd/system/kafka.service</code> 文件如下：</p>
+<pre><code>[Unit]
+Description=Kafka
+After=zookeeper.service
+
+[Service]
+Type=simple
+User=kafka
+Group=kafka
+ExecStart=/opt/kafka_2.12-1.1.0/bin/kafka-server-start.sh /opt/kafka_2.12-1.1.0/config/server.properties
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<p>在每一台机器上运行开启 kafka</p>
+<pre><code>systemctl start kafka
+</code></pre>
+<p>可以将 kafka 设为开机自启动：</p>
+<pre><code>systemctl enable kafka
+</code></pre>
+<h2>测试 kafka 集群</h2>
+<h3>创建 topic</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-topics.sh \
+    --zookeeper 10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka \
+    --create \
+    --replication-factor 1 \
+    --partitions 1 \
+    --topic test
+</code></pre>
+<h3>查看已经存在的 topic</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-topics.sh \
+    --zookeeper 10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181/kafka \
+    --list
+</code></pre>
+<h3>接收消息</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-console-consumer.sh \
+    --bootstrap-server 10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092 \
+    --topic test \
+    --from-beginning
+</code></pre>
+<h3>发送消息</h3>
+<pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-console-producer.sh \
+    --broker-list 10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092 \
+    --topic test
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/zookeeper/%E7%94%A8python%E6%93%8D%E4%BD%9Czookeeper.html</id>
     <title>用python操作zookeeper</title>
     <updated>2018-04-16T15:40:18+08:00</updated>
@@ -991,91 +1107,6 @@ admin_users = someuser
 <pre><code>pgbouncer -d /etc/pgbouncer/pgbouncer.ini
 </code></pre>
 <p>postgresql 客户端程序就可以通过 <code>6543</code> 端口来申请数据库链接了。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/%E6%89%8B%E5%86%99%20fwatcher%20%E5%B0%8F%E5%B7%A5%E5%85%B7.html</id>
-    <title>手写 fwatcher 小工具</title>
-    <updated>2017-02-20T19:15:41+08:00</updated>
-    <published>2017-02-20T19:15:41+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/%E6%89%8B%E5%86%99%20fwatcher%20%E5%B0%8F%E5%B7%A5%E5%85%B7.html"/>
-    <summary>在 web 开发过程中，我们经常需要在某个或某些文件被修改后运行一些命令。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>在 web 开发过程中，我们经常需要在某个或某些文件被修改后运行一些命令。</p>
-<p>例如：在 django web 开发时，当运行 <code>manage.py runserver</code> 后，
-如果我们修改了 django 工程相关的代码，<code>manage.py</code> 程序会在后台自动重启服务，
-使代码即时生效，以便于检验代码正确性。</p>
-<p>然而在 python 众多 web 框架中，许多都没有 django 这种类似功能，在其他语言也同样如此。
-而且这种当某些文件修改后及时运行某些指令的情况很常见，
-因此，自己决定写一个类似的监控文件的小程序 <code>fwatcher</code>，以便以后的自动化开发。</p>
-<p>fwatcher 用 rust 语言编写，
-不仅可以直接用于命令行，
-也可以通过 crate lib 来集成到 rust 程序中，以便于其他 rust 应用调用。</p>
-<p>代码库 repo: <a href="https://github.com/FuGangqiang/fwatcher.rs">https://github.com/FuGangqiang/fwatcher.rs</a></p>
-<h2>fwatcher 命令行</h2>
-<h4>安装</h4>
-<p>需要 rust 的 cargo 包管理器：</p>
-<pre><code class="language-sh">cargo install fwatcher
-</code></pre>
-<p>这样 <code>fwatcher</code> 就被安装在你的 <code>~/.cargo/bin</code> 目录中了。</p>
-<h4>用法</h4>
-<pre><code class="language-sh">$ fwatcher -h
-Usage:
-    fwatcher [options] CMD
-
-Options:
-    -h, --help          Display this message
-    -v, --version       Print version info
-    -r, --restart       Auto restart command
-    -d, --directory &lt;dir&gt;
-                        Watch directory, default to current directory
-    -p, --pattern &lt;pattern&gt;
-                        Watch file glob pattern, default to &quot;*&quot;
-    -i, --interval &lt;pattern&gt;
-                        Interval in seconds to scan filesystem, default to 1
-</code></pre>
-<p>如果你想在当前文件夹下递归搜索 python 文件，当其中一个被修改了，就立即运行 <code>pytest</code> 程序：</p>
-<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; &quot;pytest&quot;
-</code></pre>
-<p>当然，你也可以指定只监控哪些文件夹：</p>
-<pre><code class="language-sh">fwatcher -d src -d test -p &quot;**/*.py&quot; &quot;pytest&quot;
-</code></pre>
-<p>上面命令每检测到一个 python 文件被修改，就会运行 <code>pytest</code> 程序一次，即使上一次修改导致的 <code>pytest</code> 还再运行。</p>
-<p>当运行的程序比较耗时，又或者是一个服务并不会停止时，你如果需要重启上一次开启的程序，
-这时需要加 <code>--restart</code> 参数：</p>
-<pre><code class="language-sh">fwatcher -p &quot;**/*.py&quot; --restart &quot;run_forever_cmd&quot;
-</code></pre>
-<h2>Rust Lib</h2>
-<p>Cargo.toml 依赖：</p>
-<pre><code class="language-toml">[dependencies]
-glob = &quot;0.2&quot;
-notify = &quot;4.0&quot;
-fwatcher = &quot;*&quot;
-</code></pre>
-<p>下面是一个示例：</p>
-<pre><code class="language-rust">extern crate glob;
-extern crate fwatcher;
-
-use fwatcher::Fwatcher;
-use glob::Pattern;
-use std::path::PathBuf;
-use std::time::Duration;
-
-
-fn main() {
-    let dirs =vec![PathBuf::from(&quot;src&quot;)];
-    let cmd = vec![&quot;pytest&quot;.to_string()];
-
-    let mut fwatcher = Fwatcher::new(dirs, cmd);
-    fwatcher.pattern(Pattern::new(&quot;**/*.py&quot;).unwrap())
-            .exclude_pattern(Pattern::new(&quot;**/.git/**&quot;).unwrap())
-            .interval(Duration::new(1, 0))
-            .restart(false)
-            .run();
-}
-</code></pre>
 
         ]]>
     </content>
