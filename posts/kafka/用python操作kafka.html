@@ -5,7 +5,7 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>engine</title>
+  <title>用python操作kafka</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,19 +29,71 @@
 <div id="container" class="clearfix">
   <main>
   
-  <h1>engine</h1>
-  <article>
-    <section>
-      <span>2015-11-08</span>
-      <span><a href="https://fugangqiang.github.io/posts/web/%E8%AE%A9%E6%88%91%E4%BB%AC%E6%9E%84%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%B5%8F%E8%A7%88%E5%99%A8%E6%B8%B2%E6%9F%93%E5%BC%95%E6%93%8E%E5%90%A7-2.html">让我们构建一个浏览器渲染引擎吧-2</a></span>
-    </section>
-    <section>
-      <span>2015-10-23</span>
-      <span><a href="https://fugangqiang.github.io/posts/web/%E8%AE%A9%E6%88%91%E4%BB%AC%E6%9E%84%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%B5%8F%E8%A7%88%E5%99%A8%E6%B8%B2%E6%9F%93%E5%BC%95%E6%93%8E%E5%90%A7-1.html">让我们构建一个浏览器渲染引擎吧-1</a></span>
-    </section>
-  </article>
-  <div id="pages"></div>
+    <h1>用python操作kafka</h1>
+    <article>
+      <p><a href="/posts/kafka/%E6%90%AD%E5%BB%BAkafka%E9%9B%86%E7%BE%A4.html">上一篇</a> 博文介绍了 kafka 集群的搭建，
+本博文介绍如何用 <a href="https://github.com/dpkp/kafka-python">kafka-python</a> 包来链接操作 kafka 集群。</p>
+<h2>安装</h2>
+<pre><code>pip install kafka-python
+</code></pre>
+<h2>创建 kafka consumer</h2>
+<pre><code>from kafka import KafkaConsumer
 
+consumer = KafkaConsumer('test', bootstrap_servers='10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092')
+for msg in consumer:
+    print (msg)
+</code></pre>
+<h2>创建 kafka producer</h2>
+<pre><code>from kafka import KafkaProducer
+
+producer = KafkaProducer(bootstrap_servers='10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092')
+for _ in range(100):
+    producer.send('test', b'some_message_bytes')
+</code></pre>
+<h2>脚本测试</h2>
+<p><code>producer.py</code> 文件如下：</p>
+<pre><code>import time
+from kafka import KafkaProducer
+
+producer = KafkaProducer(bootstrap_servers='10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092')
+
+i = 1
+while True:
+    message = f'message {i}'
+    print(f'send message: {message}')
+    producer.send('test', message.encode())
+    i += 1
+    time.sleep(3)
+</code></pre>
+<p><code>consumer.py</code> 文件如下：</p>
+<pre><code>from kafka import KafkaConsumer, TopicPartition, OffsetAndMetadata
+
+
+consumer = KafkaConsumer(bootstrap_servers='10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092',
+                         group_id='test_group',
+                         auto_offset_reset=&quot;earliest&quot;,
+                         enable_auto_commit=False)
+
+tp = TopicPartition(topic='test', partition=0)
+consumer.assign([tp])
+print('start offset is ', consumer.position(tp))
+
+for msg in consumer:
+    print(msg)
+    consumer.commit({tp: OffsetAndMetadata(msg.offset+1, &quot;Some metadata&quot;)})
+</code></pre>
+<p>在两个终端上分别先后运行以下命令测试：</p>
+<pre><code>python consumer.py
+</code></pre>
+<p>和</p>
+<pre><code>python producer.py
+</code></pre>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/kafka.html">kafka<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/python.html">python<sup>14</sup></a></li>
+      <li>日期： 2018-04-18 20:48:13</li>
+      </ul>
+    </article>
   </main>
   <aside>
     <section class="tags clearfix">
@@ -119,5 +171,24 @@
   </p>
 </footer>
 <script src="https://fugangqiang.github.io/static/main.js"></script>
+<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+       tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       },
+       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
+       "HTML-CSS": {linebreaks: {automatic: true}},
+       SVG: {linebreaks: {automatic: true}}
+    });
+    MathJax.Hub.Queue(function() {
+       var all = MathJax.Hub.getAllJax(), i;
+       for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+       }
+    });
+</script>
 </body>
 </html>
