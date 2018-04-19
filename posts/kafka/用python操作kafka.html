@@ -88,6 +88,22 @@ for msg in consumer:
 <p>和</p>
 <pre><code>python producer.py
 </code></pre>
+<h2>kafka reblance</h2>
+<p>当有多个 consumer 属于同一个消费者组时，kafka 会自动 reblance 的，
+所以不需要在程序中显式的设置 topic partition 的，
+所以 <code>consumer.py</code> 也可以这样写：</p>
+<pre><code>from kafka import KafkaConsumer, TopicPartition, OffsetAndMetadata
+
+
+consumer = KafkaConsumer('test',
+                         client_id='client1',
+                         group_id='test_group',
+                         bootstrap_servers='10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092')
+
+for msg in consumer:
+    print(msg)
+</code></pre>
+<p>当运行多个 consumer 时，<code>client_id</code> 参数具有唯一性的，</p>
 
       <ul id="article_footer">
         <li>标签： <a href="https://fugangqiang.github.io/tags/kafka.html">kafka<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/python.html">python<sup>14</sup></a></li>
