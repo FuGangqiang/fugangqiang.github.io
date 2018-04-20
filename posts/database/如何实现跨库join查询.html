@@ -5,7 +5,7 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>git之gitignore</title>
+  <title>如何实现跨库join查询</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,32 +29,31 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>git之gitignore</h1>
+    <h1>如何实现跨库join查询</h1>
     <article>
-      <ul>
-<li>blank lines or lines starting with <code>#</code> are ignored</li>
-<li>stardard glob patterns work
-<ul>
-<li><code>*</code> matches zero or more characters</li>
-<li><code>[abc]</code> matches any character inside the brackets</li>
-<li><code>[0-9]</code> matches any character between them</li>
-<li><code>a/**/z</code> matches <code>a/z</code>, <code>a/b/z</code>, <code>a/b/c/z</code>, and so on</li>
-</ul>
-</li>
-<li>negate a pattern by starting it with an <code>!</code></li>
-</ul>
-<p>示例：</p>
-<pre><code>*.a     # 所有已 .a 结尾的文件
-!lib.a  # 将跟踪 lib.a，即使 *.a
-/TODO   # 仅忽略顶层TODO，而不是 subdir/TODO
-build/  # 忽略build/文件夹下所有文件
-doc/*.txt     # 忽略 doc/notes.txt，但不忽略doc/server/arch.txt
-doc/**/*.txt  # 忽略所有doc/文件夹下的所有 .txt 文件，包括doc/*.txt
-</code></pre>
+      <p>随着业务规模的扩大，数据库不可避免的需要拆分，进行必要的分库，
+这样对数据库的 join 操作就变得异常复杂，也增加了数据库维护的困难，
+本博文讲解如何解决跨库 join 操作的问题。</p>
+<h2>分布式数据库</h2>
+<p>其实解决跨库 join 问题最好的办法就是不对数据库进行分库，
+将所有数据都存在一个分布式数据库中，比如近来很火的 <a href="https://github.com/pingcap/tidb">tidb</a>，
+分布式数据库会自动无限扩容，这样就解决了业务数据规模逐渐变大的问题，
+任何对数据的查询和操作都是通过数据库原生 sql 语句的执行来操作，
+自然 join 操作也是普通的 sql 语句了。</p>
+<h2>字段冗余</h2>
+<p>通过把一部分信息重复存放，这样无需进行 join 操作我们就可以查询到那些冗余的信息了，
+但是这只适合加入少量冗余字段以及很少对冗余信息进行修改的情况。</p>
+<h2>表复制和同步</h2>
+<p>可以将参加 join 的表格中较小的那一个同步复制到另一个库中，
+这样我们就可以在另一个库中进行 join 操作了，
+但是当两个表格的数据量都很大时，这种就比较浪费空间了。</p>
+<h2>链接表</h2>
+<p>链接表其实就是一个虚拟表，所有对这个虚拟表的查询操作都会转发到另一个被链接的数据库中，
+比如 postgresql 中的 fdw 模块就是实现类似的功能的，具体请看<a href="/posts/database/postgresql/postgresql%E4%B9%8Bfdw%E6%A8%A1%E5%9D%97.html">postgresql之fdw模块</a>。</p>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a></li>
-      <li>日期： 2015-12-30 12:54:03</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/数据库.html">数据库<sup>20</sup></a></li>
+      <li>日期： 2018-04-20 09:33:24</li>
       </ul>
     </article>
   </main>
