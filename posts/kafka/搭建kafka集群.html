@@ -58,7 +58,7 @@
 <p>分别在三台节点机器上运行解压命令，解压到 <code>/opt</code> 目录：</p>
 <pre><code>tar -xzvf kafka_2.12-1.1.0.tgz -C /opt
 </code></pre>
-<h2>创建 kafka 用户、组</h2>
+<h3>创建 kafka 用户、组</h3>
 <pre><code>groupadd kafka
 useradd -g kafka -M -s /usr/sbin/nologin kafka
 </code></pre>
@@ -88,7 +88,7 @@ zookeeper.connection.timeout.ms=6000
 group.initial.rebalance.delay.ms=0
 </code></pre>
 <p>其中 <code>broker.id</code> 同 <code>zookeeper</code> 的 <code>myid</code> 类似，是集群中的唯一标识，在此设为 ip 地址尾数。</p>
-<h2>配置 systemd service</h2>
+<h3>配置 systemd service</h3>
 <p>文件 <code>/etc/systemd/system/kafka.service</code> 文件如下：</p>
 <pre><code>[Unit]
 Description=Kafka
