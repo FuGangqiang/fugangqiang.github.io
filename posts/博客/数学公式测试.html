@@ -5,6 +5,10 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <style>
+    .katex { font-size: 1em !important; }
+  </style>
+
   <title>数学公式测试</title>
 </head>
 <body>
@@ -33,57 +37,46 @@
     <article>
       <p>This is a beautiful math test.</p>
 <h2>inline style</h2>
-<p>爱因斯坦提出了质能方程：<span>$E=mc^2$</span>。他是一个伟大的物理学家。</p>
+<p>爱因斯坦提出了质能方程：$<code>E=mc^2</code>$。他是一个伟大的物理学家。</p>
 <h2>display style</h2>
 <p>求根公式：</p>
-<div>
-$$
-x = \frac{-b\pm\sqrt{b^2-4ac}}{2a}
-$$
-</div>
+<pre><code class="language-math">x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}
+</code></pre>
 <p>矩阵：</p>
-<div>
-$$
-\left[\begin{array}{ccc}
-   a_{11} & a_{12} & a_{13} \\
-   a_{21} & a_{22} & a_{23} \\
-   a_{31} & a_{32} & a_{33} \\
-\end{array}\right]
-\left[\begin{array}{c}
+<pre><code class="language-math">\begin{bmatrix}
+   a_{11} &amp; a_{12} &amp; a_{13} \\
+   a_{21} &amp; a_{22} &amp; a_{23} \\
+   a_{31} &amp; a_{32} &amp; a_{33} \\
+\end{bmatrix}
+\begin{bmatrix}
    x_1 \\
    x_2 \\
    x_3 \\
-\end{array}\right]
+\end{bmatrix}
 =
-\left[\begin{array}{c}
+\begin{bmatrix}
    b_1 \\
    b_2 \\
    b_3 \\
-\end{array}\right]
-$$
-</div>
+\end{bmatrix}
+</code></pre>
 <p>来个几个看不懂的，嘿嘿
 高斯公式：</p>
-<div>
-$$
-\iiint_\Omega(
+<pre><code class="language-math">\iiint_\Omega(
 \frac{\partial P}{\partial x}
 +\frac{\partial Q}{\partial y}
 +\frac{\partial R}{\partial z})dv
 =\oint_S Pdydz+Qdzdx+Rdxdy
-$$
-</div>
+</code></pre>
 <p>薛定谔方程：</p>
-<div>
-$$
-i\hbar\frac{\partial \psi}{\partial t}
+<pre><code class="language-math">i\hbar\frac{\partial \psi}{\partial t}
 = \frac{-\hbar^2}{2m} \left(
 \frac{\partial^2}{\partial x^2}
 + \frac{\partial^2}{\partial y^2}
 + \frac{\partial^2}{\partial z^2}
 \right) \psi + V \psi
-$$
-</div>
+</code></pre>
+
       <ul id="article_footer">
         <li>标签： <a href="https://fugangqiang.github.io/tags/博客.html">博客<sup>3</sup></a><a href="https://fugangqiang.github.io/tags/数学.html">数学<sup>3</sup></a></li>
       <li>日期： 2014-02-15 11:20:00</li>
@@ -165,25 +158,36 @@ $$
     博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
-<script src="https://fugangqiang.github.io/static/main.js"></script>
-<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-       tex2jax: {
-          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-          processEscapes: true,
-          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-       },
-       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
-       "HTML-CSS": {linebreaks: {automatic: true}},
-       SVG: {linebreaks: {automatic: true}}
-    });
-    MathJax.Hub.Queue(function() {
-       var all = MathJax.Hub.getAllJax(), i;
-       for(i=0; i < all.length; i += 1) {
-          all[i].SourceElement().parentNode.className += ' has-jax';
-       }
-    });
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.js"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+      var maths = document.getElementsByClassName("language-math");
+      for (var i=0; i<maths.length; i++) {
+          var el = maths[i];
+          katex.render(el.innerText, el, {displayMode: true});
+      }
+      var codes = document.getElementsByTagName("code");
+      for (i=0; i<codes.length; i++) {
+          el = codes[i];
+          if (el.classList.contains("language-math")) continue;
+          if (el.classList.contains("language-inline-math")) {
+              katex.render(el.innerText, el);
+              continue;
+          }
+          var parent = el.parentNode;
+          if (parent.nodeName.toLowerCase() === "pre") continue;
+          // TODO: Can this be done with DOM manipulation rather than string manipulation?
+          // https://stackoverflow.com/q/48438067/3019990
+          var inlineMath = "$" + el.outerHTML + "$";
+          if (parent.innerHTML.indexOf(inlineMath) !== -1) {
+              el.classList.add("language-inline-math");
+              parent.innerHTML = parent.innerHTML.replace("$" + el.outerHTML + "$", el.outerHTML);
+              i--;
+          }
+      }
+  });
 </script>
 </body>
 </html>

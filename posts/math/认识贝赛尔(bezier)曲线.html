@@ -5,6 +5,10 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+  <style>
+    .katex { font-size: 1em !important; }
+  </style>
+
   <title>认识贝赛尔(bezier)曲线</title>
 </head>
 <body>
@@ -44,11 +48,8 @@
 <p>给出 Z0 和 Z1 两个点，我们只能得到连接它们的直线段，
 此时如果给出一个时刻 t，那么我们可以通过这个时刻访问到这条线段上以 t 为比例的点，
 即:</p>
-<div>
-$$
-Z=Z_0+t(Z_1-Z_0)
-$$
-</div>
+<pre><code class="language-math">Z = Z_0 + t(Z_1 - Z_0)
+</code></pre>
 <p>如图：</p>
 <p><img src="/media/asy/bezier1.svg" alt="bezier1" /></p>
 <p>产生上图所用 asymptote 代码为：</p>
@@ -72,21 +73,15 @@ arrow(&quot;$t=\frac{1}{3}$&quot;, Z, SE);
 那么就称 Z 为对应于这个时刻 1/3 一个点。
 我们可以想象，当那些时刻遍历 0 到 1 的所有的时刻，就得到一条轨迹，
 通过简单的代数运算，我们可以依次得到</p>
-<div>
-$$
-\begin{align}
-A & = (1-t)Z_0+tC \\
-B & = (1-t)C+tZ_1 \\
-Z & = (1-t)A+tB
-\end{align}
-$$
-</div>
+<pre><code class="language-math">\begin{aligned}
+A &amp; = (1-t)Z_0 + tC \qquad \qquad \qquad \qquad &amp; (1)\\
+B &amp; = (1-t)C + tZ_1 &amp; (2) \\
+Z &amp; = (1-t)A + tB   &amp; (3) \\
+\end{aligned}
+</code></pre>
 <p>把(1)和(2)代入(3)，我们可以得到 Z 与 t 的关系:</p>
-<div>
-$$
-Z(t) = {(1-t)}^2Z_0 + 2t(1-t)C + t^2Z_1
-$$
-</div>
+<pre><code class="language-math">Z(t) = {(1-t)}^2Z_0 + 2t(1-t)C + t^2Z_1
+</code></pre>
 <p>这是一条过 Z0 和 Z1 的二次参数曲线，
 如下图中的红线：</p>
 <p><img src="/media/asy/bezier2.svg" alt="bezier2" /></p>
@@ -115,11 +110,8 @@ arrow(&quot;$t=\frac{1}{3}$&quot;, Z, SE);
 </code></pre>
 <p>我们上面得到的是 2 次的参数曲线，如果采用两个控制点，那么我们就能得到 3 次的 Bezier 曲线，
 其原理是类似的:</p>
-<div>
-$$
-Z = {(1-t)}^3Z_0 + 3t{(1-t)}^2C_0 + 3t^2(1-t)C_1 + t^3Z1
-$$
-</div>
+<pre><code class="language-math">Z = {(1-t)}^3Z_0 + 3t{(1-t)}^2C_0 + 3t^2(1-t)C_1 + t^3Z1
+</code></pre>
 <p>如图：</p>
 <p><img src="/media/asy/bezier3.svg" alt="bezier3" /></p>
 <p>产生上图所用 asymptote 代码为：</p>
@@ -231,25 +223,36 @@ arrow(&quot;$t=\frac{1}{3}$&quot;, Z, SE+E);
     博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
-<script src="https://fugangqiang.github.io/static/main.js"></script>
-<script src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-<script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-       tex2jax: {
-          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-          processEscapes: true,
-          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-       },
-       TeX: {equationNumbers: {autoNumber: ["AMS"], useLabelIds: true}},
-       "HTML-CSS": {linebreaks: {automatic: true}},
-       SVG: {linebreaks: {automatic: true}}
-    });
-    MathJax.Hub.Queue(function() {
-       var all = MathJax.Hub.getAllJax(), i;
-       for(i=0; i < all.length; i += 1) {
-          all[i].SourceElement().parentNode.className += ' has-jax';
-       }
-    });
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.js"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+      var maths = document.getElementsByClassName("language-math");
+      for (var i=0; i<maths.length; i++) {
+          var el = maths[i];
+          katex.render(el.innerText, el, {displayMode: true});
+      }
+      var codes = document.getElementsByTagName("code");
+      for (i=0; i<codes.length; i++) {
+          el = codes[i];
+          if (el.classList.contains("language-math")) continue;
+          if (el.classList.contains("language-inline-math")) {
+              katex.render(el.innerText, el);
+              continue;
+          }
+          var parent = el.parentNode;
+          if (parent.nodeName.toLowerCase() === "pre") continue;
+          // TODO: Can this be done with DOM manipulation rather than string manipulation?
+          // https://stackoverflow.com/q/48438067/3019990
+          var inlineMath = "$" + el.outerHTML + "$";
+          if (parent.innerHTML.indexOf(inlineMath) !== -1) {
+              el.classList.add("language-inline-math");
+              parent.innerHTML = parent.innerHTML.replace("$" + el.outerHTML + "$", el.outerHTML);
+              i--;
+          }
+      }
+  });
 </script>
 </body>
 </html>
