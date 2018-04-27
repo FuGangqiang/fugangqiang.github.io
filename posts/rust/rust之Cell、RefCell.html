@@ -9,7 +9,7 @@
     .katex { font-size: 1em !important; }
   </style>
 
-  <title>vagrant搭建开发环境</title>
+  <title>rust之Cell、RefCell</title>
 </head>
 <body>
 <header class="clearfix">
@@ -33,65 +33,157 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>vagrant搭建开发环境</h1>
+    <h1>rust之Cell、RefCell</h1>
     <article>
-      <p><a href="https://www.vagrantup.com/">Vagrant</a> 让我们可以通过 ruby 脚本来快速、可重复的在本地搭建虚拟机测试集群，
-与 ansible/chef 等组合使用更是方便，是本地统一开发测试的极佳运维工具。</p>
-<p>本文讲解如何制作最初始的 vagrant box。</p>
-<h2>安装软件</h2>
+      <p>以前一直困惑于 rust 的 <code>Cell</code> 和 <code>RefCell</code> 类型，
+今天终于理解了，
+主要参考了它们的源码实现和一些网上的资料：</p>
 <ul>
-<li>安装 virtualbox</li>
-<li>安装 vagrant</li>
+<li><a href="https://www.reddit.com/r/rust/comments/4cvc3o/what_are_cell_and_refcell_used_for/">reddit</a></li>
+<li><a href="https://stackoverflow.com/questions/30275982/when-i-can-use-either-cell-or-refcell-which-should-i-choose?utm_medium=organic&amp;utm_source=google_rich_qa&amp;utm_campaign=google_rich_qa">stackoverflow</a></li>
+<li><a href="https://ricardomartins.cc/2016/06/08/interior-mutability">Interior mutability in Rust: what, why, how?</a></li>
 </ul>
-<h2>制作虚拟机</h2>
+<h2>&amp; 和 &amp;mut</h2>
+<p>在讲解 <code>Cell</code> 和 <code>RefCell</code> 之前，不得不说一下 <code>&amp;</code> 和 <code>&amp;mut</code> 类型。</p>
+<p>rust 提供了两种引用类型：</p>
 <ul>
-<li>下载 debian iso 镜像</li>
-<li>利用下载的镜像在 virtualbox 安装一个名为 <code>vmname</code> 的 linux 操作系统</li>
+<li><code>&amp;</code>: shared reference，共享引用</li>
+<li><code>&amp;mut</code>: mutable reference，可变引用</li>
 </ul>
-<h2>debian 虚拟机配置</h2>
-<ul>
-<li>在虚拟机中创建 <code>vagrant</code> 用户和用户目录，密码为 <code>vagrant</code></li>
-<li>在虚拟机中添加 <code>vagrant</code> 用户公共密钥
-<pre><code>curl https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub &gt; .ssh/authorized_keys
+<p>rust 编译器对这两种引用类型有特别严格的限制：
+同一个作用域下，对于资源对象 <code>A</code> 的引用只允许两种情况，
+要么是同时存在 n 个共享引用 <code>&amp;</code>，要么只有一个可变引用 <code>&amp;mut</code>，
+共享引用不允许对其作任何修改，可变引用可以修改。</p>
+<p>rust 的 borrow checker 会根据这两条规则对代码做编译期检测，
+进而检测出代码中可能出现的错误，但是这样的检测又过于严格，
+导致有些类型的代码不能编译通过，比如：</p>
+<pre><code class="language-rust">fn main() {
+    let x = 1;
+    let y = &amp;x;
+    let z = &amp;x;
+    x = 2;
+    y = 3;
+    z = 4;
+    println!(&quot;{}&quot;, x);
+}
 </code></pre>
-</li>
-<li>基础包安装 <code>apt install ...</code>
-<ul>
-<li>sudo</li>
-<li>gcc</li>
-<li>make</li>
-<li>perl</li>
-<li>openssh-client</li>
-<li>openssh-server</li>
-<li>linux-headers-amd64</li>
-</ul>
-</li>
-<li>安装 virtualbox guest additions（有可能需要重启）
-<ul>
-<li>选择虚拟机菜单 <code>Devices</code> -&gt; <code>Insert Guest Additons CD image...</code></li>
-<li>挂载 cdrom <code>mount /dev/cdrom /mnt</code></li>
-<li>进入 cdrom 目录 <code>cd /mnt</code></li>
-<li>安装 virtualbox guest additions <code>./VBoxLinuxAdditions.run</code></li>
-</ul>
-</li>
-<li>将 <code>vagrant</code> 加入 <code>sudo</code> 用户组中，visudo 修改 <code>%sudo ALL=(ALL:ALL) NOPASSWD:ALL</code></li>
-</ul>
-<h2>导出 box</h2>
-<ul>
-<li>在本机中执行 <code>vagrant package --base vmname /path/to/debian.box</code></li>
-</ul>
-<h2>导入 box</h2>
-<p><code>vagrant box add debian /path/to/debian.box</code></p>
-<h2>创建 box 虚拟机</h2>
-<ul>
-<li>创建 vagrant 目录 <code>mkdir debian &amp;&amp; cd debian</code></li>
-<li>初始化运行环境, <code>vagrant init debian</code></li>
-<li>创建虚拟机 <code>vagrant up</code></li>
-</ul>
+<p>还有，对于 <code>struct</code> 对象，引用类型的可变性是针对整个值的，并不针对其中的某一个字段，
+也就是说一个 <code>struct</code> 类型的共享引用 <code>&amp;</code> 是不能修改这个对象的任何一个字段的，
+而一个 <code>struct</code> 类型的可变引用 <code>&amp;mut</code> 可以修改这个对象的任何一个字段，
+这样 rust 的 borrow checker 在编译以下代码时也会报错：</p>
+<pre><code class="language-rust">#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: 1, y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    p1.x = 3;
+    p2.x = 4;
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<p>以上两种类型的代码在 c 语言中经常使用，但是在 rust 语言中就不允许通过了，
+为此，rust 语言就引入了 <code>Cell</code> 和 <code>RefCell</code> 两种 wrapper 类型来实现类似的操作。</p>
+<p>下面，我们看一下如何用 <code>Cell</code>、<code>RefCell</code> 类型来实现上面两个例子。</p>
+<h2>Cell 样例</h2>
+<p>例一：</p>
+<pre><code class="language-rust">use std::cell::Cell;
+
+fn main() {
+    let x = Cell::new(1);
+    let y = &amp;x;
+    let z = &amp;x;
+    x.set(2);
+    y.set(3);
+    z.set(4);
+    println!(&quot;{:?}&quot;, x);
+}
+</code></pre>
+<p>例二：</p>
+<pre><code class="language-rust">use std::cell::Cell;
+
+#[derive(Debug)]
+struct Point {
+    x: Cell&lt;i32&gt;,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: Cell::new(1), y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    p1.x.set(3);
+    p2.x.set(4);
+   
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<h2>RefCell 样例</h2>
+<p>例一：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+
+fn main() {
+    let x = RefCell::new(1);
+    let y = &amp;x;
+    let z = &amp;x;
+    *x.borrow_mut() = 2;
+    *y.borrow_mut() = 3;
+    *z.borrow_mut() = 4;
+    println!(&quot;{:?}&quot;, x);
+}
+</code></pre>
+<p>例二：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+
+#[derive(Debug)]
+struct Point {
+    x: RefCell&lt;i32&gt;,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: RefCell::new(1), y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    *p1.x.borrow_mut() = 3;
+    *p2.x.borrow_mut() = 4;
+   
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<h2>Cell 和 RefCell 有什么不同？</h2>
+<p>从上面看，<code>Cell</code> 和 <code>RefCell</code> 似乎只是表达用法上面有些不同，程序的逻辑方面似乎并没有什么不同，
+那为什么 rust 同时提供这两种类型呢？</p>
+<p>其实看了源码之后你就可以知道：<code>Cell</code> 比 <code>RefCell</code> 更轻，性能更好，用法更方便，
+但是 <code>Cell</code> 只能包装 <code>Copy</code> 类型，而 <code>RefCell</code> 可以包装任何类型，
+并且 <code>RefCell</code> 可以获取其内部包装对象的引用，并在运行时检测可变引用的唯一性。</p>
+<p>它们的内部结构如下：</p>
+<pre><code class="language-rust">struct Cell&lt;T&gt; {
+    value: UnsafeCell&lt;T&gt;,     // 内部对象
+}
+
+struct RefCell&lt;T: ?Sized&gt; {
+    borrow: Cell&lt;usize&gt;,      // 对象引用类别和计数
+    value: UnsafeCell&lt;T&gt;,     // 内部对象
+}
+</code></pre>
+<p><code>RefCell</code> 内部维护了一个包装对象的引用计数，
+当 <code>RefCell.borrow</code> 获取一个共享引用时，内部引用计数加一，当获取的引用离开作用域时，内部引用计数减一，
+当 <code>RefCell.borrow_mut</code> 获取一个可变引用时，首先检测引用技数是否为 0，如果为 0，正常返回，
+如果不为 0，直接 panic，其实 <code>RefCell.borrow</code> 时也会做类似的检测，当已经获取了可变引用也是直接 panic，
+当然为了避免 panic，我们可以用 <code>RefCell.try_borrow</code> 和 <code>RefCell.try_borrow_mut</code> 来获取一个 <code>Result</code> 类型。</p>
+<h2>Cell 和 RefCell 的限制</h2>
+<p>因为 <code>Cell</code> 和 <code>RefCell</code> 两种类型都未实现 <code>Sync</code> trait，
+所以这两种包装类型只能用于单线程中，不能跨线程操作，
+如果需要跨线程操作，就需要用到 <code>Mutex</code> 和 <code>RwLock</code> 了。</p>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/ops.html">ops<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/vagrant.html">vagrant<sup>1</sup></a></li>
-      <li>日期： 2018-04-13 12:07:57</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>9</sup></a><a href="https://fugangqiang.github.io/tags/源码.html">源码<sup>2</sup></a></li>
+      <li>日期： 2018-04-27 22:24:49</li>
       </ul>
     </article>
   </main>

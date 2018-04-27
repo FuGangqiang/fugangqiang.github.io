@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-22T12:26:26+08:00</updated>
+  <updated>2018-04-28T01:25:08+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,163 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BCell%E3%80%81RefCell.html</id>
+    <title>rust之Cell、RefCell</title>
+    <updated>2018-04-27T22:24:49+08:00</updated>
+    <published>2018-04-27T22:24:49+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BCell%E3%80%81RefCell.html"/>
+    <summary>以前一直困惑于 rust 的 `Cell` 和 `RefCell` 类型， 今天终于理解了， 主要参考了它们的源码实现和一些网上的资料：...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>以前一直困惑于 rust 的 <code>Cell</code> 和 <code>RefCell</code> 类型，
+今天终于理解了，
+主要参考了它们的源码实现和一些网上的资料：</p>
+<ul>
+<li><a href="https://www.reddit.com/r/rust/comments/4cvc3o/what_are_cell_and_refcell_used_for/">reddit</a></li>
+<li><a href="https://stackoverflow.com/questions/30275982/when-i-can-use-either-cell-or-refcell-which-should-i-choose?utm_medium=organic&amp;utm_source=google_rich_qa&amp;utm_campaign=google_rich_qa">stackoverflow</a></li>
+<li><a href="https://ricardomartins.cc/2016/06/08/interior-mutability">Interior mutability in Rust: what, why, how?</a></li>
+</ul>
+<h2>&amp; 和 &amp;mut</h2>
+<p>在讲解 <code>Cell</code> 和 <code>RefCell</code> 之前，不得不说一下 <code>&amp;</code> 和 <code>&amp;mut</code> 类型。</p>
+<p>rust 提供了两种引用类型：</p>
+<ul>
+<li><code>&amp;</code>: shared reference，共享引用</li>
+<li><code>&amp;mut</code>: mutable reference，可变引用</li>
+</ul>
+<p>rust 编译器对这两种引用类型有特别严格的限制：
+同一个作用域下，对于资源对象 <code>A</code> 的引用只允许两种情况，
+要么是同时存在 n 个共享引用 <code>&amp;</code>，要么只有一个可变引用 <code>&amp;mut</code>，
+共享引用不允许对其作任何修改，可变引用可以修改。</p>
+<p>rust 的 borrow checker 会根据这两条规则对代码做编译期检测，
+进而检测出代码中可能出现的错误，但是这样的检测又过于严格，
+导致有些类型的代码不能编译通过，比如：</p>
+<pre><code class="language-rust">fn main() {
+    let x = 1;
+    let y = &amp;x;
+    let z = &amp;x;
+    x = 2;
+    y = 3;
+    z = 4;
+    println!(&quot;{}&quot;, x);
+}
+</code></pre>
+<p>还有，对于 <code>struct</code> 对象，引用类型的可变性是针对整个值的，并不针对其中的某一个字段，
+也就是说一个 <code>struct</code> 类型的共享引用 <code>&amp;</code> 是不能修改这个对象的任何一个字段的，
+而一个 <code>struct</code> 类型的可变引用 <code>&amp;mut</code> 可以修改这个对象的任何一个字段，
+这样 rust 的 borrow checker 在编译以下代码时也会报错：</p>
+<pre><code class="language-rust">#[derive(Debug)]
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: 1, y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    p1.x = 3;
+    p2.x = 4;
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<p>以上两种类型的代码在 c 语言中经常使用，但是在 rust 语言中就不允许通过了，
+为此，rust 语言就引入了 <code>Cell</code> 和 <code>RefCell</code> 两种 wrapper 类型来实现类似的操作。</p>
+<p>下面，我们看一下如何用 <code>Cell</code>、<code>RefCell</code> 类型来实现上面两个例子。</p>
+<h2>Cell 样例</h2>
+<p>例一：</p>
+<pre><code class="language-rust">use std::cell::Cell;
+
+fn main() {
+    let x = Cell::new(1);
+    let y = &amp;x;
+    let z = &amp;x;
+    x.set(2);
+    y.set(3);
+    z.set(4);
+    println!(&quot;{:?}&quot;, x);
+}
+</code></pre>
+<p>例二：</p>
+<pre><code class="language-rust">use std::cell::Cell;
+
+#[derive(Debug)]
+struct Point {
+    x: Cell&lt;i32&gt;,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: Cell::new(1), y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    p1.x.set(3);
+    p2.x.set(4);
+   
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<h2>RefCell 样例</h2>
+<p>例一：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+
+fn main() {
+    let x = RefCell::new(1);
+    let y = &amp;x;
+    let z = &amp;x;
+    *x.borrow_mut() = 2;
+    *y.borrow_mut() = 3;
+    *z.borrow_mut() = 4;
+    println!(&quot;{:?}&quot;, x);
+}
+</code></pre>
+<p>例二：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+
+#[derive(Debug)]
+struct Point {
+    x: RefCell&lt;i32&gt;,
+    y: i32
+}
+
+fn main() {
+    let p = Point{x: RefCell::new(1), y: 2};
+    let p1 = &amp;p;
+    let p2 = &amp;p;
+    *p1.x.borrow_mut() = 3;
+    *p2.x.borrow_mut() = 4;
+   
+    println!(&quot;{:?}&quot;, p);
+}
+</code></pre>
+<h2>Cell 和 RefCell 有什么不同？</h2>
+<p>从上面看，<code>Cell</code> 和 <code>RefCell</code> 似乎只是表达用法上面有些不同，程序的逻辑方面似乎并没有什么不同，
+那为什么 rust 同时提供这两种类型呢？</p>
+<p>其实看了源码之后你就可以知道：<code>Cell</code> 比 <code>RefCell</code> 更轻，性能更好，用法更方便，
+但是 <code>Cell</code> 只能包装 <code>Copy</code> 类型，而 <code>RefCell</code> 可以包装任何类型，
+并且 <code>RefCell</code> 可以获取其内部包装对象的引用，并在运行时检测可变引用的唯一性。</p>
+<p>它们的内部结构如下：</p>
+<pre><code class="language-rust">struct Cell&lt;T&gt; {
+    value: UnsafeCell&lt;T&gt;,     // 内部对象
+}
+
+struct RefCell&lt;T: ?Sized&gt; {
+    borrow: Cell&lt;usize&gt;,      // 对象引用类别和计数
+    value: UnsafeCell&lt;T&gt;,     // 内部对象
+}
+</code></pre>
+<p><code>RefCell</code> 内部维护了一个包装对象的引用计数，
+当 <code>RefCell.borrow</code> 获取一个共享引用时，内部引用计数加一，当获取的引用离开作用域时，内部引用计数减一，
+当 <code>RefCell.borrow_mut</code> 获取一个可变引用时，首先检测引用技数是否为 0，如果为 0，正常返回，
+如果不为 0，直接 panic，其实 <code>RefCell.borrow</code> 时也会做类似的检测，当已经获取了可变引用也是直接 panic，
+当然为了避免 panic，我们可以用 <code>RefCell.try_borrow</code> 和 <code>RefCell.try_borrow_mut</code> 来获取一个 <code>Result</code> 类型。</p>
+<h2>Cell 和 RefCell 的限制</h2>
+<p>因为 <code>Cell</code> 和 <code>RefCell</code> 两种类型都未实现 <code>Sync</code> trait，
+所以这两种包装类型只能用于单线程中，不能跨线程操作，
+如果需要跨线程操作，就需要用到 <code>Mutex</code> 和 <code>RwLock</code> 了。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/database/%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E8%B7%A8%E5%BA%93join%E6%9F%A5%E8%AF%A2.html</id>
     <title>如何实现跨库join查询</title>
     <updated>2018-04-20T09:33:24+08:00</updated>
@@ -864,206 +1021,6 @@ fn main() {
 引入 token 机制，统一了事件的索引类型。</p>
 <p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
 当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/%E7%94%A8%20mdblog%20%E6%9E%84%E5%BB%BA%E9%9D%99%E6%80%81%E5%8D%9A%E5%AE%A2.html</id>
-    <title>用 mdblog 构建静态博客</title>
-    <updated>2018-04-09T10:34:00+08:00</updated>
-    <published>2018-04-09T10:34:00+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/%E7%94%A8%20mdblog%20%E6%9E%84%E5%BB%BA%E9%9D%99%E6%80%81%E5%8D%9A%E5%AE%A2.html"/>
-    <summary>最近刚好有点空闲，就继续完善 [mdblog.rs][] 项目， 再加上 [rust][] 语言生态最近逐渐完善以及 rust 语言的特点， 重构起来真是特别的舒心，也体验到了静态语言的强大优势。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>最近刚好有点空闲，就继续完善 <a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 项目，
-再加上 <a href="https://www.rust-lang.org/en-US/">rust</a> 语言生态最近逐渐完善以及 rust 语言的特点，
-重构起来真是特别的舒心，也体验到了静态语言的强大优势。</p>
-<p>经过数个不兼容版本的迭代，<a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 终于有了我想要的所有功能：</p>
-<ul>
-<li>配置简单</li>
-<li>TeX 数学公式</li>
-<li>博客 url 为文件路径，而不是日期</li>
-<li>博客标题为源文件名</li>
-<li>博客索引页面分页</li>
-<li>可以设置博客的 base url</li>
-<li>可以隐藏某些尚不准备发布的博客</li>
-<li>可以自定义博客 theme 样式</li>
-<li><code>serve</code> 命令监控源文件变化自动构建博客</li>
-<li><code>rss/atom</code> Feed 支持</li>
-</ul>
-<p>当然也用了许多 rust 的很优秀 crates：</p>
-<ul>
-<li><code>structopt</code>：替换了原来的 <code>getopts</code></li>
-<li><code>failure</code>：替换了原来的 <code>error-chain</code></li>
-<li><code>serde_yaml</code>：替换了原来的手动解析博客的 header</li>
-<li><code>tempdir</code>：实现了用临时文件夹来存放 <code>serve</code> 命令产生的临时静态文件</li>
-<li><code>open</code>：浏览器自动打开 <code>serve</code> 命令产生的博客测试首页</li>
-<li><code>hyper</code>：用于 <code>serve</code> 命令产生的测试后台 http 服务</li>
-<li><code>shellexpand</code>：自动对博客配置某些目录进行变量或特殊符号的替换功能</li>
-<li><code>config</code>：替换了原来的 <code>toml</code>，实现了配置项的分层配置
-<ul>
-<li>默认配置</li>
-<li><code>config.toml</code> 配置</li>
-<li>环境变量配置</li>
-</ul>
-</li>
-</ul>
-<p>不过目前还有一些尚未确定是否应该是现有的实现方式，比如：</p>
-<ul>
-<li>有些配置是否应固定在 <code>theme</code> 里还是在 <code>config.toml</code> 里面设置</li>
-<li>有些博客的信息是否应该放到每个页面模板 context 环境中</li>
-</ul>
-<p>这些就在以后使用和反馈中在逐渐修改吧。</p>
-<p>那么现在就来看一下怎么用 <a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 来构建博客吧！</p>
-<h2>安装 rustc &amp; cargo</h2>
-<p>因为 <code>mdblog.rs</code> 是由 rust 语言编写的，所以系统中需要安装 rustc 和 cargo，
-推荐利用 <a href="https://rustup.rs/">rustup.rs</a> 来安装它们，目前我只在 nightly 版本测试编译 <code>mdblog.rs</code>：</p>
-<pre><code>rustup default nightly
-</code></pre>
-<h2>安装 mdblog.rs</h2>
-<pre><code>cargo install mdblog
-</code></pre>
-<h2>初始化博客文件夹</h2>
-<pre><code>mdblog init myblog
-</code></pre>
-<p>此时博客目录树如下：</p>
-<pre><code>myblog
-├── config.toml
-├── media
-├── posts
-│   ├── hello.md
-│   └── math.md
-└── _themes
-    └── simple
-</code></pre>
-<p>其中：</p>
-<ul>
-<li><code>config.toml</code>：博客配置文件</li>
-<li><code>media</code>：博客媒体文件夹</li>
-<li><code>posts</code>：博客 markdown 文件夹
-<ul>
-<li><code>hello.md</code>：测试 markdown 文件</li>
-<li><code>math.md</code>：测试 TeX math 文件</li>
-</ul>
-</li>
-<li><code>_themes</code>：博客主题文件夹
-<ul>
-<li><code>simple</code>：博客预置 simple 主题</li>
-</ul>
-</li>
-</ul>
-<h2>编写博客文章</h2>
-<pre><code>cd myblog
-mdblog new another
-</code></pre>
-<p>运行 <code>new</code> 命令会创建一个 <code>posts/another.md</code> 的博客样例文件：</p>
-<pre><code>created: 2018-04-09T11:15:22+08:00
-tags: [blog]
-
-this is a new post!
-</code></pre>
-<p>从上面可以看到，一篇博客分为两部分：</p>
-<ul>
-<li><code>header</code>：博客元信息，yaml 格式</li>
-<li><code>body</code>：博客 markdown 内容</li>
-</ul>
-<p><code>header</code> 和 <code>body</code> 由第一个空行分割开，其中 <code>header</code> 有以下几个配置项：</p>
-<ul>
-<li><code>created</code>：必填项，博客生成日期</li>
-<li><code>tags</code>：选填项，博客标签，默认: <code>[]</code></li>
-<li><code>hidden</code>：选填项，博客是否隐藏，默认：<code>false</code></li>
-<li><code>description</code>：选填项，博客概述，默认：body 的第一段或前 100 个字符</li>
-</ul>
-<h2>测试博客</h2>
-<p>对刚才新创建的 <code>posts/another.md</code> 文件进行一些修改，
-就可以检测一下最终的博客产生页面，运行：</p>
-<pre><code>mdblog serve
-</code></pre>
-<p>该命令会自动打开浏览器，并进入博客的索引页面，你就可以点击查看新的博客文章了。</p>
-<p>当你再次去修改某篇博客文章时，<code>serve</code> 命令会自动检测到你对某些文件进行了修改，
-然后重新构建博客静态文件，这样你在浏览器中刷新页面就可以看到这些更新了。</p>
-<h2>构建博客</h2>
-<p>当你用 <code>serve</code> 命令查看博客的测试结果已基本符合你的要求后，就可以正式的构建博客了：</p>
-<pre><code>mdblog build
-</code></pre>
-<p>这样所有的博客静态文件就被写入到 <code>_build</code> 文件夹里了。</p>
-<h2>配置博客</h2>
-<p><a href="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</a> 提供了许多可供自定义配置的选项，
-可以通过 <code>config.toml</code> 文件查看都是有哪些可配置项以及它们的默认值：</p>
-<pre><code>site_url = &quot;&quot;
-site_name = &quot;Mdblog&quot;
-site_motto = &quot;Simple is Beautiful!&quot;
-footer_note = &quot;Keep It Simple, Stupid!&quot;
-media_dir = &quot;media&quot;
-build_dir = &quot;_build&quot;
-theme = &quot;simple&quot;
-theme_root_dir = &quot;_themes&quot;
-rebuild_interval = 2
-posts_per_page = 20
-</code></pre>
-<p>其中 <code>media_dir</code>、<code>build_dir</code>、<code>theme_root_dir</code> 是目录路径设置，
-可以利用 shell 环境变量来指定路径，比如：</p>
-<ul>
-<li><code>$HOME/blog/media</code></li>
-<li><code>~/blog/build</code></li>
-</ul>
-<h2>自定义博客主题</h2>
-<p>可以通过自定义博客主题来修改你的博客样式，首先，你需要创建一个博客主题：</p>
-<pre><code>mdblog theme new mytheme
-</code></pre>
-<p>这样就在 <code>_themes</code> 文件夹下生成了和 <code>simple</code> 一样的名为 <code>mytheme</code> 的主题，
-然后你就可以对这个主题进行各种各样的修改了，
-不过修改博客主题需要你熟悉：</p>
-<ul>
-<li>html/js/css</li>
-<li><a href="https://tera.netlify.com/docs/installation/">tera</a> 模板，类似于 python 中的 Jinja2</li>
-</ul>
-<p>修改后你就可以应用这个主题了：</p>
-<pre><code>mdblog theme set mytheme
-</code></pre>
-<p>或者直接修改 <code>config.toml</code> 中的 <code>theme</code> 选项就可以了。</p>
-<h2>CLI 帮助</h2>
-<pre><code>$ mdblog -h
-mdblog 0.12.0
-FuGangqiang &lt;fu_gangqiang@qq.com&gt;
-static site generator from markdown files
-
-USAGE:
-    mdblog &lt;SUBCOMMAND&gt;
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-SUBCOMMANDS:
-    build    Build the blog static files
-    help     Prints this message or the help of the given subcommand(s)
-    init     Initialize the blog directory layout
-    new      Create a blog post
-    serve    Serve the blog, rebuild on change
-    theme    Blog theme operations
-</code></pre>
-<p>对子命令也可以查看：</p>
-<pre><code>$ mdblog theme -h
-mdblog-theme 0.12.0
-FuGangqiang &lt;fu_gangqiang@qq.com&gt;
-Blog theme operations
-
-USAGE:
-    mdblog theme &lt;SUBCOMMAND&gt;
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-SUBCOMMANDS:
-    delete    Delete a theme
-    help      Prints this message or the help of the given subcommand(s)
-    list      list blog themes
-    new       Create a new theme
-    set       Set blog use the theme
-</code></pre>
 
         ]]>
     </content>
