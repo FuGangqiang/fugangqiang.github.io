@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-28T01:25:08+08:00</updated>
+  <updated>2018-04-28T15:41:01+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,175 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BRc%E3%80%81Weak.html</id>
+    <title>rust之Rc、Weak</title>
+    <updated>2018-04-28T14:03:23+08:00</updated>
+    <published>2018-04-28T14:03:23+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BRc%E3%80%81Weak.html"/>
+    <summary>rust 语言并没有提供垃圾回收(GC, Garbage Collection )的功能， 不过它提供了最简单的引用计数包装类型 `Rc`，这种引用计数功能也是早期 GC 常用的方法， 但是引用计数不能解决循环引用，所以 rust 同时还提供了 `Weak` 类型用来避免循环引用。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>rust 语言并没有提供垃圾回收(GC, Garbage Collection )的功能，
+不过它提供了最简单的引用计数包装类型 <code>Rc</code>，这种引用计数功能也是早期 GC 常用的方法，
+但是引用计数不能解决循环引用，所以 rust 同时还提供了 <code>Weak</code> 类型用来避免循环引用。</p>
+<h2>Rc、Weak 示例</h2>
+<p>首先看一下 <code>Rc</code> 的一个例子：</p>
+<pre><code class="language-rust">use std::rc::Rc;
+
+fn main() {
+    let a = Rc::new(1);
+    println!(&quot;a's reference count is {}&quot;, Rc::strong_count(&amp;a));
+
+    let b = Rc::clone(&amp;a);
+    println!(&quot;a's reference count is {} after clone b&quot;, Rc::strong_count(&amp;a));
+
+    let c = Rc::clone(&amp;a);
+    println!(&quot;a's reference count is {} after clone c&quot;, Rc::strong_count(&amp;a));
+    
+    println!(&quot;a = {}, b = {}, c = {}&quot;, a, b, c);
+    println!(&quot;b's reference count is {}&quot;, Rc::strong_count(&amp;b));
+    println!(&quot;c's reference count is {}&quot;, Rc::strong_count(&amp;c));
+    
+    drop(a);
+    println!(&quot;c's reference count is {} after drop `a`&quot;, Rc::strong_count(&amp;c));
+
+    drop(b);
+    println!(&quot;c's reference count is {}  after drop `b`&quot;, Rc::strong_count(&amp;c));
+}
+</code></pre>
+<p>运行结果为：</p>
+<pre><code class="language-plain">a's reference count is 1
+a's reference count is 2 after clone b
+a's reference count is 3 after clone c
+a = 1, b = 1, c = 1
+b's reference count is 3
+c's reference count is 3
+c's reference count is 2 after drop `a`
+c's reference count is 1  after drop `b`
+</code></pre>
+<p>从这里可以看出，<code>a</code>、<code>b</code>、<code>c</code> 三个变量同时指向了同一个对象，
+这个对象的引用计数会随着 <code>clone</code> 调用而加 1，随着 <code>drop</code> 调用而减 1，
+当最后一个变量被 <code>drop</code> 时，引用计数会变为 0，进而触发释放对象被占用的堆内存。</p>
+<p>如果 <code>Rc</code> 包装的对象是一个容器类型时，有可能会产生循环引用，比如像下面这样的类型：</p>
+<pre><code class="language-rust">struct Car {
+    name: String,
+    whells: RefCell&lt;Vec&lt;Rc&lt;Wheel&gt;&gt;&gt;,
+}
+
+struct Wheel {
+    id: i32,
+    car: Rc&lt;Car&gt;,
+}
+</code></pre>
+<p>就有可能会出现：<code>Car</code> -&gt; <code>Wheel</code> -&gt; <code>Car</code> 类型的循环引用，
+这个循环应用所涉及的对象的引用计数永远都不可能为0, 所占用的内存永远也不会得到释放，
+直到进程结束，这样就造成了内存泄露，为了避免这种情况，rust 还提供了 <code>Weak</code> 类型，
+和 <code>Rc</code> 类型来协同使用：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+
+struct Car {
+    name: String,
+    whells: RefCell&lt;Vec&lt;Weak&lt;Wheel&gt;&gt;&gt;,
+}
+
+struct Wheel {
+    id: i32,
+    car: Rc&lt;Car&gt;,
+}
+
+fn main() {
+    let car: Rc&lt;Car&gt; = Rc::new(
+        Car {
+            name: &quot;A&quot;.to_string(),
+            whells: RefCell::new(vec![]),
+        }
+    );
+    let whell1 = Rc::new(
+        Wheel {
+            id: 1,
+            car: Rc::clone(&amp;car),
+        }
+    );
+    let whell2 = Rc::new(
+        Wheel {
+            id: 2,
+            car: Rc::clone(&amp;car),
+        }
+    );
+
+    let mut whells = car.whells.borrow_mut();
+    whells.push(Rc::downgrade(&amp;whell1));
+    whells.push(Rc::downgrade(&amp;whell2));
+    drop(whells);
+
+    for whell_weak in car.whells.borrow().iter() {
+        let whell = whell_weak.upgrade().unwrap();
+        println!(&quot;Whell {} owned by {}&quot;, whell.id, whell.car.name);
+    }
+}
+</code></pre>
+<h2>Rc、Weak 原理</h2>
+<p>首先我们从源码看看 <code>Rc</code> 和 <code>Weak</code> 的结构：</p>
+<pre><code class="language-rust">struct RcBox&lt;T: ?Sized&gt; {
+    strong: Cell&lt;usize&gt;,
+    weak: Cell&lt;usize&gt;,
+    value: T,
+}
+
+struct Rc&lt;T: ?Sized&gt; {
+    ptr: Shared&lt;RcBox&lt;T&gt;&gt;,
+}
+
+struct Weak&lt;T: ?Sized&gt; {
+    ptr: Shared&lt;RcBox&lt;T&gt;&gt;,
+}
+</code></pre>
+<p>从上面可以看出：<code>Rc</code> 和 <code>Weak</code> 内存表示并没有什么不同，内部都是存放一个指向 <code>RcBoX</code> 类型的指针，
+这个 <code>RcBoX</code> 类型的指针指向堆的某个地方。</p>
+<p><code>Rc</code> 和 <code>Weak</code> 的真正不同的地方是针对指向的 <code>RcBox</code> 内部的 <code>strong</code>、<code>weak</code> 的处理上面，
+其中 <code>strong</code> 属性用来表示 <code>value</code> 对象的强引用次数(strong reference count)，
+<code>weak</code> 属性用来表示 <code>value</code> 对象的弱引用次数(weak reference count，其实是弱引用次数加 1)，
+对它们的操作有如下规则：</p>
+<ul>
+<li>当初始化一个 <code>Rc</code> 时，<code>RcBox.strong</code> 和 <code>RcBox.weak</code> 都被初始化为 1</li>
+<li>当执行 <code>Rc::clone</code> 时，<code>RcBox.strong</code> 加 1，
+当 <code>drop</code> 一个 <code>Rc</code> 时，<code>RcBox.strong</code> 减 1，
+如果此时 <code>RcBox.strong</code> 变为 0，就再将 <code>RcBox.weak</code> 减 1，
+如果此时 <code>RcBox.weak</code> 等于 0，就释放 <code>RcBox</code> 类型对象所占用的内存。</li>
+<li>当执行 <code>Rc.downgrade</code> 时，返回一个 <code>Weak</code> 引用，并将 <code>RcBox.weak</code> 加 1,
+当 <code>drop</code> 一个 <code>Weak</code> 时，<code>RcBox.weak</code> 减 1，当 <code>RcBox.weak</code> 等于 0 时，就释放 <code>RcBox</code> 类型对象所占用的内存。</li>
+<li>当执行 <code>Weak.upgrade</code> 时，如果此时 <code>RcBox.strong</code> 为 0 返回 <code>None</code>，
+否则 <code>RcBox.strong</code> 加 1，返回 <code>Some(Rc)</code>。</li>
+</ul>
+<p>这样就可以通过 <code>Rc</code> 和 <code>Weak</code> 像上面协同使用就避免了循环引用了。</p>
+<h2>Rc、Weak 限制</h2>
+<p>由于 <code>Rc</code> 和 <code>Weak</code> 并没有实现 <code>Send</code> 和 <code>Sync</code> trait，
+所以这两种包装类型只能用于单线程中，不能跨线程操作，
+如果需要跨线程操作，就需要用到 <code>std::sync::Arc</code> 和 <code>std::sync::Weak</code> 了。</p>
+<h2>std::sync::Arc 和 std::sync::Weak 原理</h2>
+<p>先看一下它们的源码：</p>
+<pre><code class="language-rust">struct ArcInner&lt;T: ?Sized&gt; {
+    strong: atomic::AtomicUsize,
+    weak: atomic::AtomicUsize,
+    data: T,
+}
+
+struct Arc&lt;T: ?Sized&gt; {
+    ptr: Shared&lt;ArcInner&lt;T&gt;&gt;,
+}
+
+struct Weak&lt;T: ?Sized&gt; {
+    ptr: Shared&lt;ArcInner&lt;T&gt;&gt;,
+}
+</code></pre>
+<p>它们与 <code>std::rc::Rc</code> 和 <code>std::rc::Weak</code> 类同，
+只是 <code>strong</code> 和 <code>weak</code> 的类型使用了线程安全的 atomic 类型，
+当然这也带来了一部分性能损失。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BCell%E3%80%81RefCell.html</id>
     <title>rust之Cell、RefCell</title>
     <updated>2018-04-27T22:24:49+08:00</updated>
@@ -885,142 +1054,6 @@ trait Sink {
     ...
 }
 </code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html</id>
-    <title>rust之mio</title>
-    <updated>2018-04-11T15:02:25+08:00</updated>
-    <published>2018-04-11T15:02:25+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bmio.html"/>
-    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
-<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
-</ul>
-<p>本篇主要讲解 <a href="https://github.com/carllerche/mio">mio</a>。</p>
-<p>mio(Metal IO) 是 rust 语言中的异步 io 的基础 crate，tokio 框架就是基于这个 crate 的。
-从源码上看 mio 基本就是对 linux epoll(bsd kqueue) 的简单包装，只是披了一层 rust 外衣，
-性能与原生相同，接口调用方式与 linux epoll 极为相似，mio 本身实现了可以监控以下几种事件：</p>
-<ul>
-<li>tcp io</li>
-<li>udp io</li>
-<li>timer</li>
-<li>channel(mpsc)</li>
-</ul>
-<p>同时，mio 也提供了一种扩展机制，可以很轻松的实现以下类似事件：</p>
-<ul>
-<li>uds(unix domain socket)</li>
-<li>signal</li>
-<li>pipe</li>
-<li>thread</li>
-<li>subprocess</li>
-</ul>
-<p>当然在看这篇文章之前，你需要了解 linux epoll 的知识，
-可以查看博文<a href="/posts/linux/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8epoll%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8.html">如何使用epoll系统调用</a>，本文示例与 epoll 示例功能实现完全相同。</p>
-<p>我们可以通过以下示例来看一下 mio 的用法：</p>
-<pre><code class="language-rust">extern crate mio;
-extern crate slab;
-
-use std::net::SocketAddr;
-use std::io::{Read, Write, ErrorKind};
-use mio::*;
-use mio::tcp::TcpListener;
-
-type Slab&lt;T&gt; = slab::Slab&lt;T, Token&gt;;
-
-const SERVER_TOKEN: Token = Token(::std::usize::MAX-1);
-
-
-fn main() {
-    let mut args = ::std::env::args();
-    let cmd = args.next().unwrap();
-    let port = args.next().expect(&amp;format!(&quot;Usage: {} [port]&quot;, cmd));
-    let addr: SocketAddr = format!(&quot;127.0.0.1:{}&quot;, port).parse().expect(&quot;argument format error: port&quot;);
-    let server = TcpListener::bind(&amp;addr).expect(&quot;socket binding error&quot;);
-    let poll = Poll::new().expect(&quot;poll create error&quot;);
-    let mut conns = Slab::with_capacity(1024);
-    let mut events = Events::with_capacity(1024);
-    let mut buf: [u8; 1024] = [0; 1024];
-    let stdout = ::std::io::stdout();
-
-    poll.register(&amp;server, SERVER_TOKEN, Ready::readable(), PollOpt::edge())
-        .expect(&quot;poll register error&quot;);
-    // the event loop
-    loop {
-        poll.poll(&amp;mut events, None).expect(&quot;poll error&quot;);
-        for event in events.iter() {
-            let (token, kind) = (event.token(), event.kind());
-
-            if kind.is_error() || kind.is_hup() || !kind.is_readable() {
-                println!(&quot;kind error&quot;);
-                if token == SERVER_TOKEN {
-                    ::std::process::exit(1);
-                }
-                conns.remove(token);
-            } else if token == SERVER_TOKEN {
-                loop {
-                    let sock = match server.accept() {
-                        Ok((sock, addr)) =&gt; {
-                            println!(&quot;Accepted connection: {}&quot;, addr);
-                            sock
-                        }
-                        Err(_) =&gt; break
-                    };
-                    let new_token = conns.insert(sock).expect(&quot;add connection error&quot;);
-                    poll.register(&amp;conns[new_token], new_token, Ready::readable(), PollOpt::edge())
-                        .expect(&quot;poll register error&quot;);
-
-                }
-            } else {
-                let mut need_to_close = false;
-                {
-                    let ref mut client = conns[token];
-                    loop {
-                        match client.read(&amp;mut buf) {
-                            Ok(n) =&gt; {
-                                if n == 0 {
-                                    need_to_close = true;
-                                    break;
-                                } else {
-                                    let mut handle = stdout.lock();
-                                    handle.write(&amp;buf[..n]).expect(&quot;write error&quot;);
-                                    handle.flush().expect(&quot;flush error&quot;);
-                                }
-                            },
-                            Err(e) =&gt; {
-                                if e.kind() != ErrorKind::WouldBlock {
-                                    need_to_close = true;
-                                }
-                                break;
-                            }
-                        }
-                    }
-                }
-                if need_to_close {
-                    println!(&quot;Closing connection on token={:?}&quot;, token);
-                    conns.remove(token);
-                }
-
-            }
-        }
-    }
-}
-</code></pre>
-<p>我们从源码上面看，代码结构与 linux epoll 大致一样，
-有一个显著的不同就是 mio 用了 token(usize 类型) 来绑定 tcp 链接，
-这个应该主要是因为在 linux 系统中，每一个 socket 都是一个文件，对应一个文件描述符(usize 类型)，
-而 rust 语言标准库里并没有跨平台的文件描述符类型，
-而且也为了扩展其他事件类型，
-引入 token 机制，统一了事件的索引类型。</p>
-<p>示例代码中也引入了 <code>slab</code> crate 用来保存 token 和链接的一一对应关系，
-当然，你也可以用 hashmap 来建立索引，不过这个不是很高效。</p>
 
         ]]>
     </content>
