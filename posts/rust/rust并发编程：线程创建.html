@@ -9,7 +9,7 @@
     .katex { font-size: 1em !important; }
   </style>
 
-  <title>linux command之tar</title>
+  <title>rust并发编程：线程创建</title>
 </head>
 <body>
 <header class="clearfix">
@@ -33,76 +33,58 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>linux command之tar</h1>
+    <h1>rust并发编程：线程创建</h1>
     <article>
-      <p><code>tar</code>(tape archive，磁带归档) 命令是常用的打包命令（将一组文件打包转换成 <code>.tar</code> 格式的包），
-尽管最初设计被用来作为磁带备份的，但是现在它可以在任何文件系统上打包。</p>
-<p>一个 <code>.tar</code> 包由任意数量的文件组成，附带一些目录元数据，用来在解包时还原这些文件的原有结构。
-<code>.tar</code> 包经常被用来传递、发布一组文件，许多开源项目的源码均是 <code>.tar</code> 格式的。</p>
-<p><code>tar</code> 命令的基本用法如下：</p>
-<pre><code>tar option(s) archive_name file_name(s)
+      <p>最近重温了一下 rust 并发编程方面的知识，感觉很有必要总结一下，写个博客系列，
+就从线程的创建开始吧。</p>
+<h2>创建线程</h2>
+<p>每一个程序默认都会有一个主线程的，也就是运行 <code>main</code> 函数的线程，
+我们可以从现有任何线程调用 <code>std::thread::spawn</code> 来创建一个新线程：</p>
+<pre><code class="language-rust">use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
+    });
+    handle.join().unwrap();
+
+    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
+}
 </code></pre>
-<h2>打包</h2>
-<p>生成一个 <code>.tar</code> 包：</p>
-<pre><code>tar -cvf file.tar file1 file2 file3
+<p>这段代码输出如下：</p>
+<pre><code class="language-plain">hello concurrency world from ThreadId(1)
+hello concurrency world from ThreadId(0)
 </code></pre>
-<p>其中：</p>
-<ul>
-<li><code>-c</code>：生成 <code>.tar</code> 包</li>
-<li><code>-v</code>：显示被打包的文件</li>
-<li><code>-f</code>：紧接着的参数为 <code>.tar</code> 包文件名，尽管文件名可以不以 <code>.tar</code> 结尾，但是用它结尾可以标识一个文件是 <code>.tar</code> 包</li>
-</ul>
-<p><code>tar</code> 也可用于打包文件夹：</p>
-<pre><code>tar -cvf dir.tar dir1 dir2
+<p>其中 <code>thread::spawn</code> 接受一个 <code>FnOnce</code> 参数开启一个新线程，
+返回调用线程一个 <code>JoinHandle</code>，
+我们可以利用这个 <code>JoinHandle</code> 来获取新线程对象，
+或等待新线程结束。</p>
+<p>每一个线程都有一个唯一标识 <code>id</code>，在任何地方调用 <code>thread::current</code> 来获取当前线程对象，
+通过线程对象的 <code>id</code> 方法获取该线程的 <code>id</code>。</p>
+<h2>配置线程</h2>
+<p>我们也可以调用 <code>thread::Builder</code> 在创建线程前配置线程参数(线程名，线程栈大小)：</p>
+<pre><code class="language-rust">use std::thread;
+
+fn main() {
+    let handle = thread::Builder::new()
+        .name(&quot;child&quot;.into())
+        .stack_size(32 * 1024)
+        .spawn(|| {
+            println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
+        }).unwrap();
+    handle.join().unwrap();
+
+    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
+}
 </code></pre>
-<p>在打包时，源文件是不变的，如果想要在打包时删除源文件，可以用 <code>--remove-files</code> 选项。
-如果在打包某文件夹时想要忽略某文件，可以用 <code>--exclude=/path/to/exclue/file</code> 选项。</p>
-<h2>解包</h2>
-<p>解开一个 <code>.tar</code> 包：</p>
-<pre><code>tar -xvf file.tar
-</code></pre>
-<p>其中：</p>
-<ul>
-<li><code>-x</code>：解开 <code>.tar</code> 包</li>
-</ul>
-<p>可以用 <code>--extract</code> 选项只解出一个文件。</p>
-<h2>修改包</h2>
-<p>向 <code>.tar</code> 包中添加文件：</p>
-<pre><code>tar -rf file.tar file4
-</code></pre>
-<p>在 <code>.tar</code> 包中删除某文件：</p>
-<pre><code>tar -f file.tar --delete file4
-</code></pre>
-<h2>包目录</h2>
-<p>列出 <code>.tar</code> 包中的文件目录：</p>
-<pre><code>tar -tf file.tar
-</code></pre>
-<h2>压缩包</h2>
-<p>压缩为 <code>.tar.gz</code> 或者 <code>.tgz</code> 文件：</p>
-<pre><code>tar -cvzf file.tar.gz file1 file2 file3
-</code></pre>
-<p>其中：</p>
-<p><code>-z</code>：通过 <code>gzip</code> 压缩包</p>
-<p>压缩为 <code>.tar.bz2</code> 文件：</p>
-<pre><code>tar -cvjf file.tar.bz2 file1 file2 file3
-</code></pre>
-<p>其中：</p>
-<p><code>-j</code>：通过 <code>bzip2</code> 压缩包</p>
-<p>压缩为 <code>.tar.xz</code> 文件：</p>
-<pre><code>tar -cvJf file.tar.xz file1 file2 file3
-</code></pre>
-<p>其中：</p>
-<p><code>-J</code>：通过 <code>xz</code> 压缩包</p>
-<h2>解压缩包</h2>
-<p>同压缩包相似，只是将 <code>-c</code> 选项替换为 <code>-x</code> 选项：</p>
-<pre><code>tar -xvzf file.tar.gz
-tar -xvjf file.tar.bz2
-tar -xvJf file.tar.xz
+<p>这段代码输出如下：</p>
+<pre><code class="language-plain">hello concurrency world from Some(&quot;child&quot;)
+hello concurrency world from Some(&quot;main&quot;)
 </code></pre>
 
       <ul id="article_footer">
-        <li>标签： <a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>16</sup></a><a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>26</sup></a></li>
-      <li>日期： 2014-05-11 12:00:06</li>
+        <li>标签： <a href="https://fugangqiang.github.io/tags/concurrency.html">concurrency<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>11</sup></a></li>
+      <li>日期： 2018-04-29 17:40:51</li>
       </ul>
     </article>
   </main>

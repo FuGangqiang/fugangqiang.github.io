@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-04-28T15:41:01+08:00</updated>
+  <updated>2018-04-30T22:07:33+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,64 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA.html</id>
+    <title>rust并发编程：线程创建</title>
+    <updated>2018-04-29T17:40:51+08:00</updated>
+    <published>2018-04-29T17:40:51+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA.html"/>
+    <summary>最近重温了一下 rust 并发编程方面的知识，感觉很有必要总结一下，写个博客系列， 就从线程的创建开始吧。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>最近重温了一下 rust 并发编程方面的知识，感觉很有必要总结一下，写个博客系列，
+就从线程的创建开始吧。</p>
+<h2>创建线程</h2>
+<p>每一个程序默认都会有一个主线程的，也就是运行 <code>main</code> 函数的线程，
+我们可以从现有任何线程调用 <code>std::thread::spawn</code> 来创建一个新线程：</p>
+<pre><code class="language-rust">use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| {
+        println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
+    });
+    handle.join().unwrap();
+
+    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
+}
+</code></pre>
+<p>这段代码输出如下：</p>
+<pre><code class="language-plain">hello concurrency world from ThreadId(1)
+hello concurrency world from ThreadId(0)
+</code></pre>
+<p>其中 <code>thread::spawn</code> 接受一个 <code>FnOnce</code> 参数开启一个新线程，
+返回调用线程一个 <code>JoinHandle</code>，
+我们可以利用这个 <code>JoinHandle</code> 来获取新线程对象，
+或等待新线程结束。</p>
+<p>每一个线程都有一个唯一标识 <code>id</code>，在任何地方调用 <code>thread::current</code> 来获取当前线程对象，
+通过线程对象的 <code>id</code> 方法获取该线程的 <code>id</code>。</p>
+<h2>配置线程</h2>
+<p>我们也可以调用 <code>thread::Builder</code> 在创建线程前配置线程参数(线程名，线程栈大小)：</p>
+<pre><code class="language-rust">use std::thread;
+
+fn main() {
+    let handle = thread::Builder::new()
+        .name(&quot;child&quot;.into())
+        .stack_size(32 * 1024)
+        .spawn(|| {
+            println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
+        }).unwrap();
+    handle.join().unwrap();
+
+    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
+}
+</code></pre>
+<p>这段代码输出如下：</p>
+<pre><code class="language-plain">hello concurrency world from Some(&quot;child&quot;)
+hello concurrency world from Some(&quot;main&quot;)
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BRc%E3%80%81Weak.html</id>
     <title>rust之Rc、Weak</title>
     <updated>2018-04-28T14:03:23+08:00</updated>
@@ -926,134 +984,6 @@ fn main() {
 我们可以看出 tokio 写出的代码更具有可读性，
 它隐藏了直接通过 mio 接口调用的大量繁杂的代码，
 又通过各种自定义的 futures 来定义事件处理程序。</p>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html</id>
-    <title>rust之futures-rs</title>
-    <updated>2018-04-11T15:08:33+08:00</updated>
-    <published>2018-04-11T15:08:33+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8Bfutures-rs.html"/>
-    <summary>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟， 打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
-打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
-<ul>
-<li><a href="https://github.com/carllerche/mio">mio</a></li>
-<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
-<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
-</ul>
-<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures</a>。</p>
-<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
-并在此基础上引入轻量级进程或协程的概念。</p>
-<h2>为什么需要 futures？</h2>
-<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
-当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
-处理这些链接的方法大多用两种方式：</p>
-<ul>
-<li>callbacks</li>
-<li>futures</li>
-</ul>
-<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
-为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
-<h2>什么是 futures？</h2>
-<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
-其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
-<ul>
-<li>一个 RPC 调用</li>
-<li>一个数据库查询</li>
-<li>一个计时器</li>
-<li>一个非常耗时的任务</li>
-<li>从 socket 中读数据</li>
-</ul>
-<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
-<ul>
-<li>顺序组合(sequential composition)：
-<code>f.and_then(|val| some_new_future(val))</code>，
-获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
-<li>映射组合(Mapping)：
-<code>f.map(|val| some_new_value(val))</code>，
-获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
-<li>合并组合(Joining)：
-<code>f.join(g)</code>，
-使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
-<li>选择组合(Selecting)：
-<code>f.select(g)</code>，
-使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
-</ul>
-<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
-<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
-    get_row(id)
-}).map(|row| {
-    json::encode(row)
-}).and_then(|encoded| {
-    write_string(my_socket, encoded)
-})
-</code></pre>
-<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
-<h2>futures-rs future 种类</h2>
-<p>从上面看 future 只是代表一个单值，只代表一个事件，
-但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
-因此我们还需要另一种 future 抽象用来关联多个事件：</p>
-<ul>
-<li>Stream：读入流，与 incoming events 关联</li>
-<li>Sink：写出流，与 outgoing events 关联</li>
-</ul>
-<p>因此 futures-rs 分别提供了三种 trait：</p>
-<ul>
-<li>Future</li>
-<li>Stream</li>
-<li>Sink</li>
-</ul>
-<h2>trait 定义</h2>
-<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
-<pre><code class="language-rust">trait Future {
-    // The type of value that the future yields on successful completion.
-    type Item;
-
-    // The type of value that the future yields on failure.
-    type Error;
-
-    // The only required method, which attempts to complete the future.
-    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
-
-    ...
-}
-
-</code></pre>
-<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
-其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
-<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
-<pre><code class="language-rust">trait Stream {
-    // The type of item yielded each time the stream's event occurs
-    type Item;
-
-    // The error type; errors terminate the stream.
-    type Error;
-
-    // Try to produce a value.
-    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
-
-    ...
-}
-
-trait Sink {
-    // The type of value that the sink accepts.
-    type SinkItem;
-
-    // The type of value produced by the sink when an error occurs.
-    type SinkError;
-
-    // The analog to `poll`, used for sending and then flushing items.
-    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
-
-    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
-
-    ...
-}
-</code></pre>
 
         ]]>
     </content>
