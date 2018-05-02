@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-05-01T20:38:53+08:00</updated>
+  <updated>2018-05-02T20:46:49+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,61 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E6%B6%88%E6%81%AF%E4%BC%A0%E9%80%92.html</id>
+    <title>rust并发编程：线程消息传递</title>
+    <updated>2018-05-02T20:08:06+08:00</updated>
+    <published>2018-05-02T20:08:06+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E6%B6%88%E6%81%AF%E4%BC%A0%E9%80%92.html"/>
+    <summary>rust 不仅可以利用锁来在线程间共享状态，还可以利用消息传递的方式来在线程间共享状态。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>rust 不仅可以利用锁来在线程间共享状态，还可以利用消息传递的方式来在线程间共享状态。</p>
+<h2>Multi Producer Single Consumer FIFO Queue</h2>
+<p>调用 <code>std::mpsc::channel</code> 会返回一个 tuple 类型，<code>(Sender, Receiver)</code>，
+我们可以利用 <code>Sender</code> 在多个线程向通道(channel)里面里面发送消息，
+然后可以在一个线程里面利用 <code>Receiver</code> 接收这些消息。</p>
+<pre><code class="language-rust">use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel();
+
+    let tx1 = mpsc::Sender::clone(&amp;tx);
+    thread::spawn(move || {
+        let vals = vec![
+            String::from(&quot;hi&quot;),
+            String::from(&quot;from&quot;),
+            String::from(&quot;the&quot;),
+            String::from(&quot;thread&quot;),
+        ];
+
+        for val in vals {
+            tx1.send(val).unwrap();
+        }
+    });
+
+    thread::spawn(move || {
+        let vals = vec![
+            String::from(&quot;more&quot;),
+            String::from(&quot;messages&quot;),
+            String::from(&quot;for&quot;),
+            String::from(&quot;you&quot;),
+        ];
+
+        for val in vals {
+            tx.send(val).unwrap();
+        }
+    });
+
+    for received in rx {
+        println!(&quot;Got: {}&quot;, received);
+    }
+}
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%85%B1%E4%BA%AB%E7%8A%B6%E6%80%81.html</id>
     <title>rust并发编程：线程共享状态</title>
     <updated>2018-05-01T18:00:45+08:00</updated>
@@ -976,71 +1031,6 @@ ZooKeeper -server host:port cmd args
     close 
     connect host:port
 </code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/ops/vagrant%E6%90%AD%E5%BB%BA%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83.html</id>
-    <title>vagrant搭建开发环境</title>
-    <updated>2018-04-13T12:07:57+08:00</updated>
-    <published>2018-04-13T12:07:57+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/ops/vagrant%E6%90%AD%E5%BB%BA%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83.html"/>
-    <summary>[Vagrant][] 让我们可以通过 ruby 脚本来快速、可重复的在本地搭建虚拟机测试集群， 与 ansible/chef 等组合使用更是方便，是本地统一开发测试的极佳运维工具。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p><a href="https://www.vagrantup.com/">Vagrant</a> 让我们可以通过 ruby 脚本来快速、可重复的在本地搭建虚拟机测试集群，
-与 ansible/chef 等组合使用更是方便，是本地统一开发测试的极佳运维工具。</p>
-<p>本文讲解如何制作最初始的 vagrant box。</p>
-<h2>安装软件</h2>
-<ul>
-<li>安装 virtualbox</li>
-<li>安装 vagrant</li>
-</ul>
-<h2>制作虚拟机</h2>
-<ul>
-<li>下载 debian iso 镜像</li>
-<li>利用下载的镜像在 virtualbox 安装一个名为 <code>vmname</code> 的 linux 操作系统</li>
-</ul>
-<h2>debian 虚拟机配置</h2>
-<ul>
-<li>在虚拟机中创建 <code>vagrant</code> 用户和用户目录，密码为 <code>vagrant</code></li>
-<li>在虚拟机中添加 <code>vagrant</code> 用户公共密钥
-<pre><code>curl https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub &gt; .ssh/authorized_keys
-</code></pre>
-</li>
-<li>基础包安装 <code>apt install ...</code>
-<ul>
-<li>sudo</li>
-<li>gcc</li>
-<li>make</li>
-<li>perl</li>
-<li>openssh-client</li>
-<li>openssh-server</li>
-<li>linux-headers-amd64</li>
-</ul>
-</li>
-<li>安装 virtualbox guest additions（有可能需要重启）
-<ul>
-<li>选择虚拟机菜单 <code>Devices</code> -&gt; <code>Insert Guest Additons CD image...</code></li>
-<li>挂载 cdrom <code>mount /dev/cdrom /mnt</code></li>
-<li>进入 cdrom 目录 <code>cd /mnt</code></li>
-<li>安装 virtualbox guest additions <code>./VBoxLinuxAdditions.run</code></li>
-</ul>
-</li>
-<li>将 <code>vagrant</code> 加入 <code>sudo</code> 用户组中，visudo 修改 <code>%sudo ALL=(ALL:ALL) NOPASSWD:ALL</code></li>
-</ul>
-<h2>导出 box</h2>
-<ul>
-<li>在本机中执行 <code>vagrant package --base vmname /path/to/debian.box</code></li>
-</ul>
-<h2>导入 box</h2>
-<p><code>vagrant box add debian /path/to/debian.box</code></p>
-<h2>创建 box 虚拟机</h2>
-<ul>
-<li>创建 vagrant 目录 <code>mkdir debian &amp;&amp; cd debian</code></li>
-<li>初始化运行环境, <code>vagrant init debian</code></li>
-<li>创建虚拟机 <code>vagrant up</code></li>
-</ul>
 
         ]]>
     </content>
