@@ -5,7 +5,11 @@
   <meta name="generator" content="mdblog.rs">
   <link rel="icon" href="https://fugangqiang.github.io/static/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
-  <title>安全</title>
+  <style>
+    .katex { font-size: 1em !important; }
+  </style>
+
+  <title>rust并发编程：线程共享高级用法</title>
 </head>
 <body>
 <header class="clearfix">
@@ -29,15 +33,104 @@
 <div id="container" class="clearfix">
   <main>
   
-  <h1>安全</h1>
-  <article>
-    <section>
-      <span>2016-09-09</span>
-      <span><a href="https://fugangqiang.github.io/posts/web/%E5%A6%82%E4%BD%95%E8%AE%BE%E8%AE%A1%E4%B8%80%E4%B8%AA%E7%99%BB%E5%BD%95%E7%B3%BB%E7%BB%9F.html">如何设计一个登录系统</a></span>
-    </section>
-  </article>
-  <div id="pages"></div>
+    <h1>rust并发编程：线程共享高级用法</h1>
+    <article>
+      <h2>Barrier</h2>
+<p><code>Barrier</code> 可以让多个线程同时都执行到在某一点后才能一起再往后执行：</p>
+<pre><code class="language-rust">use std::thread;
+use std::sync::{Arc, Barrier};
 
+fn main() {
+    let mut handles = Vec::with_capacity(10);
+    let barrier = Arc::new(Barrier::new(10));
+
+    for _ in 0..10 {
+        let b = barrier.clone();
+        handles.push(thread::spawn(move|| {
+            println!(&quot;before wait&quot;);
+            b.wait();
+            println!(&quot;after wait&quot;);
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+}
+</code></pre>
+<p>上面程序会在所有线程都打印出 <code>before wait</code> 后，才会在继续运行，打印 <code>after wait</code>，
+这样就保证了所有线程的 <code>after wait</code> 输出在 <code>before wait</code> 输出之后。</p>
+<h2>Condition Variables</h2>
+<p><code>Condition Variables</code> 通常和 <code>Mutex</code> 一起使用，可以让线程挂起，直到某个条件发生后才会让线程继续执行下去：</p>
+<pre><code class="language-rust">use std::thread;
+use std::sync::{Arc, Mutex, Condvar};
+
+fn main() {
+    let pair = Arc::new((Mutex::new(false), Condvar::new()));
+    let pair2 = pair.clone();
+
+    thread::spawn(move|| {
+        let &amp;(ref lock, ref cvar) = &amp;*pair2;
+        let mut started = lock.lock().unwrap();
+        println!(&quot;changing started&quot;);
+        *started = true;
+        cvar.notify_one();
+    });
+
+    let &amp;(ref lock, ref cvar) = &amp;*pair;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
+
+    println!(&quot;started changed&quot;);
+}
+</code></pre>
+<p>上面程序中，如果 <code>started</code> 变量是 <code>false</code>，主线程进入 <code>while</code> 循环体，
+并在循环体内释放 <code>started Mutex</code> 锁后挂起线程，直到在其他线程中调用 <code>cvar.notify_one</code> 方法来唤醒主线程，
+然后再次利用 <code>while</code> 循环条件判断，直到 <code>started</code> 的值为 <code>true</code> 才会继续执行循环之后的代码。</p>
+<h2>Call Once</h2>
+<p>有时，多线程中，有些函数只允许被调用一次，通常这类函数是用来在线程间初始化一些全局变量的，
+这样，无论哪个线程先调用这个函数，都会保证全局变量只会被初始化一次，
+随后的其他线程的调用就忽略会这个函数体了。</p>
+<pre><code class="language-rust">use std::thread;
+use std::sync::{Once, ONCE_INIT};
+
+static mut VAL: usize = 0;
+static INIT: Once = ONCE_INIT;
+
+fn main() {
+    let handle1 = thread::spawn(move || {
+        INIT.call_once(|| {
+            unsafe {
+                VAL = 1;
+            }
+        });
+    });
+
+    let handle2 = thread::spawn(move || {
+        INIT.call_once(|| {
+            unsafe {
+                VAL = 2;
+            }
+        });
+    });
+
+    handle1.join().unwrap();
+    handle2.join().unwrap();
+
+    println!(&quot;{}&quot;, unsafe { VAL });
+}
+</code></pre>
+<p>上面程序运行结果取决于哪个线程第一次调用 <code>INIT.call_once</code>，
+如果是 <code>handle1</code>，那么结果是 <code>1</code>，
+如果是 <code>handle2</code>，那么结果是 <code>2</code>。</p>
+
+      <ul id="article_footer">
+        <li>标签： <a href="https://fugangqiang.github.io/tags/concurrency.html">concurrency<sup>4</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>14</sup></a></li>
+      <li>日期： 2018-05-14 15:40:59</li>
+      </ul>
+    </article>
   </main>
   <aside>
     <section class="tags clearfix">
@@ -115,6 +208,36 @@
     博学之　审问之　慎思之　明辨之　笃行之
   </p>
 </footer>
-<script src="https://fugangqiang.github.io/static/main.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.9.0/dist/katex.min.js"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+      var maths = document.getElementsByClassName("language-math");
+      for (var i=0; i<maths.length; i++) {
+          var el = maths[i];
+          katex.render(el.innerText, el, {displayMode: true});
+      }
+      var codes = document.getElementsByTagName("code");
+      for (i=0; i<codes.length; i++) {
+          el = codes[i];
+          if (el.classList.contains("language-math")) continue;
+          if (el.classList.contains("language-inline-math")) {
+              katex.render(el.innerText, el);
+              continue;
+          }
+          var parent = el.parentNode;
+          if (parent.nodeName.toLowerCase() === "pre") continue;
+          // TODO: Can this be done with DOM manipulation rather than string manipulation?
+          // https://stackoverflow.com/q/48438067/3019990
+          var inlineMath = "$" + el.outerHTML + "$";
+          if (parent.innerHTML.indexOf(inlineMath) !== -1) {
+              el.classList.add("language-inline-math");
+              parent.innerHTML = parent.innerHTML.replace("$" + el.outerHTML + "$", el.outerHTML);
+              i--;
+          }
+      }
+  });
+</script>
 </body>
 </html>
