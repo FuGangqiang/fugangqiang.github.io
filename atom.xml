@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-05-14T17:03:14+08:00</updated>
+  <updated>2018-06-17T20:17:23+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -10,6 +10,23 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/network/tcp-ip%E7%AC%94%E8%AE%B0-00.html</id>
+    <title>tcp-ip笔记-00</title>
+    <updated>2018-06-17T18:33:42+08:00</updated>
+    <published>2018-06-17T18:33:42+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/network/tcp-ip%E7%AC%94%E8%AE%B0-00.html"/>
+    <summary>最近越发感觉自己在网络方面的知识非常匮乏，很有必要更进一步深入了解一下， 打算从 TCP/IP Illustrated V1: The Protocols 开始看起， 学习过程中再进一步了解 linux 下与网络相关的一系列工具， 并在学习的过程中，认真的做相关笔记。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>最近越发感觉自己在网络方面的知识非常匮乏，很有必要更进一步深入了解一下，
+打算从 TCP/IP Illustrated V1: The Protocols 开始看起，
+学习过程中再进一步了解 linux 下与网络相关的一系列工具，
+并在学习的过程中，认真的做相关笔记。</p>
+<p>发现这里埋了一个很大的坑，以后要逼着自己把它填完啦，哈哈...</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%85%B1%E4%BA%AB%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html</id>
     <title>rust并发编程：线程共享高级用法</title>
     <updated>2018-05-14T15:40:59+08:00</updated>
@@ -897,111 +914,6 @@ WantedBy=multi-user.target
 <pre><code>/opt/kafka_2.12-1.1.0/bin/kafka-console-producer.sh \
     --broker-list 10.0.0.2:9092,10.0.0.3:9092,10.0.0.4:9092 \
     --topic test
-</code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/zookeeper/%E7%94%A8python%E6%93%8D%E4%BD%9Czookeeper.html</id>
-    <title>用python操作zookeeper</title>
-    <updated>2018-04-16T15:40:18+08:00</updated>
-    <published>2018-04-16T15:40:18+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/zookeeper/%E7%94%A8python%E6%93%8D%E4%BD%9Czookeeper.html"/>
-    <summary>[上一篇][] 博文介绍了 zookeeper 集群的搭建， 本博文介绍如何用 [python kazoo][] 包来链接操作 zookeeper 集群。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p><a href="/posts/zookeeper/%E6%90%AD%E5%BB%BAzookeeper%E9%9B%86%E7%BE%A4.html">上一篇</a> 博文介绍了 zookeeper 集群的搭建，
-本博文介绍如何用 <a href="https://github.com/python-zk/kazoo">python kazoo</a> 包来链接操作 zookeeper 集群。</p>
-<h2>安装</h2>
-<pre><code>pip install kazoo
-</code></pre>
-<h2>创建 zookeeper client</h2>
-<pre><code>from kazoo.client import KazooClient
-
-zk = KazooClient(hosts='10.0.0.2:2181')
-
-zk.start()
-# some operations
-zk.stop()
-</code></pre>
-<p>上面的 <code>zk</code> 对象就是 zookeeper client 的一个实例，
-所有针对 zookeeper 的操作都是通过 zk 对象操作的。</p>
-<h2>zookeeper 命令</h2>
-<p><code>zk</code> 对象以下方法与 zookeeper cli client 命令类似：</p>
-<ul>
-<li>ensure_path</li>
-<li>create</li>
-<li>get</li>
-<li>get_children</li>
-<li>set</li>
-<li>delete</li>
-</ul>
-<pre><code>zk.ensure_path(&quot;/my/favorite&quot;)
-zk.create(&quot;/my/favorite/node&quot;, b&quot;a value&quot;)
-
-if zk.exists(&quot;/my/favorite&quot;):
-    data, stat = zk.get(&quot;/my/favorite&quot;)
-    print(f'Version: {stat}, data: {data}')
-    children = zk.get_children(&quot;/my/favorite&quot;)
-    print(f'Children are now: {children}')
-
-zk.set(&quot;/my/favorite&quot;, b&quot;some data&quot;)
-zk.delete(&quot;/my&quot;, recursive=True)
-</code></pre>
-<p>kazoo 也提供了 <code>ChildrenWatch</code> 和 <code>DataWatch</code> 的装饰器来监控 zookeeper 里面的数据。</p>
-<h2>脚本测试</h2>
-<p><code>watch.py</code> 文件如下：</p>
-<pre><code>from kazoo.client import KazooClient
-
-
-class ZooKeeper(KazooClient):
-    def __init__(self, timeout=15, *args, **kwargs):
-        super().__init__(timeout=timeout, *args, **kwargs)
-        self.start(timeout)
-
-    def __del__(self):
-        self.stop()
-
-
-zk = ZooKeeper(hosts='10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181')
-zk.ensure_path('/app/hello')
-
-@zk.ChildrenWatch('/app/hello')
-def watch_children(children):
-    print(f'Children are now: {children}')
-
-
-@zk.DataWatch('/app/hello/database')
-def watch_node(data, stat):
-    print(f'Version: {stat}, data: {data}')
-
-
-input('press any key to stop:')
-</code></pre>
-<p><code>modify.py</code> 文件如下：</p>
-<pre><code>from kazoo.client import KazooClient
-
-
-class ZooKeeper(KazooClient):
-    def __init__(self, timeout=15, *args, **kwargs):
-        super().__init__(timeout=timeout, *args, **kwargs)
-        self.start(timeout)
-
-    def __del__(self):
-        self.stop()
-
-
-zk = ZooKeeper(hosts='10.0.0.2:2181,10.0.0.3:2181,10.0.0.4:2181')
-zk.ensure_path('/app/hello')
-
-zk.create('/app/hello/database', b'10.0.0.6:5432')
-# zk.set('/app/hello/database', b'10.0.0.6:3306')
-</code></pre>
-<p>在两个终端上分别先后运行以下命令测试：</p>
-<pre><code>python watch.py
-</code></pre>
-<p>和</p>
-<pre><code>python modify.py
 </code></pre>
 
         ]]>
