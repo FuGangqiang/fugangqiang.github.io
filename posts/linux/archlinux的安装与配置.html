@@ -37,11 +37,11 @@
     <article>
       <h2>制作 USB 安装盘</h2>
 <p>从 <a href="https://www.archlinux.org/download/">Arch 官网</a>上下载 archlinux 安装 iso 格式镜像
-（文件名类似于 archlinux-2015.11.01-dual.iso）。</p>
-<pre><code>wget http://mirrors.163.com/archlinux/iso/2015.11.01/archlinux-2015.11.01-dual.iso
+（文件名类似于 archlinux-2015.11.01-dual.iso），当然也可以从国内镜像网站下载。</p>
+<pre><code>wget http://mirrors.ustc.edu.cn/archlinux/iso/2018.07.01/archlinux-2018.07.01-x86_64.iso
 </code></pre>
 <p>校验 iso 文件：</p>
-<pre><code>md5sum archlinux-2015.11.01-dual.iso
+<pre><code>md5sum archlinux-2018.07.01-x86_64.iso
 </code></pre>
 <p>如果校验 md5 一致，可将 iso 镜像文件写入 usb 安装盘（设备名称为 /dev/sdx）中：</p>
 <pre><code>dd bs=4M if=/path/to/archlinux.iso of=/dev/sdx &amp;&amp; sync
@@ -62,11 +62,10 @@
 <ul>
 <li><code>/dev/sda1</code>: /boot EFI 分区，512M</li>
 <li><code>/dev/sda2</code>: swap 分区，两倍内存</li>
-<li><code>/dev/sda3</code>: / linux root 分区，20G</li>
-<li><code>/dev/sda4</code>: /usr linux default 分区，20G</li>
-<li><code>/dev/sda5</code>: /var linux default 分区，50G</li>
-<li><code>/dev/sda6</code>: /tmp linux default 分区，20G</li>
-<li><code>/dev/sda7</code>: /home linux home 分区，剩余大小</li>
+<li><code>/dev/sda3</code>: / linux root 分区，10G</li>
+<li><code>/dev/sda4</code>: /var linux default 分区，50G</li>
+<li><code>/dev/sda5</code>: /tmp linux default 分区，10G</li>
+<li><code>/dev/sda6</code>: /home linux home 分区，剩余大小</li>
 </ul>
 <p>格式化分区：</p>
 <pre><code>mkfs.vfat -F32 /dev/sda1
@@ -76,16 +75,14 @@ mkfs.ext4 /dev/sda3
 mkfs.ext4 /dev/sda4
 mkfs.ext4 /dev/sda5
 mkfs.ext4 /dev/sda6
-mkfs.ext4 /dev/sda7
 </code></pre>
 <h2>挂载分区</h2>
 <pre><code>mount /dev/sda3 /mnt    # 安装系统 root 分区
-mkdir -p /mnt/boot /mnt/usr /mnt/var /mnt/tmp /mnt/home
+mkdir -p /mnt/boot /mnt/var /mnt/tmp /mnt/home
 mount /dev/sda1 /mnt/boot
-mount /dev/sda4 /mnt/usr
-mount /dev/sda5 /mnt/var
-mount /dev/sda6 /mnt/tmp
-mount /dev/sda7 /mnt/home
+mount /dev/sda4 /mnt/var
+mount /dev/sda5 /mnt/tmp
+mount /dev/sda6 /mnt/home
 </code></pre>
 <h2>安装基础系统</h2>
 <p>编辑 <code>/etc/pacman.d/mirrorlist</code>，将要使用的源复制到最前面，然后刷新：</p>
@@ -120,11 +117,13 @@ zh_CN GB2312
 <pre><code>KEYMAP=us
 FONT=Lat2-Terminus16
 </code></pre>
+<p>其中字体文件可以到 <code>/usr/share/kbd/consolefonts/</code> 中查找。</p>
 <h2>设置时区</h2>
 <pre><code>ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 </code></pre>
 <h2>设置时间</h2>
 <pre><code>timedatectl set-time &quot;yyyy-MM-dd hh:mm:ss&quot;
+hwclock -systohc
 </code></pre>
 <h2>设置主机名</h2>
 <p>编辑 <code>/etc/hostname</code>：</p>
@@ -135,11 +134,8 @@ FONT=Lat2-Terminus16
 <pre><code>passwd
 </code></pre>
 <p>添加 user 用户：</p>
-<pre><code>useradd -G wheel user
+<pre><code>useradd -m -G wheel user
 passwd user
-chfn user
-mkdir -m 700 /home/user
-chown user:user /home/user
 </code></pre>
 <h2>生成初始 ramdisk 环境</h2>
 <p>如果 <code>/usr</code> 和 <code>/</code> 不在同一个分区，
@@ -155,17 +151,25 @@ HOOKS 行须添加 <code>usr fsck shutdown</code> 内容。</p>
 <pre><code>title          Arch Linux
 linux          /vmlinuz-linux
 initrd         /initramfs-linux.img
-options        root=PARTUUID=xxxxxxxxxxxxx rw
+options        root=UUID=xxxxxxxxxxxxx rw
 </code></pre>
-<p><code>options root</code> 项对应系统 root 分区，其中 <code>PARTUUID</code> 可以由命令 <code>blkid</code> 获得。</p>
+<p><code>options root</code> 项对应系统 root 分区，其中 <code>UUID</code> 可以通过查看文件 <code>/etc/fstab</code> 获取，也可以用以下命令获得：</p>
+<pre><code>ls -l /dev/disk/by-uuid
+或者
+lsblk -f
+</code></pre>
 <p>编辑 <code>/boot/loader/loader.conf</code>：</p>
 <pre><code>timeout 1
 default arch
 </code></pre>
 <h2>设置网络</h2>
 <h3>有线</h3>
-<pre><code>systemctl enable dhcpcd
+<pre><code>pacman -S networkmanager
+systemctl enable NetworkManager
+systemctl start NetworkManager
+nmtui
 </code></pre>
+<p>图形界面可以安装 <code>network-manager-applet</code>。</p>
 <h2>退出安装系统并重启</h2>
 <pre><code>exit
 umount -R /mnt
@@ -195,11 +199,11 @@ export XMODIFIERS=@im=fcitx
 <pre><code>pacman -S chromium
 </code></pre>
 <h2>安装 pacaur</h2>
-<p>从 archlinux aur 网站下载 pacaur PKGBUILD，运行：</p>
+<p>从 archlinux aur 网站下载 aumman PKGBUILD，运行：</p>
 <pre><code>makepkg
 pacman -U 生成的文件，以.xz结尾
 </code></pre>
-<p><code>makepkg</code> 时会报 gpg 验证出错，需要运行：</p>
+<p><code>makepkg</code> 有时会报 gpg 验证出错，需要运行：</p>
 <pre><code>gpg --recv-keys xxxxxxxxID
 </code></pre>
 
