@@ -9,7 +9,7 @@
     .katex { font-size: 1em !important; }
   </style>
 
-  <title>rust并发编程：线程共享高级用法</title>
+  <title>rust并发编程：线程高级用法</title>
 </head>
 <body>
 <header class="clearfix">
@@ -33,7 +33,7 @@
 <div id="container" class="clearfix">
   <main>
   
-    <h1>rust并发编程：线程共享高级用法</h1>
+    <h1>rust并发编程：线程高级用法</h1>
     <article>
       <h2>Barrier</h2>
 <p><code>Barrier</code> 可以让多个线程同时都执行到在某一点后才能一起再往后执行：</p>
@@ -125,6 +125,35 @@ fn main() {
 <p>上面程序运行结果取决于哪个线程第一次调用 <code>INIT.call_once</code>，
 如果是 <code>handle1</code>，那么结果是 <code>1</code>，
 如果是 <code>handle2</code>，那么结果是 <code>2</code>。</p>
+<h2>线程局部变量</h2>
+<p>rust 中用 <code>thread_local</code> 宏来初始化线程局部变量，并在线程内部用该变量的 <code>with</code> 方法来获取该变量值：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+use std::thread;
+
+thread_local! {
+    static FOO: RefCell&lt;u32&gt; = RefCell::new(1);
+}
+
+fn main() {
+    FOO.with(|foo| {
+        assert_eq!(*foo.borrow(), 1);
+        *foo.borrow_mut() = 2;
+    });
+
+    // each thread starts out with the initial value of 1
+    thread::spawn(move|| {
+        FOO.with(|foo| {
+            assert_eq!(*foo.borrow(), 1);
+            *foo.borrow_mut() = 3;
+        });
+    });
+
+    // we retain our original value of 2 despite the child thread
+    FOO.with(|foo| {
+        assert_eq!(*foo.borrow(), 2);
+    });
+}
+</code></pre>
 
       <ul id="article_footer">
         <li>标签： <a href="https://fugangqiang.github.io/tags/concurrency.html">concurrency<sup>4</sup></a><a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>14</sup></a></li>

@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2018-07-10T17:37:27+08:00</updated>
+  <updated>2018-07-11T11:12:15+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/static/favicon.png</icon>
   <logo>/static/logo.png</logo>
@@ -27,11 +27,11 @@
         ]]>
     </content>
   </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%85%B1%E4%BA%AB%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html</id>
-    <title>rust并发编程：线程共享高级用法</title>
+    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html</id>
+    <title>rust并发编程：线程高级用法</title>
     <updated>2018-05-14T15:40:59+08:00</updated>
     <published>2018-05-14T15:40:59+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%85%B1%E4%BA%AB%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html"/>
+    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html"/>
     <summary>## Barrier...</summary>
     <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
         <![CDATA[
@@ -125,6 +125,35 @@ fn main() {
 <p>上面程序运行结果取决于哪个线程第一次调用 <code>INIT.call_once</code>，
 如果是 <code>handle1</code>，那么结果是 <code>1</code>，
 如果是 <code>handle2</code>，那么结果是 <code>2</code>。</p>
+<h2>线程局部变量</h2>
+<p>rust 中用 <code>thread_local</code> 宏来初始化线程局部变量，并在线程内部用该变量的 <code>with</code> 方法来获取该变量值：</p>
+<pre><code class="language-rust">use std::cell::RefCell;
+use std::thread;
+
+thread_local! {
+    static FOO: RefCell&lt;u32&gt; = RefCell::new(1);
+}
+
+fn main() {
+    FOO.with(|foo| {
+        assert_eq!(*foo.borrow(), 1);
+        *foo.borrow_mut() = 2;
+    });
+
+    // each thread starts out with the initial value of 1
+    thread::spawn(move|| {
+        FOO.with(|foo| {
+            assert_eq!(*foo.borrow(), 1);
+            *foo.borrow_mut() = 3;
+        });
+    });
+
+    // we retain our original value of 2 despite the child thread
+    FOO.with(|foo| {
+        assert_eq!(*foo.borrow(), 2);
+    });
+}
+</code></pre>
 
         ]]>
     </content>
