@@ -1,0 +1,317 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>rust之介绍</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>rust之介绍</h1>
+    <article>
+      <h2>语言特性</h2>
+<p>接触 rust 语言有一段时间了，当初看到它时，就被这货给震撼了，
+原来系统级的语言也可以这样玩，语言特性都太喜欢了：</p>
+<ul>
+<li>llvm based</li>
+<li>minimal runtime</li>
+<li>zero-cost abstractions</li>
+<li>memery safty</li>
+<li>module system</li>
+<li>trait-based generics</li>
+<li>algebraic data types</li>
+<li>pattern match</li>
+<li>type inference</li>
+<li>expression based</li>
+<li>lifetime checker</li>
+<li>concurrency</li>
+<li>hygenic macro</li>
+<li>attributes</li>
+<li>error handling</li>
+<li>simple c ffi</li>
+<li>unicode char and string</li>
+<li>immutable by default</li>
+<li>implicit return / expressions</li>
+<li>build tool and package manager: cargo</li>
+</ul>
+<p>rust 竟然可以做到不牺牲运行速度，还可以像动态语言那样灵活，好久没有被颠覆语言三观了！:)，
+和当时学 python、scheme 和 haskell 这三种语言一样，开阔了视野。</p>
+<p>rust 语言提供这么多语言特性，同时也使学习成本增加了许多，
+如果你熟悉 haskell 和 scheme 就会发现它们许多好的特性都被 rust 继承下来了，
+基于表达式、模式匹配、类型系统、模块系统、卫生宏、...，学习起来就容易许多。</p>
+<h2>hello world</h2>
+<p>好了，不多说了，先上一个 <code>hello world</code> 代码：</p>
+<pre><code class="language-rust">fn main() {
+    println!(&quot;Hello World!&quot;);
+}
+</code></pre>
+<h2>expression based</h2>
+<p>if 控制结构是一个 expression（表达式），而不是一个 statement（语句）:</p>
+<pre><code class="language-rust">fn main() {
+    let x = -5;
+    let y = if x &gt;= 0 { x } else { -x };
+    println!(&quot;y == {}&quot;, y);
+}
+</code></pre>
+<h2>pattern match</h2>
+<p>match 控制结构也是一个表达式，可以作为 println 宏的参数：</p>
+<pre><code class="language-rust">fn main() {
+    let p: (isize, isize) = (3, 4);
+    println!(&quot;{}&quot;, match p {
+        (0, 0) =&gt; &quot;原点&quot;,
+        (_, 0) =&gt; &quot;在x轴上&quot;,
+        (0, _) =&gt; &quot;在y轴上&quot;,
+        _      =&gt; &quot;在其他区域&quot;,
+    });
+}
+</code></pre>
+<h2>module system</h2>
+<p>一个 crate 可以定义数个 module，在 module 中也可以嵌套定义属于自己的 module，
+下面是官方举的一个例子：</p>
+<pre><code class="language-rust">mod english {
+   mod greetings {
+   }
+
+   mod farewells {
+   }
+
+mod japanese {
+   mod greetings {
+   }
+
+   mod farewells {
+   }
+</code></pre>
+<h2>trait-based generics</h2>
+<p>rust 的 trait 与 haskell 的 type class 很像，也提供了相似的范型：</p>
+<pre><code class="language-rust">use std::fmt::Debug;
+
+fn bar&lt;T, K&gt;(x: T, y: K)
+    where T: Clone,
+          K: Clone + Debug
+{
+
+    x.clone();
+    y.clone();
+    println!(&quot;{:?}&quot;, y);
+}
+</code></pre>
+<h2>documention</h2>
+<p>rust 可以通过 rustdoc 命令将源码中的注释导出来，
+而源码中的注释是基于 MarkDown 格式的。</p>
+<pre><code class="language-rust">/// The `Option` type. See [the module level documentation](../) for more.
+enum Option&lt;T&gt; {
+    /// No value
+    None,
+    /// Some value `T`
+    Some(T),
+}
+</code></pre>
+<h2>error handling</h2>
+<p>错误处理大量使用 <code>Result&lt;T, E&gt;</code> 和 <code>Option&lt;T&gt;</code> 类型，同时使用宏减少代码量：</p>
+<pre><code class="language-rust">use std::fs::File;
+use std::io;
+use std::io::prelude::*;
+
+struct Info {
+    name: String,
+    age: i32,
+    rating: i32,
+}
+
+fn write_info(info: &amp;Info) -&gt; io::Result&lt;()&gt; {
+    let mut file = try!(File::open(&quot;my_best_friends.txt&quot;));
+
+    try!(writeln!(&amp;mut file, &quot;name: {}&quot;, info.name));
+    try!(writeln!(&amp;mut file, &quot;age: {}&quot;, info.age));
+    try!(writeln!(&amp;mut file, &quot;rating: {}&quot;, info.rating));
+
+    return Ok(());
+}
+</code></pre>
+<h2>test and benchmark</h2>
+<pre><code class="language-rust">pub fn add_two(a: i32) -&gt; i32 {
+    a + 2
+}
+
+#[cfg(test)]
+mod tests {
+    use super::add_two;
+
+    #[test]
+    fn it_works() {
+        assert_eq!(4, add_two(2));
+    }
+}
+</code></pre>
+<h2>memery safty</h2>
+<p>rust 为了内存安全，引入了 ownership 和 lifetime 机制，将 c 中单一概念的指针类型分为以下几种：</p>
+<ul>
+<li>References
+<ul>
+<li><code>&amp; T</code></li>
+<li><code>&amp; mut T</code></li>
+</ul>
+</li>
+<li>Raw Pointer
+<ul>
+<li><code>* const T</code></li>
+<li><code>* mut T</code></li>
+</ul>
+</li>
+<li>Box
+<ul>
+<li><code>Box&lt;T&gt;</code></li>
+</ul>
+</li>
+<li>Rc
+<ul>
+<li><code>Rc&lt;T&gt;</code></li>
+<li><code>Weak&lt;T&gt;</code></li>
+</ul>
+</li>
+<li>Cow</li>
+<li>Cell
+<ul>
+<li><code>Cell&lt;T&gt;</code></li>
+<li><code>RefCell&lt;T&gt;</code></li>
+<li><code>UnsafeCell&lt;T&gt;</code></li>
+</ul>
+</li>
+<li>Synchronous
+<ul>
+<li><code>Arc&lt;T&gt;</code></li>
+<li><code>Weak&lt;T&gt;</code></li>
+<li><code>Mutex&lt;T&gt;</code></li>
+<li><code>RwLock&lt;T&gt;</code></li>
+</ul>
+</li>
+</ul>
+<p>如果你有 c 内存模型方面的知识，学习 rust 的这些指针类型应该可以很快入手，
+如果你从高级语言像 python、ruby 之类转过来的话，学习这些会有些吃力。</p>
+<h2>hygenic macro</h2>
+<p>比 c 中的宏更强大，与 scheme 相同，都是卫生宏:</p>
+<pre><code class="language-rust">macro_rules! log {
+($msg:expr) =&gt; ({
+        let state: i32 = get_log_state();
+        if state &gt; 0 {
+            println!(&quot;log({}): {}&quot;, state, $msg);
+        }
+    });
+}
+
+fn main() {
+    let state: &amp;str = &quot;reticulating splines&quot;;
+    log!(state);
+}
+</code></pre>
+<h2>更多</h2>
+<p>参考官方文档 <a href="http://doc.rust-lang.org/book/README.html">Rust Book</a> 和 <a href="http://doc.rust-lang.org/reference.html">Rust References</a>。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>14</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-03-28 12:49:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

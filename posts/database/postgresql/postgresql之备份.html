@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>postgresql之备份</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>postgresql之备份</h1>
+    <article>
+      <p>postgresql 数据备份有三种方式：</p>
+<ul>
+<li>sql 转储(sql dump)</li>
+<li>冷备份(file system level backup)</li>
+<li>热备份(continuous archiving)</li>
+</ul>
+<h2>sql 转储</h2>
+<p>sql 转储不仅可以在 postgresql 的不同版本间恢复，
+而且可以在不同的体系架构恢复（比如从 32 位转移到 62 位），
+而其他的两种备份方法是不能这样的。</p>
+<p>sql 转储的版本是 <code>pg_dump</code> 开始运行时的数据库快照，
+在运行 <code>pg_dump</code> 时并不会阻塞其它数据库操作，
+快照的数据均是相对于 <code>template0</code> 模板的。</p>
+<pre><code># 备份
+pg_dump -h host -p port -U user -n schemaname -t tablename dbname &gt; data.bak
+
+# 恢复
+createdb dbname
+psql -h host -U user -d dbname &lt; data.bak
+</code></pre>
+<p>运行 <code>psql</code> 时，目标 dbname 必须被创建，并且数据库中相关的用户及权限也必须存在。</p>
+<p>默认 <code>psql</code> 如果遇到错误仍会继续执行，如果想要遇到错误停止运行：</p>
+<pre><code>psql --set ON_ERROR_STOP=on dbname &lt; data.bak
+</code></pre>
+<p>如果想要在一个事务中执行：</p>
+<pre><code>psql -1 dbname &lt; data.bak
+psql --single-transaction dbname &lt; data.bak
+</code></pre>
+<p><code>pg_dump</code> 一次只能处理一个数据库，而且不包含 <code>role</code> 和 <code>tablespace</code> 的定义，
+而 <code>pg_dumpall</code> 命令可以备份整个数据库集，而且也包括 <code>role</code> 和 <code>tablespace</code> 的定义。</p>
+<pre><code># 备份
+pg_dumpall &gt; data.bak
+
+# 恢复
+psql -f data.bak postgres
+</code></pre>
+<p>如果想要把所有数据分开备份，可以组合使用 <code>pg_dumpall --globals-only</code> 和 <code>pg_dump</code> 命令。</p>
+<p>当备份的数据库很大时，你也可以对输出文件进行压缩：</p>
+<pre><code>pg_dump dbname | gzip &gt; data.bak.gz
+gunzip -c data.bak.gz | psql dbname
+</code></pre>
+<p>也可以使用 split 命令：</p>
+<pre><code>pg_dump dbname | split -b 1m - data.bak
+cat data.bak* | psql dbname
+</code></pre>
+<p>如果想要更灵活的备份数据库，可以用 <code>pg_dump -F</code> 来制定输出格式：</p>
+<pre><code>pg_dump -Fc dbname &gt; data.bak
+pg_restore -d dbname data.bak
+</code></pre>
+<p>可以利用 <code>pg_dump -j</code> 来加速备份数据库：</p>
+<pre><code>pg_dump -j num -F d -f out.dir dbname
+</code></pre>
+<h2>冷备份</h2>
+<p>冷备份就是把在 <code>PGDATA</code> 文件夹下的所有相关数据复制下来，
+但是这种方法有一个缺点，就是在备份或恢复时 postgresql 相关进程服务都必须停止下来，
+因此所有的数据库链接都会被关闭。</p>
+<pre><code># 备份
+systemctl stop postgresql
+tar –jcvf backup.tar.bz2 $PGDATA
+
+# 恢复
+tar –jxvf backup.tar.bz2
+systemctl start postgresql
+</code></pre>
+<p>如果你的文件系统支持快照(snapshot)特性，也可以利用这个特性来冷备份，
+这种方法无需停止 postgresql 相关进程服务，
+但是这种备份方法在恢复时应该像数据库宕机一样处理，重新执行 WAL 日志文件。</p>
+<h2>热备份</h2>
+<p>当数据库比较大时，可以利用热备份，也就是增量备份。</p>
+<h3>将数据库切换为归档模式</h3>
+<p>postgresql 默认处于非归档模式，修改 <code>PGDATA/postgresql.conf</code> 配置文件开启归档模式：</p>
+<pre><code>wal_level = archive
+archive_mode = on
+archive_command = 'test ! -f /mnt/server/archivedir/%f &amp;&amp; cp %p /mnt/server/archivedir/%f'
+# archive_command = 'ssh arc_svr test ! -f /path/to/archive/%f &amp;&amp; scp %p arc_svr:/path/to/archive/%f'
+</code></pre>
+<p>重启 postgresql：</p>
+<pre><code>systemctl restart postgresql
+</code></pre>
+<p>这样数据库就处于归档模式下了：</p>
+<pre><code class="language-sql">select name, setting from pg_catalog.pg_settings where name like 'archive%' or name = 'wal_level';
+</code></pre>
+<h3>对数据库进行基础备份</h3>
+<p>进行基础备份有两种方法：</p>
+<ul>
+<li>pg_basebackup</li>
+<li>pg_start_backup</li>
+</ul>
+<h4>利用 pg_basebackup 进行数据库基础备份</h4>
+<p><code>pg_basebackup</code> 使用复制协议，因此需要配置 <code>PGDATA/pg_hba.conf</code> 文件以允许 replication 连接：</p>
+<pre><code>local   replication     postgres                                peer
+host    replication     postgres        192.168.0.0/24          md5
+</code></pre>
+<p>修改 <code>PGDATA/postgresql.conf</code> 选项 <code>max_wal_senders</code> 以允许至少一个 session 连接来进行备份：</p>
+<pre><code>max_wal_senders = 1
+</code></pre>
+<p>重启 postgresql：</p>
+<pre><code>systemctl restart postgresql
+</code></pre>
+<p>复制基础备份目录：</p>
+<pre><code>sudo -u postgres pg_basebackup -RPv　-D  back_backup_20161015
+</code></pre>
+<p>这会生成一个备份目录，其目录结构与 <code>PGDATA</code> 目录结构一致。如果想要压缩目录：</p>
+<pre><code>sudo -u postgres sh -c 'pg_basebackup -RPv -Ft -D - | bzip2 &gt; base_backup_20161015.tbz2'
+</code></pre>
+<h4>利用 pg_start_backup 进行数据库基础备份</h4>
+<p>使用超级用户执行 <code>pg_start_backup</code>：</p>
+<pre><code class="language-sql">select pg_start_backup('base_backup_20161015);
+</code></pre>
+<p>不需要停止数据库，使用文件系统备份工具备份 <code>PGDATA</code> 目录下的数据库文件：</p>
+<pre><code>sudo -u postgres tar cjvf back_backup_20161015.tbz2 -P \
+    --exclude=$PGDATA/postmaster.pid \
+    --exclude=$PGDATA/postmaster.opts \
+    --exclude=$PGDATA/pg_xlog \
+    --exclude=$PGDATA/pg_replslot \
+    --warning=no-file-changed \
+	--warning=no-file-removed \
+    $PGDATA
+</code></pre>
+<p>使用超级用户执行 <code>pg_start_backup</code>：</p>
+<pre><code class="language-sql">select pg_stop_backup();
+</code></pre>
+<p><code>pg_stop_backup</code> 会将备份期间活动的 WAL 日志文件归档，
+最后生成一个 <code>.backup</code> 文件标识出保证此次备份完整性所需要的最后一个 WAL 日志，
+使用此次基础备份恢复系统时，不再需要之前的 WAL 日志。</p>
+<h3>恢复数据库</h3>
+<p>将基础备份文件目录迁移到 <code>PGDATA</code>：</p>
+<pre><code>mv $PGDATA $PGDATA.bak
+mv back_backup_20161015 $PGDATA
+</code></pre>
+<p>创建 <code>PGDATA/recovery.conf</code> 文件：</p>
+<pre><code>restore_command = 'cp /mnt/server/archivedir/%f %p'
+</code></pre>
+<p>如果想要恢复到某个时间点：</p>
+<pre><code>recovery_target_time = '2016-10-17 04:00:00.0'
+</code></pre>
+<p>重启 postgresql:</p>
+<pre><code>systemctl restart postgresql
+</code></pre>
+<p>当恢复完成后，<code>PGDATA/recovery.conf</code> 会被 postgresql 数据库自动重命名为 <code>PGDATA/recovery.done</code>。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>20</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-10-15 16:51:19
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

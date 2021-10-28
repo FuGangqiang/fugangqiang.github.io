@@ -1,0 +1,265 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>python之metaclass</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>python之metaclass</h1>
+    <article>
+      <h2>什么是metaclass</h2>
+<p>在 python 中，一切皆是对象，包括类。
+对象均是由与其对应的类创建的，既然类也是对象，那么类是由与其对应的类创建的，
+此处用来创建类的类就被称为元类，也就是本文所要讲的 metaclass。</p>
+<pre><code class="language-python">&gt;&gt;&gt; class Foo(object):
+...     pass
+...
+&gt;&gt;&gt; f = Foo()
+&gt;&gt;&gt; type(f)
+&lt;class '__main__.Foo'&gt;
+&gt;&gt;&gt; type(Foo)
+&lt;class 'type'&gt;
+</code></pre>
+<p>上面，首先我们定义了一个名为 <code>Foo</code> 的类，用其生成了一个对象实例 <code>f</code>，
+我们可以用 <code>type(obj)</code> 来查看某个对象的类，可以看出，<code>f</code> 的类是 <code>Foo</code>，<code>Foo</code> 的类是 <code>type</code>，
+而 <code>type</code> 就是我们所说的 metaclass。</p>
+<p>有人也许会问 <code>type</code> 的类又是什么呢？</p>
+<pre><code class="language-python">&gt;&gt;&gt; type(type)
+&lt;class 'type'&gt;
+</code></pre>
+<p><code>type</code> 的类是 <code>type</code> 自己，也可以说 <code>type</code> 是 python 对象系统的源头，其底层实现请看 python 源码中的 <code>PyType_Type</code> 的定义。</p>
+<h2>class 的创建</h2>
+<p>在介绍 metaclass 之前，我们先来看看在 python 中类的创建过程，如下：</p>
+<pre><code class="language-python">class Bar(object):
+    def __init__(self, name):
+        self.name = name
+
+    def print_name():
+        print(self.name)
+</code></pre>
+<p>上面示例通过 <code>class</code> 语句定义了一个 <code>Bar</code> 类，不仅如此，我们还可以用 <code>type</code> metaclass 来创建它：</p>
+<pre><code class="language-python">cls_name = 'Foo'
+cls_bases = (object,)
+cls_body = '''
+def __init__(self, name):
+    self.name = name
+
+def print_name(self):
+    print(self.name)
+'''
+cls_attrs = {}
+exec(cls_body, globals(), cls_attrs)
+
+Foo = type(cls_name, cls_bases, cls_attrs)
+</code></pre>
+<p>上面示例展示了用 <code>type</code> metaclass 动态生成类的用法。</p>
+<p>在用 <code>class</code> 语句自定义类时，默认 metaclass 是 <code>type</code>，我们也可以指定 metaclass 来创建类。
+由于 python3 和 python2 在指定类的 metaclass 语法不兼容，下面分别示例 python2 和 python3 两个版本。</p>
+<p>python2 版本：</p>
+<pre><code class="language-python">class Bar(object):
+    __metaclass__ = MetaClass
+
+    def __init__(self, name):
+        self.name = name
+
+    def print_name():
+        print(self.name)
+</code></pre>
+<p>python3 版本：</p>
+<pre><code class="language-python">class Bar(object, metaclass=MetaClass):
+    def __init__(self, name):
+        self.name = name
+
+    def print_name():
+        print(self.name)
+</code></pre>
+<p>通过上面指定 metaclass 相关属性，python 解释器就会自动用 <code>MetaClass</code> 来创建 <code>Bar</code> 类了。</p>
+<h2>metaclass 自定义</h2>
+<p>metaclass 的主要目的就是为了当创建类时能够自动地改变类，
+我们可以自定义一些 metaclass，进而改变创建类的行为。</p>
+<p>自定义 metaclass 一般是通过 <code>__new__</code> 和 <code>__init__</code> 方法来改变类的创建的：</p>
+<pre><code class="language-python">class Metaclass(type):
+    def __new__(cls, name, bases, attrs):
+        # some code
+
+    def __init__(self, name, bases, attrs):
+        # some code
+</code></pre>
+<p>当然，有时是通过 <code>__call__</code> 方法来自定义类：</p>
+<pre><code class="language-python">class Metaclass(type):
+    def __call__(cls, *args, **kargs):
+        # some code
+</code></pre>
+<h3>DocMeta</h3>
+<p>写代码时，我们通常规定：自定义类中所有方法必须有文档。
+如果由程序员自己检查，不免会出现遗漏的地方，因此我们自定义一个 <code>DocMeta</code> 来自动检测。</p>
+<p>如下：</p>
+<pre><code class="language-python">class DocMeta(type):
+    def __init__(self, name, bases, attrs):
+        for key, value in attrs.items():
+            if key.startswith('__'):
+                continue
+            if not hasattr(value, '__call__'):
+                continue
+            if not getattr(value, '__doc__'):
+                raise TypeError('%s must have a docstring' % key)
+        super(DocMeta, self).__init__(self, name, bases, attrs)
+</code></pre>
+<p>这样就可以用 <code>DocMeta</code> 来检测自定义类中方法是否有文档，如果没有，就会抛出 <code>TypeError</code> 异常：</p>
+<pre><code class="language-python">&gt;&gt;&gt; class Car(object, metaclass=DocMeta):
+...     def __init__(self, value):
+...         self.value = value
+...
+...     def change(self):
+... 	    self.value += 1
+...
+TypeError: change must have a docstring
+</code></pre>
+<h3>SingletonMeta</h3>
+<p>有时我们会有这样的需求：由同一个类创建的对象均指向同一个对象。
+其实我们也可用 mataclass 实现这样的功能：</p>
+<pre><code class="language-python">class SingletonMeta(type):
+    instance = None
+    def __call__(cls, *args, **kwargs):
+        if not cls.instance:
+             cls.instance = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls.instance
+
+class Singleton(metaclass=SingletonMeta):
+    pass
+
+&gt;&gt;&gt; a = Singleton()
+&gt;&gt;&gt; b = Singleton()
+&gt;&gt;&gt; a is b
+True
+</code></pre>
+<p>上面代码中，当我们调用 <code>Singleton()</code> 来创建对象 <code>a</code> 和 <code>b</code> 时，解释器就会调用 <code>SingletonMeta.__call__</code> 方法来保证创建对象的唯一性。</p>
+<h2>metaclass应用</h2>
+<p>python 界的领袖 Tim Peters 说过：</p>
+<blockquote>
+<p>元类就是深度的魔法，99% 的用户应该根本不必为此操心。
+如果你想搞清楚究竟是否需要用到元类，那么你就不需要它。
+那些实际用到元类的人都非常清楚地知道他们需要做什么，而且根本不需要解释为什么要用元类。</p>
+</blockquote>
+<p>元类的主要用途是创建 API。一个典型的例子是 Django ORM。它允许你像这样定义：</p>
+<pre><code class="language-python">class Person(models.Model):
+    name = models.CharField(max_length=30)
+    age = models.IntegerField()
+</code></pre>
+<p>但是如果你像这样做的话：</p>
+<pre><code class="language-python">guy = Person(name='bob', age='35')
+print(guy.age)
+</code></pre>
+<p>这并不会返回一个 IntegerField 对象，而是会返回一个 int，甚至可以直接从数据库中取出数据。
+这是有可能的，因为 models.Model 定义了 metaclass，并且使用了一些魔法能够将你刚刚定义的简单的 Person 类转变成对数据库的一个复杂 hook。
+Django 框架将这些看起来很复杂的东西通过暴露出一个简单的使用元类的 API 将其化简，通过这个 API 重新创建代码，在背后完成真正的工作。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/python.html">python<sup>14</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-08-05 15:08:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

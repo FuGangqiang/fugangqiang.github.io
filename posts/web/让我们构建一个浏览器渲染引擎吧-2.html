@@ -1,0 +1,358 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>让我们构建一个浏览器渲染引擎吧-2</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>让我们构建一个浏览器渲染引擎吧-2</h1>
+    <article>
+      <p>注：本系列博文译自 <a href="http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html">Matt Brubeck 的博客</a>。</p>
+<p>我正在构建一个玩具性的 HTML 渲染引擎 <a href="https://github.com/mbrubeck/robinson">robinson</a>，当然你也可以。
+本篇是这一系列文章的第二篇：</p>
+<ul>
+<li><a href="http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html">第一篇：Getting Started</a></li>
+<li><strong>第二篇：HTML</strong></li>
+<li><a href="http://limpet.net/mbrubeck/2014/08/13/toy-layout-engine-3-css.html">第三篇：CSS</a></li>
+<li><a href="http://limpet.net/mbrubeck/2014/08/23/toy-layout-engine-4-style.html">第四篇：Style</a></li>
+<li><a href="http://limpet.net/mbrubeck/2014/09/08/toy-layout-engine-5-boxes.html">第五篇：Boxes</a></li>
+<li><a href="http://limpet.net/mbrubeck/2014/09/17/toy-layout-engine-6-block.html">第六篇：Block layout</a></li>
+<li><a href="http://limpet.net/mbrubeck/2014/11/05/toy-layout-engine-7-painting.html">第七篇：Painting 101</a></li>
+</ul>
+<p>本篇博文讲述的是将 HTML 文档解析为 DOM 节点树。
+语法解析是一个很吸引人的话题，我不会花太多时间和篇幅来讲解它，
+你可以从任何有关编译器课程或书籍中更详细的了解它，
+也可以阅读你所选择的编程语言相关的语法解析器文档。</p>
+<p>HTML 有自己特有的语法解析算法。
+与大多数编程语言和格式化文件不同，HTML 语法解析算法允许错误的输入，
+网页浏览器并不会加入错误处理的指令，即使对那些不符合语法规则的网页，
+浏览器也会将其如何显示保持一致。
+浏览器必须做到这一点：在网页出现的早期，不相容的 HTML 就已被支持了，
+并且现存的许多网页都是不相容的。</p>
+<h2>一个简单的 HTML 方言</h2>
+<p>我这里不会完成一个标准的 HTML 语法解析器，而是实现其子集的解析器。
+这个解析器可以解析以下文本：</p>
+<pre><code class="language-html">&lt;html&gt;
+    &lt;body&gt;
+        &lt;h1&gt;Title&lt;/h1&gt;
+        &lt;div id=&quot;main&quot; class=&quot;test&quot;&gt;
+            &lt;p&gt;Hello &lt;em&gt;world&lt;/em&gt;!&lt;/p&gt;
+        &lt;/div&gt;
+    &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>有以下语法是允许的：</p>
+<ul>
+<li>封闭式标签：<code>&lt;p&gt;...&lt;/p&gt;</code></li>
+<li>带有引用值的属性：<code>id=&quot;main&quot;</code></li>
+<li>文本节点：<code>&lt;em&gt;world&lt;/em&gt;</code></li>
+</ul>
+<p>所有其他的语法是不支持的，包括：</p>
+<ul>
+<li>注释</li>
+<li>Doctype 声明</li>
+<li>转意字符（比如 <code>&amp;amp;</code>）和 CDATA 段</li>
+<li>自关闭标签：<code>&lt;br/&gt;或&lt;br&gt;</code></li>
+<li>错误处理（比如：不平衡或不正确嵌套的标签）</li>
+<li>命名空间和那些 XHTML 语法：<code>&lt;html:body&gt;</code></li>
+<li>字符编码检测</li>
+</ul>
+<p>在这个工程的每一个阶段，我几乎只实现那些后续阶段所必须的功能。
+如果你想了解更多有关解析器的理论和工具，你可以加入更多的功能实现。</p>
+<h2>代码示例</h2>
+<p>接下来，让我们看一下我的玩具性 HTML 语法解析器，注意，它可能并不是最好的一种实现方式。
+它的结构多多少少基于 Servo 的 cssparser 库的 tockenizer 模块，
+它没有真正的错误处理，当遇到不能识别的语法，大多会中止运行。
+代码由 Rust 语言编写，但我希望对那些熟悉 Java，C++ 或 C# 的人来说，它具有相当的可读性。
+其中，也使用了<a href="http://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html">第一篇</a>中讲到的 DOM 数据结构。</p>
+<p>解析器将其输入字符串和当前位置存放在一结构中，其中当前位置就是下一个尚未被处理的字符索引。</p>
+<pre><code class="language-rust">struct Parser {
+    pos: usize, // &quot;usize&quot; is an unsigned integer, similar to &quot;size_t&quot; in C
+    input: String,
+}
+</code></pre>
+<p>我们可以实现一些简单的方法来读取、判断接下来的字符：</p>
+<pre><code class="language-rust">impl Parser {
+    // Read the current character without consuming it.
+    fn next_char(&amp;self) -&gt; char {
+        self.input[self.pos..].chars().next().unwrap()
+    }
+
+    // Do the next characters start with the given string?
+    fn starts_with(&amp;self, s: &amp;str) -&gt; bool {
+        self.input[self.pos ..].starts_with(s)
+    }
+
+    // Return true if all input is consumed.
+    fn eof(&amp;self) -&gt; bool {
+        self.pos &gt;= self.input.len()
+    }
+
+    // ...
+}
+</code></pre>
+<p>Rust 字符串存储在一个 UTF-8 编码的字节数组中，
+为了获取下一个字符，我们并不能简单的将位置索引加一，而应该利用 <code>char_indices</code> 来正确处理多字节字符。
+（UTF-8 编码为变长编码，一个字符可能有多字节构成，当我们使用固定宽度字符时，就可以将 <code>pos</code> 加一来索引字符。）</p>
+<pre><code class="language-rust">// Return the current character, and advance self.pos to the next character.
+fn consume_char(&amp;mut self) -&gt; char {
+    let mut iter = self.input[self.pos..].char_indices();
+    let (_, cur_char) = iter.next().unwrap();
+    let (next_pos, _) = iter.next().unwrap_or((1, ' '));
+    self.pos += next_pos;
+    return cur_char;
+}
+</code></pre>
+<p>通常我们需要连续读取字符，而 <code>consume_while</code> 就是用来连续读取那些符合特定条件并将其返回方法的方法，
+其参数是一个返回 <code>bool</code> 类型的函数。</p>
+<pre><code class="language-rust">// Consume characters until `test` returns false.
+fn consume_while&lt;F&gt;(&amp;mut self, test: F) -&gt; String
+        where F: Fn(char) -&gt; bool {
+    let mut result = String::new();
+    while !self.eof() &amp;&amp; test(self.next_char()) {
+        result.push(self.consume_char());
+    }
+    return result;
+}
+</code></pre>
+<p>我们可以使用这个方法来读取空白字符或数字字母字符：</p>
+<pre><code class="language-rust">// Consume and discard zero or more whitespace characters.
+fn consume_whitespace(&amp;mut self) {
+    self.consume_while(CharExt::is_whitespace);
+}
+
+// Parse a tag or attribute name.
+fn parse_tag_name(&amp;mut self) -&gt; String {
+    self.consume_while(|c| match c {
+        'a'...'z' | 'A'...'Z' | '0'...'9' =&gt; true,
+        _ =&gt; false
+    })
+}
+</code></pre>
+<p>现在我们可以来解析一段 HTML 文本了。
+为了解析一个 node，我们首先从它的第一个字符来判断其是否是一个 element 还是一个 text node。
+在我们的简化 HTML 方言里，一个 text node 可以包含除 <code>&lt;</code> 之外的任何字符。</p>
+<pre><code class="language-rust">// Parse a single node.
+fn parse_node(&amp;mut self) -&gt; dom::Node {
+    match self.next_char() {
+        '&lt;' =&gt; self.parse_element(),
+        _   =&gt; self.parse_text()
+    }
+}
+
+// Parse a text node.
+fn parse_text(&amp;mut self) -&gt; dom::Node {
+    dom::text(self.consume_while(|c| c != '&lt;'))
+}
+</code></pre>
+<p>element 就有点复杂，它不仅包含开闭标签，而起在开闭标签间可以有任意数量的子结点：</p>
+<pre><code class="language-rust">// Parse a single element, including its open tag, contents, and closing tag.
+fn parse_element(&amp;mut self) -&gt; dom::Node {
+    // Opening tag.
+    assert!(self.consume_char() == '&lt;');
+    let tag_name = self.parse_tag_name();
+    let attrs = self.parse_attributes();
+    assert!(self.consume_char() == '&gt;');
+
+    // Contents.
+    let children = self.parse_nodes();
+
+    // Closing tag.
+    assert!(self.consume_char() == '&lt;');
+    assert!(self.consume_char() == '/');
+    assert!(self.parse_tag_name() == tag_name);
+    assert!(self.consume_char() == '&gt;');
+
+    return dom::elem(tag_name, attrs, children);
+}
+</code></pre>
+<p>简化方言语法中解析属性很容易，在碰到 <code>&gt;</code> 之前，我们重复寻找属性名，<code>=</code> 和被双引号引用的字符串：</p>
+<pre><code class="language-rust">// Parse a single name=&quot;value&quot; pair.
+fn parse_attr(&amp;mut self) -&gt; (String, String) {
+    let name = self.parse_tag_name();
+    assert!(self.consume_char() == '=');
+    let value = self.parse_attr_value();
+    return (name, value);
+}
+
+// Parse a quoted value.
+fn parse_attr_value(&amp;mut self) -&gt; String {
+    let open_quote = self.consume_char();
+    assert!(open_quote == '&quot;' || open_quote == '\'');
+    let value = self.consume_while(|c| c != open_quote);
+    assert!(self.consume_char() == open_quote);
+    return value;
+}
+
+// Parse a list of name=&quot;value&quot; pairs, separated by whitespace.
+fn parse_attributes(&amp;mut self) -&gt; dom::AttrMap {
+    let mut attributes = HashMap::new();
+    loop {
+        self.consume_whitespace();
+        if self.next_char() == '&gt;' {
+            break;
+        }
+        let (name, value) = self.parse_attr();
+        attributes.insert(name, value);
+    }
+    return attributes;
+}
+</code></pre>
+<p>解析子节点，我们循环递归调用 <code>parse_node</code> 直到关闭标签。
+<code>parse_node</code> 函数返回一个 <code>Vec</code>（Rust 语言中的一个可变长度数组类型）。</p>
+<pre><code class="language-rust">// Parse a sequence of sibling nodes.
+fn parse_nodes(&amp;mut self) -&gt; Vec&lt;dom::Node&gt; {
+    let mut nodes = Vec::new();
+    loop {
+        self.consume_whitespace();
+        if self.eof() || self.starts_with(&quot;&lt;/&quot;) {
+            break;
+        }
+        nodes.push(self.parse_node());
+    }
+    return nodes;
+}
+</code></pre>
+<p>最后，我们把这些组合在一起来解析整个 HTML 文档为一个 DOM 树。
+如果没有明确的一个根节点，我们会为它生成一个，这类似于一个真正的 HTML 解析器：</p>
+<pre><code class="language-rust">// Parse an HTML document and return the root element.
+pub fn parse(source: String) -&gt; dom::Node {
+    let mut nodes = Parser { pos: 0, input: source }.parse_nodes();
+
+    // If the document contains a root element, just return it. Otherwise, create one.
+    if nodes.len() == 1 {
+        nodes.swap_remove(0)
+    } else {
+        dom::elem(&quot;html&quot;.to_string(), HashMap::new(), nodes)
+    }
+}
+</code></pre>
+<p>整个 robinson HTML 解析器代码就这些，大概 100 多行（不包括注释和空格）。
+如果你用现成的库或解析器，代码量会更少。</p>
+<h2>练习</h2>
+<p>这是其它你可以尝试的方式，像前面一样，你可以选择或忽略它们：</p>
+<ol>
+<li>构造一个 HTML 子集的解析器生成一个节点树。（手写或利用现有库或解析器均可）</li>
+<li>修改 robinson HTML 解析器添加更多解析功能，例如注释。或者重写一个更好的，也可用现有库或解析器。</li>
+<li>写一个不符合语法规范的 HTML 文件，使你（我）的解析器报错。修改这个解析器可以解析这个错误并生成节点树。</li>
+</ol>
+<h2>捷径</h2>
+<p>如果你想忽略解析部分，你可以自己添加一些代码编写一个 DOM 树：</p>
+<pre><code class="language-rust">// &lt;html&gt;&lt;body&gt;Hello, world!&lt;/body&gt;&lt;/html&gt;
+let root = element(&quot;html&quot;);
+let body = element(&quot;body&quot;);
+root.children.push(body);
+body.children.push(text(&quot;Hello, world!&quot;));
+</code></pre>
+<p>或者你可以将现有的解析器整合到你的代码中。</p>
+<p><a href="http://limpet.net/mbrubeck/2014/08/13/toy-layout-engine-3-css.html">下一篇</a>我们将会讲解 CSS 数据结构和解析。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>14</sup></a><a href="https://fugangqiang.github.io/tags/browser.html">browser<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/engine.html">engine<sup>2</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-11-08 22:24:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

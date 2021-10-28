@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>fork 函数讲解</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>fork 函数讲解</h1>
+    <article>
+      <p>看了一篇论坛讨论，介绍的挺清晰的，转一下 :-)</p>
+<pre><code>#include &lt;unistd.h&gt;;
+#include &lt;sys/types.h&gt;;
+ 
+main ()
+{
+       pid_t pid;
+       pid=fork();
+ 
+       if (pid &lt; 0)
+            printf(&quot;error in fork!&quot;);
+       else if (pid == 0)
+            printf(&quot;i am the child process, my process id is %d\n&quot;,getpid());
+       else
+            printf(&quot;i am the parent process, my process id is %d\n&quot;,getpid());
+}
+</code></pre>
+<p>运行结果是：</p>
+<pre><code>[root@localhost c]# ./a.out
+i am the child process, my process id is 4286
+i am the parent process, my process id is 4285
+</code></pre>
+<p>问题：
+为什么两行都打印出来了，不管pid是多少，都应该只有一行才对？</p>
+<p>回答：
+要搞清楚fork的执行过程，就必须先讲清楚操作系统中的“进程(process)”概念。一个进程，主要包含三个元素：</p>
+<ul>
+<li>一个可以执行的程序；</li>
+<li>和该进程相关联的全部数据（包括变量，内存空间，缓冲区等等）；</li>
+<li>程序的执行上下文（execution context）。</li>
+</ul>
+<p>不妨简单理解为，一个进程表示的，就是一个可执行程序的一次执行过程中的一个状态。
+操作系统对进程的管理，典型的情况，是通过进程表完成的。进程表中的每 一个表项，记录的是当前操作系统中一个进程的情况。
+对于单 CPU的情况而言，每一特定时刻只有一个进程占用 CPU，但是系统中可能同时存在多个活动的（等待执行或继续执行的）进程。</p>
+<p>一个称为“程序计数器（program counter, pc）”的寄存器，指出当前占用 CPU的进程要执行的下一条指令的位置。</p>
+<p>当分给某个进程的 CPU时间已经用完，操作系统将该进程相关的寄存器的值，保存到该进程在进程表中对应的表项里面；
+把将要接替这个进程占用 CPU的那个进程的上下文，从进程表中读出，
+并更新相应的寄存器（这个过程称为“上下文交换(process context switch)”，
+实际的上下文交换需要涉及到更多的数据，那和fork无关，不再多说，
+主要要记住程序寄存器pc指出程序当前已经执行到哪里，是进程上 下文的重要内容，
+换出 CPU的进程要保存这个寄存器的值，换入CPU的进程，也要根据进程表中保存的本进程执行上下文信息，更新这个寄存器）。</p>
+<p>好了，有这些概念打底，可以说fork了。当你的程序执行到下面的语句：</p>
+<pre><code>pid=fork(); 
+</code></pre>
+<p>操作系统创建一个新的进程（子进程），并且在进程表中相应为它建立一个新的表项。
+新进程和原有进程的可执行程序是同一个程序；
+上下文和数据，绝大部分就是 原进程（父进程）的拷贝，但它们是两个相互独立的进程！
+此时程序寄存器pc，在父、子进程的上下文中都声称，这个进程目前执行到fork调用即将返回
+（此时子进程不占有CPU，子进程的pc不是真正保存在寄存器中，而是作为进程上下文保存在进程表中的对应表项内）。
+问题是怎么返回，在父子进程中就分道扬镳。</p>
+<p>父进程继续执行，操作系统对fork的实现，使这个调用在父进程中返回刚刚创建的子进程的pid（一个正整数），
+所以下面的if语句中pid&lt;0, pid==0的两个分支都不会执行。
+所以输出<code>i am the parent process...</code></p>
+<p>子进程在之后的某个时候得到调度，它的上下文被换入，占据 CPU，操作系统对fork的实现，使得子进程中fork调用返回0。
+所以在这个进程（注意这不是父进程了哦，虽然是同一个程序，但是这是同一个程序的另外一次执行，
+在操作系统中这次执行是由另外一个进程表示的，从执行的角度说和父进程相互独立）中pid=0。
+这个进程继续执行的过程中，if语句中 pid&lt;0不满足，但是pid==0是true。
+所以输出<code>i am the child process...</code></p>
+<p>我想你比较困惑的就是，为什么看上去程序中互斥的两个分支都被执行了。
+在一个程序的一次执行中，这当然是不可能的；但是你看到的两行输出是来自两个进程，这两个进程来自同一个程序的两次执行。</p>
+<p>我的天，不知道说明白了没……</p>
+<p>原帖：<a href="">http://bbs.chinaunix.net/thread-311067-1-1.html</a>.</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>29</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2011-01-23 01:44:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

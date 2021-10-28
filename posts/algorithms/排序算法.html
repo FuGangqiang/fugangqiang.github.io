@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>排序算法</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>排序算法</h1>
+    <article>
+      <p>这里记录一些各种排序算法。</p>
+<h1>选择排序</h1>
+<p>首先，找到数组中最小元素，
+其次，将它和数组的第一个元素交换位置（如果第一个元素就是最小元素那么它就和自己交换）。
+再次，在剩下的元素中找到最小元素，将它和数组中的第二个元素交换位置。
+如此往复，直到将整个数组排序。
+这种排序方法叫选择排序（select sort）。</p>
+<p>选择排序的数据移动是最少的，
+平均时间复杂度均为 O(n^2)。</p>
+<pre><code class="language-python">def select(xs):
+    for i in range(len(xs)-1):
+        min = i
+        for j in range(i+1, len(xs)):
+            if xs[min] &gt; xs[j]:
+                min = j
+        if min != i:
+            xs[i], xs[min] = xs[min], xs[i]
+</code></pre>
+<h1>插入排序</h1>
+<p>通常人们整理扑克牌的方法是一张一张的来，将每一张牌插入到其他已经有序的牌中的适当位置。
+在计算机的实现中，为了给要插入的元素腾出空间，我们需要将其余所有元素在插入之前都向右移动一位。
+这种排序方法叫插入排序（inert sort）。</p>
+<p>插入排序对于部分有序的数组十分高效，也很适合小规模数组。
+平均时间复杂度均为 O(n^2)。</p>
+<pre><code class="language-python">def insert(xs):
+    for i in range(len(xs)-1):
+        x = xs[i+1]
+        j = i
+        while j &gt;= 0 and xs[j] &gt; x:
+            xs[j+1] = xs[j]
+            j -= 1
+        xs[j+1] = x
+</code></pre>
+<h1>希尔排序</h1>
+<p>基于插入排序的以下两点性质而提出改进方法的：</p>
+<ul>
+<li>插入排序在对几乎已经排好序的数据操作时，效率高， 即可以达到线性排序的效率；</li>
+<li>但插入排序一般来说是低效的， 因为插入排序每次只能将数据移动一位。</li>
+</ul>
+<p>希尔排序通过将比较的全部元素分为几个区域来提升插入排序的性能，
+这样可以让一个元素可以一次性地朝最终位置前进一大步。
+然后算法再取越来越小的步长进行排序，
+算法的最后一步就是普通的插入排序，但是到了这步，需排序的数据几乎是已排好的了（此时插入排序较快）。</p>
+<pre><code class="language-python">def shell(xs):
+    step = len(xs) // 2
+    while step &gt; 0:
+        for i in range(step, len(xs), step):
+            x = xs[i]
+            j = i - step
+            while j &gt;= 0 and xs[j] &gt; x:
+                xs[j+step] = xs[j]
+                j -= step
+            xs[j+step] = x
+        step //= 2
+</code></pre>
+<h1>冒泡排序</h1>
+<p>重复走访要排序的数列，
+每一次走访中，要求最大的数跑到数列的末尾，
+走访中，一次比较两个元素，如果他们的顺序错误就把他们交换过来，就像冒泡一样，
+这种方法就叫冒泡排序（bubble sort）。
+平均时间复杂度均为 O(n^2)。</p>
+<pre><code class="language-python">def bubble(xs):
+    for i in range(len(xs)):
+        for j in range(len(xs)-1-i):
+            if xs[j] &gt; xs[j+1]:
+                xs[j], xs[j+1] = xs[j+1], xs[j]
+</code></pre>
+<h1>快速排序</h1>
+<p>在未排序序列中随便选一个中间值，然后把数组分成三块，
+一块是比这个中间值小的序列，
+一块是这个中间值，
+一块是比这个中间值大的序列，
+然后把其中长度大于 2 的序列再重复以上操作直到排序完毕。
+平均时间复杂度在最差情况下的代价是 n^2，平均情况下是 nlogn。</p>
+<pre><code class="language-python">def quick(xs):
+    def _partition(low, high):
+        key = xs[low]
+        while low &lt; high:
+            while low &lt; high and key &lt;= xs[high]:
+                high -= 1
+            if low &lt; high:
+                xs[low] = xs[high]
+            while low &lt; high and key &gt; xs[low]:
+                low += 1
+            if low &lt; high:
+                xs[high] = xs[low]
+        xs[low] = key
+        return low
+    def _sort(low,high):
+        if low &lt; high:
+            pos = _partition(low,high)
+            _sort(low,pos)
+            _sort(pos+1, high)
+    _sort(0, len(xs)-1)
+</code></pre>
+<h1>归并排序</h1>
+<p>把待排序序列分为若干个有序的子序列，再把有序的子序列合并为整体有序序列。
+时间复杂度为 O(n*logn)。</p>
+<pre><code class="language-python">def merge(xs):
+    def _merge(ys, left, right, middle):
+        tmp = []
+        i = left
+        j = middle + 1
+        while i &lt;= middle and j &lt;= right:
+            if ys[i] &lt; ys[j]:
+                tmp.append(ys[i])
+                i = i + 1
+            else:
+                tmp.append(ys[j])
+                j = j + 1
+        while i &lt;= middle:
+            tmp.append(ys[i])
+            i = i + 1
+        while j &lt;= right:
+            tmp.append(ys[j])
+            j = j + 1
+        ys[left:right+1] = tmp[:]
+    def _sort(zs, left, right):
+        if left &lt; right:
+            middle = (left + right) // 2
+            _sort(zs, left, middle)
+            _sort(zs, middle + 1, right)
+            _merge(zs, left, right, middle)
+    _sort(xs, 0, len(xs)-1)
+</code></pre>
+<h1>堆排序</h1>
+<p>用一个数组来表示堆，
+对于处在 i 位置的元素，2*i+1 位置上的是其左孩子，2*i+2 是其右孩子。</p>
+<ol>
+<li>通过调整数组建立最大堆；</li>
+<li>第一个元素为最大值，将第一个元素与最大堆对应数组的最后一个元素交换；</li>
+<li>最大堆长度减一，再重复以上步骤直至最大堆长度为 1。</li>
+</ol>
+<p>平均时间复杂度为O(n*logn)。</p>
+<pre><code class="language-python">def heap(xs):
+    def _max_heapify(xs, i, size):
+        left = 2*i+1
+        right = 2*i+2
+        if left &lt; size and xs[left] &gt; xs[i]:
+            largest = left
+        else:
+            largest = i
+        if right &lt; size and xs[right] &gt; xs[largest]:
+            largest = right
+        if largest != i:
+            xs[i], xs[largest] = xs[largest], xs[i]
+            _max_heapify(xs, largest, size)
+    def _build_max_heap(xs, size):
+        for i in range((size-2)//2, -1, -1):
+            _max_heapify(xs, i, size)
+    def _sort(xs, size):
+        _build_max_heap(xs, size)
+        for i in range(size-1, -1, -1):
+            xs[0], xs[i] = xs[i], xs[0]
+            _max_heapify(xs, 0, i)
+    _sort(xs, len(xs))
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/%E7%AE%97%E6%B3%95.html">算法<sup>2</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-02-13 20:14:03
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

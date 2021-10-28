@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>linux command之traceroute</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>linux command之traceroute</h1>
+    <article>
+      <p>通过 traceroute 我们可以检测 packet 从你的计算机到互联网另一端的主机是走的什么路径。
+当然每次 packet 走的路径可能会不一样，但基本上来说大部分时候所走的路径是相同的。</p>
+<p>traceroute 通过发送小的数据包到目的设备直到其返回，来测量其需要多长时间。
+一条路径上的每个设备 traceroute 默认测试 3 次，输出结果中包括每次测试的时间(ms)和设备的名称（如有的话）及其IP地址。</p>
+<p>在大多数情况下，我们会在linux主机系统下，直接执行命令行：</p>
+<pre><code>traceroute hostname
+</code></pre>
+<p>而在Windows系统下是执行tracert的命令：</p>
+<pre><code>tracert hostname
+</code></pre>
+<p>下面就是测试 www.baidu.com 的路径信息：</p>
+<pre><code>$ traceroute www..baidu.com
+traceroute to www.baidu.com (112.80.248.73), 30 hops max, 60 byte packets
+ 1  www.test.com (192.168.1.1)  5.347 ms  9.549 ms  11.191 ms
+ 2  119.35.48.1 (119.35.48.1)  76.873 ms  79.856 ms  82.085 ms
+ 3  172.31.14.21 (172.31.14.21)  34.445 ms  36.646 ms  36.643 ms
+ 4  172.22.22.121 (172.22.22.121)  37.296 ms 172.22.22.113 (172.22.22.113)  38.242 ms 172.22.22.121 (172.22.22.121)  44.192 ms
+ 5  172.22.22.122 (172.22.22.122)  41.904 ms 172.22.22.114 (172.22.22.114)  42.798 ms  44.155 ms
+ 6  210.21.4.169 (210.21.4.169)  46.436 ms 120.85.131.69 (120.85.131.69)  17.027 ms 58.248.191.41 (58.248.191.41)  13.585 ms
+ 7  120.80.173.34 (120.80.173.34)  15.777 ms 120.84.0.49 (120.84.0.49)  19.349 ms *
+ 8  112.92.0.17 (112.92.0.17)  20.410 ms  24.583 ms  25.599 ms
+ 9  * 219.158.106.86 (219.158.106.86)  53.705 ms *
+10  221.6.1.254 (221.6.1.254)  52.823 ms * 122.96.66.126 (122.96.66.126)  45.625 ms
+11  58.240.96.130 (58.240.96.130)  41.011 ms 122.96.66.118 (122.96.66.118)  41.142 ms 122.96.66.126 (122.96.66.126)  43.643 ms
+12  58.240.96.34 (58.240.96.34)  66.879 ms 10.203.194.129 (10.203.194.129)  45.342 ms 58.240.96.34 (58.240.96.34)  64.597 ms
+13  10.203.194.129 (10.203.194.129)  43.035 ms 10.203.195.130 (10.203.195.130)  40.427 ms 10.203.194.129 (10.203.194.129)  44.781 ms
+14  * * 10.203.195.130 (10.203.195.130)  48.576 ms
+15  * * *
+16  * * *
+17  * * *
+18  * * *
+19  * * *
+20  * * *
+21  * * *
+22  * * *
+23  * * *
+24  * * *
+25  * * *
+26  * * *
+27  * * *
+28  * * *
+29  * * *
+30  * * *
+</code></pre>
+<p>默认最多检测 30 跳，每一跳发送 3 次探测包，这样每一跳对应 3 个响应时间。</p>
+<p>第一跳就是你电脑所设置的网关，后面有 3 个时间，分别对应 3 次探测包，
+可以通过 <code>-p</code> 选项来指定每一跳发送探测包的数量。</p>
+<p>有时 traceroute 一台主机时，会看到有一些行是以星号表示的。
+出现这样的情况，可能是防火墙封掉了 ICMP 的返回信息，所以我们得不到什么相关的数据包返回数据。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>29</sup></a><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>17</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-03-09 14:38:06
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

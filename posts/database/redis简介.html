@@ -1,0 +1,581 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>redis简介</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>redis简介</h1>
+    <article>
+      <h2>简介</h2>
+<p>redis(REmote DIctionary Server)是一个基于内存 key-value 的 NoSQL 存储引擎，
+可以作为服务程序独立运行于自己的服务器主机上，
+为了性能，redis 将数据全部放在内存里，
+可以通过异步操作将数据写回磁盘实现数据的持久化。</p>
+<p>不同于 memcached(只提供了 string 类型)，redis 支持多种数据类型，如 string(字符串)、list(列表)、set(集合)、zset(有序集合)、hash(散列)。</p>
+<h2>Archlinux 安装</h2>
+<pre><code>pacman -S redis
+</code></pre>
+<h2>运行</h2>
+<p>运行服务端：</p>
+<p>systemd 启动：</p>
+<pre><code>sudo systemctl start redis
+</code></pre>
+<p>默认配置文件 /etc/redis.conf，如果指定自己的配置文件：</p>
+<pre><code>redis-server redis.conf
+</code></pre>
+<p>终止服务端：</p>
+<pre><code>sudo systemctl stop redis
+</code></pre>
+<p>或</p>
+<pre><code>redis-cli shutdown
+</code></pre>
+<h2>客户端</h2>
+<p>运行客户端：</p>
+<pre><code>redis-cli
+</code></pre>
+<p>默认本机端口6379，可以指定host和port：</p>
+<pre><code>redis-cli -h 127.0.0.1 -p 6379
+</code></pre>
+<p>和服务端交互：</p>
+<pre><code>127.0.0.1:637&gt; ping
+PONG
+127.0.0.1:637&gt; set foo bar
+OK
+127.0.0.1:637&gt; get foo
+&quot;bar&quot;
+</code></pre>
+<h2>redis命令</h2>
+<h3>key</h3>
+<p>只允许是字符串</p>
+<p>测试指定key是否存在：</p>
+<pre><code>exits key
+</code></pre>
+<p>删除给定key：</p>
+<pre><code>del key1 key2 ... keyn
+</code></pre>
+<p>返回给定key的value类型：</p>
+<pre><code>type key
+</code></pre>
+<p>返回匹配指定模式的所有key，glob匹配：</p>
+<pre><code>keys pattern
+</code></pre>
+<p>返回从当前数据库中随机选择的一个key：</p>
+<pre><code>randomkey
+</code></pre>
+<p>重命名key：</p>
+<pre><code>rename oldkey newkey
+</code></pre>
+<p>只有newkey不存在时才会重命名：</p>
+<pre><code>renamenx oldkey newkey
+</code></pre>
+<p>指定过期相对时间：</p>
+<pre><code>expire key seconds
+</code></pre>
+<p>指定过期绝对时间：</p>
+<pre><code>expireat key timestamp
+</code></pre>
+<p>持久存储：</p>
+<pre><code>persist key
+</code></pre>
+<p>返回设置过过期时间的key的剩余过期秒数：</p>
+<pre><code>ttl key
+</code></pre>
+<p>返回排序后的原始列表：</p>
+<pre><code>sort key [by pattern] [limit offset count] [get pattern [get pattern ...]] [asc|desc] [alpha] [store destination]
+</code></pre>
+<h3>数据库</h3>
+<p>redis是一个字典结构的存储服务器，一个字典就相当于一个独立的数据库，客户端可以指定将数据存储在哪个字典(数据库)里，
+默认支持16个数据库，编号分别是0到15，可以通过配置参数databases修改数据库个数的上限。
+客户端与redis建立连接后会自动选择0号数据库，但后续可以通过select命令自行切换，
+redis的数据库更像是命名空间，用于在不同的数据库中存储同一个应用不同类型的数据。</p>
+<p>通过索引选择数据库：</p>
+<pre><code>select db-index
+</code></pre>
+<p>返回当前数据库的key数量：</p>
+<pre><code>dbsize
+</code></pre>
+<p>将key从当前数据库移动到指定数据库：</p>
+<pre><code>move key db-index
+</code></pre>
+<p>删除当前数据库中所有key：</p>
+<pre><code>flushdb
+</code></pre>
+<p>删除所有数据库中的所有key：</p>
+<pre><code>flushall
+</code></pre>
+<h3>string类型</h3>
+<p>string类型是二进制安全的，也就是说，可以用string类型存储图片、音乐之类的。</p>
+<p>设置key对应的值为value：</p>
+<pre><code>set key value
+</code></pre>
+<p>只有当key不存在时才设置：</p>
+<pre><code>setnx key value
+</code></pre>
+<p>原子操作，同时设置expire time：</p>
+<pre><code>setex key seconds value
+</code></pre>
+<p>获取key对应的value：</p>
+<pre><code>get key
+</code></pre>
+<p>原子操作，设置key的值为value，并返回key的旧value：</p>
+<pre><code>getset key value
+</code></pre>
+<p>一次获取多个key的value：</p>
+<pre><code>mget key1 key2 ... keyn
+</code></pre>
+<p>原子操作，设置多个key的value：</p>
+<pre><code>mset key1 value1 ... keyn valuen
+</code></pre>
+<p>原子操作，只有当key不存在时才设置：</p>
+<pre><code>msetnx key1 value1 ... keyn valueN
+</code></pre>
+<p>设置在指定offset上bit的值(0或1)：</p>
+<pre><code>setbit key offset value
+</code></pre>
+<p>返回在指定offset上bit的值：</p>
+<pre><code>getbit key offset
+</code></pre>
+<p>返回字符串长度：</p>
+<pre><code>strlen key
+</code></pre>
+<p>追加字符串：</p>
+<pre><code>append key value
+</code></pre>
+<p>替换部分字符串：</p>
+<pre><code>setrange key offset value
+</code></pre>
+<p>截取子字符串：</p>
+<pre><code>getrange key start end
+</code></pre>
+<p>加1操作：</p>
+<pre><code>incr key
+</code></pre>
+<p>减1操作：</p>
+<pre><code>decr key
+</code></pre>
+<p>加指定值：</p>
+<pre><code>incrby key integer
+</code></pre>
+<p>减指定值：</p>
+<pre><code>decrby key integer
+</code></pre>
+<h3>list类型</h3>
+<p>list类型就是每个元素都是string类型的双向链表。</p>
+<p>在头部添加value：</p>
+<pre><code>lpush key value
+</code></pre>
+<p>只有当key存在时才设置：</p>
+<pre><code>lpushx key value
+</code></pre>
+<p>在尾部添加value：</p>
+<pre><code>rpush key value
+</code></pre>
+<p>只有当key存在时才设置：</p>
+<pre><code>rpushx key value
+</code></pre>
+<p>从头部删除元素：</p>
+<pre><code>lpop key
+</code></pre>
+<p>从尾部删除元素：</p>
+<pre><code>rpop key
+</code></pre>
+<p>原子操作，从source尾部删除一个元素，同时将其插入到destination头部：</p>
+<pre><code>rpoplpush source destination
+</code></pre>
+<p>与lpop相对应的阻塞命令：</p>
+<pre><code>blpop key1...keyn timeout
+</code></pre>
+<p>与rpop相对应的阻塞命令：</p>
+<pre><code>brpop key1 ... keyn timeout
+</code></pre>
+<p>与rpoplpush相对应的阻塞命令：</p>
+<pre><code>brpoplpush srckey destkey
+</code></pre>
+<p>返回key对应list的长度：</p>
+<pre><code>llen key
+</code></pre>
+<p>返回指定位置元素：</p>
+<pre><code>lindex key index
+</code></pre>
+<p>设置list中指定下标的元素值：</p>
+<pre><code>lset key index value
+</code></pre>
+<p>返回指定区间内的元素：</p>
+<pre><code>lrange key start end
+</code></pre>
+<p>截取list，保留指定区间内元素：</p>
+<pre><code>ltrim key start end
+</code></pre>
+<p>在pivot元素的前面或后面插入参数中的元素value：</p>
+<pre><code>linsert key before|after pivot value
+</code></pre>
+<p>从key对应list中删除count个和value相同的元素：</p>
+<pre><code>lrem key count value
+</code></pre>
+<h3>set类型</h3>
+<p>set类型就是每个元素都是string类型的无序集合。</p>
+<p>添加元素到set：</p>
+<pre><code>sadd key value
+</code></pre>
+<p>移除元素：</p>
+<pre><code>srem key value
+</code></pre>
+<p>删除并返回set中随机的一个元素：</p>
+<pre><code>spop key
+</code></pre>
+<p>随机取set中的一个元素，但是不删除元素：</p>
+<pre><code>srandmember key
+</code></pre>
+<p>原子操作，从srckey对应set中移除value并添加到dstkey对应set中：</p>
+<pre><code>smove srckey dstkey member
+</code></pre>
+<p>返回set中元素个数：</p>
+<pre><code>scard key
+</code></pre>
+<p>判断value是否在set中：</p>
+<pre><code>sismember key value
+</code></pre>
+<p>返回所有给定key的交集：</p>
+<pre><code>sinter key1 key2 ... keyn
+</code></pre>
+<p>同时将交集存到dstkey：</p>
+<pre><code>sinterstore dstkey key1 ... keyn
+</code></pre>
+<p>返回所有给定key的并集：</p>
+<pre><code>sunion key1 key2...keyn
+</code></pre>
+<p>同时保存并集到dstkey下：</p>
+<pre><code>sunionstore dstkey key1 ... keyn
+</code></pre>
+<p>返回所有给定key的差集：</p>
+<pre><code>sdiff key1 key2...keyn
+</code></pre>
+<p>同时保存差集到dstkey下：</p>
+<pre><code>sdiffstore dstkey key1 ... keyn
+</code></pre>
+<p>返回key对应set的所有元素：</p>
+<pre><code>smembers key
+</code></pre>
+<h3>zset类型</h3>
+<p>zset类型就是每个元素都是string类型的有序集合。</p>
+<p>添加元素到zset：</p>
+<pre><code>zadd key score value
+</code></pre>
+<p>删除元素：</p>
+<pre><code>zrem key value
+</code></pre>
+<p>增加对应value的score值：</p>
+<pre><code>zincrby key incr value
+</code></pre>
+<p>返回指定元素的排名：</p>
+<pre><code>zrank key member
+</code></pre>
+<p>按score逆序：</p>
+<pre><code>zrevrank key member
+</code></pre>
+<p>取指定区间的元素：</p>
+<pre><code>zrange key start end
+</code></pre>
+<p>按score逆序：</p>
+<pre><code>zrevrange key start end
+</code></pre>
+<p>返回score在给定区间的元素：</p>
+<pre><code>zrangebyscore key min max
+</code></pre>
+<p>逆序：</p>
+<pre><code>zrevrangebyscore key max min [withscores] [limit offset count]
+</code></pre>
+<p>返回score在给定区间的数量：</p>
+<pre><code>zcount key min max
+</code></pre>
+<p>返回元素个数：</p>
+<pre><code>zcard key
+</code></pre>
+<p>返回元素对应的score：</p>
+<pre><code>zscore key element
+</code></pre>
+<p>删除排名在给定区间的元素：</p>
+<pre><code>zremrangebyrank key min max
+</code></pre>
+<p>删除score在给定区间的元素：</p>
+<pre><code>zremrangebyscore key min max
+</code></pre>
+<h3>hash类型</h3>
+<p>hash类型就是一个string类型间的一个映射表。</p>
+<p>配置字段最多64个：</p>
+<pre><code>hash-max-zipmap-entries 64
+</code></pre>
+<p>配置value最大为512字节：</p>
+<pre><code>hash-max-zipmap-value 512
+</code></pre>
+<p>映射field-&gt;value：</p>
+<pre><code>hset key field value
+</code></pre>
+<p>只有当key或field不存在时才设置：</p>
+<pre><code>hsetnx key field value
+</code></pre>
+<p>同时映射多个field-&gt;value：</p>
+<pre><code>hmset key filed1 value1 ... filedn valuen
+</code></pre>
+<p>获取field对应value：</p>
+<pre><code>hget key field
+</code></pre>
+<p>获取全部filed对应的value：</p>
+<pre><code>hmget key filed1 ... fieldn
+</code></pre>
+<p>返回指定hash的field数量：</p>
+<pre><code>hlen key
+</code></pre>
+<p>测试field是否存在：</p>
+<pre><code>hexists key field
+</code></pre>
+<p>删除field：</p>
+<pre><code>hdel key field
+</code></pre>
+<p>将指定filed 加上指定值：</p>
+<pre><code>hincrby key field integer
+</code></pre>
+<p>返回hash的所有field：</p>
+<pre><code>hkeys key
+</code></pre>
+<p>返回hash的所有value：</p>
+<pre><code>hvals key
+</code></pre>
+<p>获取该键包含的所有field/value：</p>
+<pre><code>hgetall key
+</code></pre>
+<h3>事务</h3>
+<p>标记事务的开始：</p>
+<pre><code>multi
+</code></pre>
+<p>执行在一个事务内命令队列中的所有命令：</p>
+<pre><code>exec
+</code></pre>
+<p>回滚事务队列中的所有命令：</p>
+<pre><code>discard
+</code></pre>
+<p>指定待监控的keys：</p>
+<pre><code>watch key1 key2 ... keyn
+</code></pre>
+<p>取消当前事务中指定监控的keys：</p>
+<pre><code>unwatch
+</code></pre>
+<h3>系统</h3>
+<p>密码验证：</p>
+<pre><code>auth passwd
+</code></pre>
+<p>退出服务器：</p>
+<pre><code>shutdown [nosave] [save]
+</code></pre>
+<p>打印字符串：</p>
+<pre><code>echo message
+</code></pre>
+<p>查看服务是否运行：</p>
+<pre><code>ping
+</code></pre>
+<p>关闭当前连接：</p>
+<pre><code>quit
+</code></pre>
+<p>查看服务器状态信息：</p>
+<pre><code>info
+</code></pre>
+<p>返回当前服务器时间：</p>
+<pre><code>time
+</code></pre>
+<p>返回最近一次redis成功将数据保存到磁盘上的时间，以unix时间戳格式表示：</p>
+<pre><code>lastsave
+</code></pre>
+<p>获取连接的名称：</p>
+<pre><code>client list
+</code></pre>
+<p>关闭客户端连接：</p>
+<pre><code>client kill [ip:port] [id client-id]
+</code></pre>
+<p>获取连接到服务器的客户端连接列表：</p>
+<pre><code>client getname
+</code></pre>
+<p>设置当前连接的名称：</p>
+<pre><code>client setname connection-name
+</code></pre>
+<p>在指定时间内终止运行来自客户端的命令(单位是毫秒)：</p>
+<pre><code>client pause timeout
+</code></pre>
+<p>获取集群节点的映射数组：</p>
+<pre><code>cluster slots
+</code></pre>
+<p>实时打印出redis服务器接收到的命令，调试用：</p>
+<pre><code>monitor
+</code></pre>
+<p>获取redis命令详情数组：</p>
+<pre><code>command
+</code></pre>
+<p>获取redis命令总数：</p>
+<pre><code>command count
+</code></pre>
+<p>获取给定命令的所有键：</p>
+<pre><code>command getkeys
+</code></pre>
+<p>获取指定redis命令描述的数组：</p>
+<pre><code>command info command-name [command-name ...]
+</code></pre>
+<p>获取key的调试信息：</p>
+<pre><code>debug object key
+</code></pre>
+<p>让redis服务崩溃：</p>
+<pre><code>debug segfault
+</code></pre>
+<p>读取执行时间较长的命令：</p>
+<pre><code>slowlog subcommand [argument]
+</code></pre>
+<p>查看某个指定的服务器配置值：</p>
+<pre><code>config get parameter
+</code></pre>
+<p>在不重启服务器的情况下动态修改配置：</p>
+<pre><code>config set parameter value
+</code></pre>
+<p>对启动redis服务器时所指定的redis.conf配置文件进行改写：</p>
+<pre><code>config rewrite
+</code></pre>
+<p>reset info命令给出的统计数字：</p>
+<pre><code>config resetstat
+</code></pre>
+<p>修改slave服务器的复制设置：</p>
+<pre><code>slaveof host port
+</code></pre>
+<p>设置RDB持久化模式的保存策略：</p>
+<pre><code>save
+</code></pre>
+<p>异步执行一个AOF(AppendOnly File)文件重写操作：</p>
+<pre><code>bgrewriteaof
+</code></pre>
+<p>后台异步保存当前数据库的数据到磁盘：</p>
+<pre><code>bgsave
+</code></pre>
+<p>返回主从实例所属的角色：</p>
+<pre><code>role
+</code></pre>
+<p>用于复制功能(replication)的内部命令：</p>
+<pre><code>sync
+</code></pre>
+<h2>python客户端演示</h2>
+<p>许多编程语言都有redis的客户端，python客户端安装：</p>
+<pre><code>pip install redis
+</code></pre>
+<p>运行示例：</p>
+<pre><code>import redis
+
+r = redis.StrictRedis(host='localhost', port=6379, db=0)
+r.set('foo', 'bar')
+value = r.get('foo')
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>20</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-02-05 21:25:23
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

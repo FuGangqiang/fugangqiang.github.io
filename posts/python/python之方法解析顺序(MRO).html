@@ -1,0 +1,327 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>python之方法解析顺序(MRO)</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>python之方法解析顺序(MRO)</h1>
+    <article>
+      <p>注：本篇博客转载自：<a href="http://hanjianwei.com/2013/07/25/python-mro/">http://hanjianwei.com/</a></p>
+<p>对于支持继承的编程语言来说，
+其方法（属性）可能定义在当前类，也可能来自于基类，
+所以在方法调用时就需要对当前类和基类进行搜索以确定方法所在的位置，
+而搜索的顺序就是所谓的“方法解析顺序（Method Resolution Order，或MRO）”。
+对于只支持单继承的语言来说，MRO一般比较简单；
+而对于python这种支持多继承的语言来说，MRO就复杂很多。</p>
+<p>先看一个“菱形继承”的例子：</p>
+<img src="/media/python/class_diamond.svg" title="菱形继承">
+<p>如果<code>x</code>是<code>D</code>的一个实例，那么<code>x.show()</code>到底会调用哪个<code>show</code>方法呢？
+如果按照<code>[D, B, A, C]</code>的搜索顺序，那么<code>x.show()</code>会调用<code>A.show()</code>；
+如果按照<code>[D, B, C, A]</code>的搜索顺序，那么<code>x.show()</code>会调用<code>C.show()</code>。
+由此可见，MRO是把类的继承关系线性化的一个过程，而线性化方式决定了程序运行过程中具体会调用哪个方法。
+既然如此，那什么样的MRO才是最合理的？
+python中又是如何实现的呢？</p>
+<p>python至少有三种不同的 MRO：</p>
+<ul>
+<li>经典类(classic class)的深度遍历</li>
+<li>python2.2的新式类（new-style class）预计算</li>
+<li>python2.3的新式类的<a href="https://en.wikipedia.org/wiki/C3_linearization">C3算法</a>。它也是python3唯一支持的方式</li>
+</ul>
+<h2>经典类的MRO</h2>
+<p>python有两种类：</p>
+<ul>
+<li>经典类(classic class)</li>
+<li>新式类(new-style class)</li>
+</ul>
+<p>两者的不同之处在于新式类继承自object。
+在python2.1以前，经典类是唯一可用的形式；
+python2.2引入了新式类，使得类和内置类型更加统一；
+在python3中，新式类是唯一支持的类。</p>
+<p>经典类采用了一种很简单的MRO方法：
+从左至右的深度优先遍历。
+以上述“菱形继承”为例，其查找顺序为[D, B, A, C, A]，
+如果只保留重复类的第一个则结果为[D, B, A, C]。</p>
+<p>我们可以用inspect.getmro来获取类的MRO：</p>
+<pre><code>&gt;&gt;&gt; import inspect
+&gt;&gt;&gt; class A:
+...     def show(self):
+...         print &quot;A.show()&quot;
+...
+&gt;&gt;&gt; class B(A): pass
+&gt;&gt;&gt; class C(A):
+...     def show(self):
+...         print &quot;C.show()&quot;
+...
+&gt;&gt;&gt; class D(B, C): pass
+&gt;&gt;&gt; inspect.getmro(D)
+(&lt;class __main__.D at 0x105f0a6d0&gt;, &lt;class __main__.B at 0x105f0a600&gt;, &lt;class __main__.A at 0x105f0a668&gt;, &lt;class __main__.C at 0x105f0a738&gt;)
+&gt;&gt;&gt; x = D()
+&gt;&gt;&gt; x.show()
+A.show()
+</code></pre>
+<p>这种深度优先遍历对于简单的情况还能处理的不错，
+但是对于上述“菱形继承”其结果却不尽如人意：
+虽然<code>C.show()</code>是<code>A.show()</code>的更具体化版本（显示了更多的信息），
+但我们的<code>x.show()</code>没有调用它，而是调用了<code>A.show()</code>。
+这显然不是我们希望的结果。</p>
+<p>对于新式类而言，所有的类都继承自<code>object</code>，
+所以“菱形继承”是非常普遍的现象，因此不可能采用这种MRO方式。</p>
+<h2>python2.2的新式类MRO</h2>
+<p>为解决经典类MRO所存在的问题，python2.2针对新式类提出了一种新的MRO计算方式：
+在定义类时就计算出该类的MRO并将其作为类的属性。
+因此新式类可以直接通过<code> __mro__</code>属性获取类的MRO。</p>
+<p>python2.2的新式类MRO计算方式和经典类MRO的计算方式非常相似：
+它仍然采用从左至右的深度优先遍历，
+但是如果遍历中出现重复的类，只保留最后一个。
+重新考虑上面“菱形继承”的例子，由于新式类继承自<code>object</code>，因此类图稍有改变：</p>
+<img src="/media/python/newclass_diamond.svg" title="新式类菱形继承">
+<p>按照深度遍历，其顺序为<code>[D, B, A, object, C, A, object]</code>，
+重复类只保留最后一个，因此变为<code>[D, B, C, A, object]</code>。</p>
+<p>代码为：</p>
+<pre><code>&gt;&gt;&gt; class A(object):
+...     def show(self):
+...         print &quot;A.show()&quot;
+...
+&gt;&gt;&gt; class B(A): pass
+&gt;&gt;&gt; class C(A):
+...     def show(self):
+...         print &quot;C.show()&quot;
+...
+&gt;&gt;&gt; class D(B, C): pass
+&gt;&gt;&gt; D.__mro__
+(&lt;class '__main__.D'&gt;, &lt;class '__main__.B'&gt;, &lt;class '__main__.C'&gt;, &lt;class '__main__.A'&gt;, &lt;type 'object'&gt;)
+&gt;&gt;&gt; x = D()
+&gt;&gt;&gt; x.show()
+C.show()
+</code></pre>
+<p>这种MRO方式已经能够解决“菱形继承”问题，再让我们看个稍微复杂点的例子：</p>
+<img src="/media/python/class_conflict.svg" title="类型冲突">
+<pre><code>&gt;&gt;&gt; class X(object): pass
+&gt;&gt;&gt; class Y(object): pass
+&gt;&gt;&gt; class A(X, Y): pass
+&gt;&gt;&gt; class B(Y, X): pass
+&gt;&gt;&gt; class C(A, B): pass
+</code></pre>
+<p>首先进行深度遍历，结果为<code>[C, A, X, object, Y, object, B, Y, object, X, object]</code>；
+然后，只保留重复元素的最后一个，结果为<code>[C, A, B, Y, X, object]</code>。
+python2.2在实现该方法的时候进行了调整，使其更尊重基类中类出现的顺序，
+其实际结果为<code>[C, A, B, X, Y, object]</code>。</p>
+<p>这样的结果是否合理呢？
+首先我们看下各个类中的方法解析顺序：
+对于<code>A</code>来说，其搜索顺序为<code>[A, X, Y, object]</code>；
+对于<code>B</code>，其搜索顺序为<code>[B, Y, X, object]</code>；
+对于<code>C</code>，其搜索顺序为<code>[C, A, B, X, Y, object]</code>。</p>
+<p>我们会发现，<code>B</code>和<code>C</code>中<code>X</code>、<code>Y</code>的搜索顺序是相反的！
+也就是说，当<code>B</code>被继承时，它本身的行为竟然也发生了改变，这很容易导致不易察觉的错误。
+此外，即使把<code>C</code>搜索顺序中<code>X</code>和<code>Y</code>互换仍然不能解决问题，这时候它又会和<code>A</code>中的搜索顺序相矛盾。</p>
+<p>事实上，不但上述特殊情况会出现问题，在其它情况下也可能出问题。
+其原因在于，上述继承关系违反了线性化的<strong>单调性原则</strong>。</p>
+<p>Michele Simionato对单调性的定义为：</p>
+<blockquote>
+<p>A MRO is monotonic when the following is true:
+if C1 precedes C2 in the linearization of C,
+then C1 precedes C2 in the linearization of any subclass of C.
+Otherwise, the innocuous operation of deriving a new class could change
+the resolution order of methods, potentially introducing very subtle bugs.</p>
+</blockquote>
+<p>也就是说，子类不能改变基类的方法搜索顺序。
+在python2.2的MRO算法中并不能保证这种单调性，
+它不会阻止程序员写出上述具有二义性的继承关系，
+因此很可能成为错误的根源。</p>
+<p>除了单调性之外，python2.2及经典类的MRO也可能违反继承的<strong>局部优先级</strong>，
+具体例子可以参见<a href="http://www.python.org/download/releases/2.3/mro/#bad-method-resolution-orders">官方文档</a>。采用一种更好的 MRO 方式势在必行。</p>
+<h2>C3 MRO</h2>
+<p>为解决python2.2中MRO所存在的问题，python2.3以后采用了C3方法来确定方法解析顺序。
+你如果在python2.3以后版本里输入上述代码，就会产生一个异常，禁止创建具有二义性的继承关系：</p>
+<pre><code>&gt;&gt;&gt; class C(A, B): pass
+Traceback (most recent call last):
+  File &quot;&lt;ipython-input-8-01bae83dc806&gt;&quot;, line 1, in &lt;module&gt;
+    class C(A, B): pass
+TypeError: Error when calling the metaclass bases
+    Cannot create a consistent method resolution
+order (MRO) for bases X, Y
+</code></pre>
+<p>我们把类<code>C</code>的线性化(MRO)记为<code>L[C] = [C1, C2,…,Cn]</code>。
+其中<code>C1</code>称为<code>L[C]</code>的头，其余元素<code>[C2, ... ,Cn]</code>称为尾。
+如果一个类<code>C</code>继承自基类<code>B1、B2、...、Bn</code>，那么我们可以根据以下两步计算出<code>L[C]</code>：</p>
+<ol>
+<li><code>L[object] = [object]</code></li>
+<li><code>L[C(B1...Bn)] = [C] + merge(L[B1]...L[BN], [B1]...[Bn])</code></li>
+</ol>
+<p>这里的关键在于<code>merge</code>，其输入是一组列表，按照如下方式输出一个列表：</p>
+<ol>
+<li>检查第一个列表的头元素（如<code>L[B1]</code>的头），记作<code>H</code></li>
+<li>若<code>H</code>未出现在其它列表的尾部，则将其输出，并将其从所有列表中删除，然后回到步骤1；
+否则，取出下一个列表的头部记作<code>H</code>，继续该步骤</li>
+<li>重复上述步骤，直至列表为空或者不能再找出可以输出的元素。
+如果是前一种情况，则算法结束；如果是后一种情况，说明无法构建继承关系，python会抛出异常。</li>
+</ol>
+<p>该方法有点类似于图的<a href="http://en.wikipedia.org/wiki/Topological_sorting">拓扑排序</a>，但它同时还考虑了基类的出现顺序。我们用 C3 分析一下刚才的例子。</p>
+<p><code>object</code>，<code>X</code>，<code>Y</code>的线性化结果比较简单：</p>
+<pre><code>L[object] = [object]
+L[X] = [X, object]
+L[Y] = [Y, object]
+</code></pre>
+<p><code>A</code>的线性化计算如下：</p>
+<pre><code>L[A] = [A] + merge(L[X], L[Y], [X], [Y])
+     = [A] + merge([X, object], [Y, object], [X], [Y])
+     = [A, X] + merge([object], [Y, object], [Y])
+     = [A, X, Y] + merge([object], [object])
+     = [A, X, Y, object]
+</code></pre>
+<p>注意第3步，<code>merge([object], [Y, object], [Y])</code>中首先输出的是<code>Y</code>而不是<code>object</code>。
+这是因为<code>object</code>虽然是第一个列表的头，但是它出现在了第二个列表的尾部。
+所以我们会跳过第一个列表，去检查第二个列表的头部，也就是<code>Y</code>。
+<code>Y</code>没有出现在其它列表的尾部，所以将其输出。</p>
+<p>同理，<code>B</code>的线性化结果为：</p>
+<pre><code>L[B] = [B, Y, X, object]
+</code></pre>
+<p>最后，我们看看<code>C</code>的线性化结果：</p>
+<pre><code>L[C] = [C] + merge(L[A], L[B], [A], [B])
+     = [C] + merge([A, X, Y, object], [B, Y, X, object], [A], [B])
+     = [C, A] + merge([X, Y, object], [B, Y, X, object], [B])
+     = [C, A, B] + merge([X, Y, object], [Y, X, object])
+</code></pre>
+<p>到了最后一步我们没有办法继续计算下去了：
+<code>X</code>虽然是第一个列表的头，但是它出现在了第二个列表的尾部；
+<code>Y</code>虽然是第二个列表的头，但是它出现在了第一个列表的尾部。
+因此，我们无法构建一个没有二义性的继承关系，只能手工去解决（比如改变<code>B</code>基类中<code>X</code>、<code>Y</code> 的顺序）。</p>
+<p>我们再看一个没有冲突的例子：</p>
+<img src="/media/python/c3_example.svg" title="C3例子">
+<p>计算过程如下：</p>
+<pre><code>L[object] = [object]
+L[D] = [D, object]
+L[E] = [E, object]
+L[F] = [F, object]
+L[B] = [B, D, E, object]
+L[C] = [C, D, F, object]
+L[A] = [A] + merge(L[B], L[C], [B], [C])
+     = [A] + merge([B, D, E, object], [C, D, F, object], [B], [C])
+     = [A, B] + merge([D, E, object], [C, D, F, object], [C])
+     = [A, B, C] + merge([D, E, object], [D, F, object])
+     = [A, B, C, D] + merge([E, object], [F, object])
+     = [A, B, C, D, E] + merge([object], [F, object])
+     = [A, B, C, D, E, F] + merge([object], [object])
+     = [A, B, C, D, E, F, object]
+</code></pre>
+<p>当然，可以用代码验证类的MRO，上面的例子可以写作：</p>
+<pre><code>&gt;&gt;&gt; class D(object): pass
+&gt;&gt;&gt; class E(object): pass
+&gt;&gt;&gt; class F(object): pass
+&gt;&gt;&gt; class B(D, E): pass
+&gt;&gt;&gt; class C(D, F): pass
+&gt;&gt;&gt; class A(B, C): pass
+&gt;&gt;&gt; A.__mro__
+(&lt;class '__main__.A'&gt;, &lt;class '__main__.B'&gt;, &lt;class '__main__.C'&gt;, &lt;class '__main__.D'&gt;, &lt;class '__main__.E'&gt;, &lt;class '__main__.F'&gt;, &lt;type 'object'&gt;)
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/python.html">python<sup>14</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-07-26 20:57:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

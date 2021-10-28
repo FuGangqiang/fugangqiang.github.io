@@ -1,0 +1,294 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>redis源码阅读之基本数据结构</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>redis源码阅读之基本数据结构</h1>
+    <article>
+      <h2>基本数据结构</h2>
+<h3>动态字符串(dynamic string)</h3>
+<ul>
+<li>sds.h</li>
+<li>sds.c</li>
+</ul>
+<p>存储在 heap 上，只是比 c 中的字符串类型多了一个结构头，
+在结构头里有 len 和 size 属性，实现了二进制安全。</p>
+<pre><code class="language-c">struct sdshdr {
+    unsigned int len;
+    unsigned int free;
+    char buf[];
+};
+</code></pre>
+<h3>双向链表(doubly linked list)</h3>
+<ul>
+<li>adlist.h</li>
+<li>adlist.c</li>
+</ul>
+<p>与教科书上面讲的几乎没什么差别：</p>
+<pre><code class="language-c">typedef struct listNode {
+    struct listNode *prev;
+    struct listNode *next;
+    void *value;
+} listNode;
+
+typedef struct list {
+    listNode *head;
+    listNode *tail;
+    void *(*dup)(void *ptr);
+    void (*free)(void *ptr);
+    int (*match)(void *ptr, void *key);
+    unsigned long len;
+} list;
+</code></pre>
+<h3>字典(Hash Table)</h3>
+<ul>
+<li>dict.h</li>
+<li>dict.c</li>
+</ul>
+<p>利用链地址法来解决字典 hash 碰撞。</p>
+<p>redis 中的 dict 的 rehash 是渐进式，
+也就是说 rehash 过程不是一下子就完成的，
+起初只是将 dict 状态修改为正处于 rehashing 中，
+而是在之后的每一次 dict 访问时，都会转移几个 key-value 对，
+直到 rehash 完毕，再次修改 dict 状态为已 rehashing 完毕。</p>
+<pre><code class="language-c">typedef struct dictEntry {
+    void *key;
+    union {
+        void *val;
+        uint64_t u64;
+        int64_t s64;
+        double d;
+    } v;
+    struct dictEntry *next;
+} dictEntry;
+
+typedef struct dictht {
+    dictEntry **table;
+    unsigned long size;
+    unsigned long sizemask;
+    unsigned long used;
+} dictht;
+
+typedef struct dict {
+    dictType *type;
+    void *privdata;
+    dictht ht[2];
+    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    int iterators;
+} dict;
+</code></pre>
+<h3>跳跃表</h3>
+<ul>
+<li>redis.h</li>
+<li>t_zset.c</li>
+</ul>
+<p>跳跃表其实就是有序链表的一个变种，查找、删除和添加元素的速度和平衡二叉树相近，但实现起来更直观一些。</p>
+<pre><code class="language-c">typedef struct zskiplistNode {
+    robj *obj;
+    double score;
+    struct zskiplistNode *backward;
+    struct zskiplistLevel {
+        struct zskiplistNode *forward;
+        unsigned int span;
+    } level[];
+} zskiplistNode;
+
+typedef struct zskiplist {
+    struct zskiplistNode *header, *tail;
+    unsigned long length;
+    int level;
+} zskiplist;
+</code></pre>
+<h3>整数集合</h3>
+<ul>
+<li>intset.h</li>
+<li>intset.c</li>
+</ul>
+<p>就是用一个数组存放有序整数的集合，根据存放整数的大小来确定集合中各个整数所占用的字节数。</p>
+<pre><code class="language-c">typedef struct intset {
+    uint32_t encoding;
+    uint32_t length;
+    int8_t contents[];
+} intset;
+</code></pre>
+<h3>压缩列表</h3>
+<ul>
+<li>ziplist.h</li>
+<li>ziplist.c</li>
+</ul>
+<p>压缩列表也是一个列表，列表根据各元素的性质来决定使用何种方式、大小来存放元素，
+其实就是一段连续内存，其结构如下：</p>
+<pre><code>&lt;zlbytes&gt;&lt;zltail&gt;&lt;zllen&gt;&lt;entry&gt;&lt;entry&gt;&lt;zlend&gt;
+</code></pre>
+<p>entry 可以存放的类型有：</p>
+<ul>
+<li>4bit 无符号数</li>
+<li>1byte 符号整数</li>
+<li>3byte 有符号整数</li>
+<li>int16_t 整数</li>
+<li>int32_t 整数</li>
+<li>int64_t 整数</li>
+<li>长度小于等于 63(2^6 - 1) 字节的字符数组</li>
+<li>长度小于等于 16383(2^14 - 1) 字节的字符数组</li>
+<li>长度小于等于 4294967295(2^32 - 1) 字节的字符数组</li>
+</ul>
+<p>ziplist 中的 entry 的定义如下：</p>
+<pre><code class="language-c">typedef struct zlentry {
+    unsigned int prevrawlensize, prevrawlen;
+    unsigned int lensize, len;
+    unsigned int headersize;
+    unsigned char encoding;
+    unsigned char *p;
+} zlentry;
+</code></pre>
+<h2>基本类型</h2>
+<p>redis 支持的基本类型及它们在内存中的表现形式：</p>
+<ul>
+<li>
+<p>string 类型　</p>
+<ul>
+<li>long</li>
+<li>动态字符串</li>
+</ul>
+</li>
+<li>
+<p>list 类型</p>
+<ul>
+<li>压缩列表</li>
+<li>双向类表</li>
+</ul>
+</li>
+<li>
+<p>set 类型</p>
+<ul>
+<li>整数集合</li>
+<li>字典</li>
+</ul>
+</li>
+<li>
+<p>zset 类型</p>
+<ul>
+<li>跳跃表</li>
+<li>双向链表</li>
+</ul>
+</li>
+<li>
+<p>hash 类型</p>
+<ul>
+<li>压缩列表</li>
+<li>字典</li>
+</ul>
+</li>
+</ul>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>3</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-03-16 13:27:08
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>linux command之bash</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>linux command之bash</h1>
+    <article>
+      <h2>shell</h2>
+<p>一般来讲，shell(外壳)就是用户和 UNIX 操作系统间的用户界面，用户通过它输入一些指令，进而将指令翻译为操作系统提供服务的调用，产生的结果再通过它展现给用户。</p>
+<p>常见的有两类：</p>
+<ul>
+<li>CLI: command line interfaces，命令提示符界面</li>
+<li>GUI: graphical user interfaces，图形用户界面</li>
+</ul>
+<h2>bash</h2>
+<p>bash 是一种基于字符(character-based)的一种 CLI shell，Bourne-Again SHell 的缩写。</p>
+<p>bash 完全兼容 sh，并且从 ksh 和 csh 中引入了一些有用的功能，Linux 操作系统首选 Shell。</p>
+<h2>示例</h2>
+<p>让我们来开一下它是怎么工作的，示例如下：</p>
+<pre><code>sort -n phonelist &gt; phonelist.sorted
+</code></pre>
+<p>以上命令的作用是：将 phonelist 文件中所有行按照数字排序后的结果写到文件 phonelist.sorted。
+那么，bash 是如何处理这条命令的呢？</p>
+<ol>
+<li>把命令拆分成以子串：<code>sort</code>、<code>-n</code>、<code>phonelist</code>、<code>&gt;</code> 和 <code>phonelist.sorted</code>。</li>
+<li>判断子串的意义：<code>sort</code> 是一个命令，<code>-n</code> 和 <code>phonelist</code> 是参数，<code>&gt;</code> 和 <code>phonelist.sorted</code> 是 I/O 指令。</li>
+<li>通过 <code>&gt;</code> 和 <code>phonelist.sorted</code> 设置 I/O（输出重定向为当前文件夹下的 <code>phonelist.sorted</code> 文件）。</li>
+<li>找到 <code>sort</code> 命令，把参数 <code>-n</code> 和 <code>phonelist</code> 传给它，并执行它。</li>
+</ol>
+<p>当然，上面的每一步还可以在细分为许多步骤，这里只是大致简单的看一下 bash 解释命令的方式。</p>
+<h2>命令优先级</h2>
+<p>bash 有多种命令，通过优先级来解释它们:</p>
+<ol>
+<li>别名(aliases)</li>
+<li>关键字(keywords): function、if、for 等等</li>
+<li>函数(function)</li>
+<li>内置命令(built-ins)：cd、type 等等</li>
+<li>脚本(scripts)和可执行程序(executable)</li>
+</ol>
+<h2>字符串操作符</h2>
+<p>bash 有多种字符串操作符：</p>
+<ol>
+<li><code>${var:-word}</code>: 如果 var 存在且不是 null，返回 var 的值，否则返回 word。</li>
+<li><code>${var:=word}</code>: 如果 var 存在且不是 null，返回 var 的值，否则先将 var 的值设为 word,然后返回它的值。</li>
+<li><code>${var:?message}</code>: 如果 var 存在且不是 null，返回返回 var 的值，否则打印出 var: message 且终止程序。</li>
+<li><code>${var:+word}</code>: 如果 var 存在且不是 null，返回 word，否则返回 null。</li>
+<li><code>${var:offset:length}</code>：截取 var 字符串</li>
+</ol>
+<p>注：
+前四种还有另一种形式，就是没有那个<code>:</code>，
+它们的作用与原来的相似，只是去掉条件中的<code>且不是 null</code>，其他都不变。</p>
+<h2>模式匹配</h2>
+<p>bash 有多种模式匹配：</p>
+<ol>
+<li><code>${var#pattern}</code>：如果 pattern 匹配(最小匹配) var 的开头，则返回剩余未匹配部分。</li>
+<li><code>${var##pattern}</code>：如果 pattern 匹配(最大匹配)var 的开头，则返回剩余未匹配部分。</li>
+<li><code>${var%pattern}</code>：如果 pattern 匹配(最小匹配)var 的尾部，则返回剩余未匹配部分。</li>
+<li><code>${var%%pattern}</code>：如果 pattern 匹配(最大匹配)var 的尾部，则返回剩余未匹配部分。</li>
+<li><code>${var/pattern/string}</code>：将 pattern 与 var 匹配(最大匹配)的替换为 string，但只替换一次。</li>
+<li><code>${var//pattern/string}</code>：将 pattern 与 var 匹配(最大匹配)的替换为 string，但所有匹配都替换。</li>
+</ol>
+<p>其中的 <code>pattern</code> 可以为形为</p>
+<ul>
+<li><code>*(patternlist)</code></li>
+<li><code>+(patternlist)</code></li>
+<li><code>?(patternlist)</code></li>
+<li><code>@(patternlist)</code></li>
+<li><code>!(patternlist)</code></li>
+</ul>
+<p>而 <code>patternlist</code> 形为：<code>pat1|pat2|pat3</code>。</p>
+<p>示例：</p>
+<pre><code>path=/home/cam/book/long.file.pcx
+echo ${path##/*/}       #                long.file.pcx
+echo ${path#/*/}        #       cam/book/long.file.pcx
+echo ${path}            # /home/cam/book/long.file.pcx
+echo ${path%.*}         # /home/cam/book/long.file
+echo ${path%%.*}        # /home/cam/book/long
+
+echo ${path%.pcx}.jpg   # /home/cam/book/long.file.jpg
+</code></pre>
+<h2>控制结构</h2>
+<ul>
+<li>if/else</li>
+</ul>
+<pre><code>if condition
+then
+    commands
+[elif condition
+then
+    commands]
+[else
+    commands]
+fi
+</code></pre>
+<ul>
+<li>for</li>
+</ul>
+<pre><code>for name [in list]
+do
+    commands that can use $name
+done
+
+for (( expr1 ; expr2 ; expr3 ))
+do
+    commands
+done
+
+for i in 1 2 3 4 5
+do
+   echo $i
+done
+
+
+for i in {1..5}
+do
+   echo $i
+done
+
+
+for i in {0..10..2}
+do
+    echo $i
+done
+
+
+for i in $(seq 0 10 2)
+do
+   echo $i
+done
+
+
+for (( c=1; c&lt;=5; c++ ))
+do
+   echo $i
+done
+</code></pre>
+<ul>
+<li>case</li>
+</ul>
+<pre><code>case expression in
+    pattern1 )
+        commands
+        ;;
+    pattern2 )
+        commands
+        ;;
+    ...
+esac
+</code></pre>
+<ul>
+<li>select</li>
+</ul>
+<pre><code>select name [in list]
+do
+    commands that can use $name
+done
+</code></pre>
+<ul>
+<li>while</li>
+</ul>
+<pre><code>while condition
+do
+    commands
+done
+</code></pre>
+<ul>
+<li>until</li>
+</ul>
+<pre><code>until condition
+do
+    commands
+done
+</code></pre>
+<h2>函数</h2>
+<p>下面两种形式一样：</p>
+<pre><code>fn1() {
+    commands
+}
+
+function fn2 {
+    commands
+}
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>29</sup></a><a href="https://fugangqiang.github.io/tags/CLI.html">CLI<sup>17</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2014-03-15 13:07:04
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

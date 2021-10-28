@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>web性能之HTTP协议</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>web性能之HTTP协议</h1>
+    <article>
+      <h2>HTTP 协议历史</h2>
+<h4>HTTP 0.9</h4>
+<p>1991 年，Tim Berners-Lee 以简洁为出发点设计最初的 HTTP 协议，此时版本号被定为 0.9。</p>
+<p>请求只有一行，包括 GET 方法和要请求的文档的路径。
+响应是一个超文本文档，没有首部，也没有其他元数据，只有 HTML。
+这实在是简单得不能再简单了！</p>
+<h4>HTTP 1.0</h4>
+<p>随着人们对新兴 Web 的需求越来越多，以及它们在公共 Web 上的应用迅速爆发，HTTP 0.9 的很多根本性不足便暴露出来。
+人们需要一种协议，它不仅能访问超文本文档，还能提供有关请求和响应的各种元数据，而且要支持内容协商，等等。
+相应地，新兴的 Web 开发者社区为满足这些需求，推出了大量实验性的 HTTP 服务器和客户端实现，基本上遵循实现、部署、推广采用的流程。</p>
+<p>就在这些实验性开发的基础上，出现了一套最佳实践和共用模式。
+于是，1996 年，HTTP 工作组发布了 RFC 1945，解释说明了当时很多 HTTP 1.0 实现的“公共用法”。
+不过，这个 RFC 只是参考性的。HTTP 1.0 并不是一个正式的规范或互联网标准！</p>
+<p>请求和响应首部都使用 ASCII 编码，但响应对象本身可以是任何类型：HTML 文件、纯文本文件、图片，或其他内容类型。
+这样，HTTP 迅速发展为超媒体传输协议。</p>
+<p>除了媒体类型协商，RFC 还解释了很多已经被实现的其他功能：内容编码、字符集支持、多部分类型、认证、缓存、代理行为、日期格式，等等。</p>
+<h4>HTTP 1.1</h4>
+<p>就在 HTTP 1.0 发布大约 6 个月之后，也就是 1997 年 1 月，正式的 HTTP 1.1 标准的 RFC 2068 也发布了。
+又过了两年半，即到了 1999 年 6 月 RFC 2616 发布，又在标准中集合了很多改进和更新。</p>
+<p>HTTP 1.1 标准厘清了之前版本中很多有歧义的地方，而且还加入了很多重要的性能优化：
+持久连接、分块编码传输、字节范围请求、增强的缓存机制、传输编码及请求管道。</p>
+<p>此外，HTTP 1.1 协议添加了内容、编码、字符集，甚至语言的协商机制，
+还添加了传输编码、缓存指令、客户端 cookie 等十几个可以每次请求都协商的字段。</p>
+<h4>HTTP 2.0</h4>
+<p>HTTP 的简单本质是它最初得以采用和后来快速发展的关键，
+然而，今天，用户和 Web 开发者都迫切想要通过 HTTP 1.1 达到一种几近实时的响应速度和协议性能，
+而要满足这个需求，仅靠在原协议基础上修修补补是不够的，因此，HTTP 工作组于 2012 年宣布要开发 HTTP 2.0，
+当然，它的工作最初是基于 Google 2009 年中发布的 SPDY 实验性协议。</p>
+<p>经过 2012 年到 2014 年间的草案编辑和试验，最终于 2015 年 5 月发布了 HTTP 2.0 标准 RFC 7540。</p>
+<p>HTTP 2.0 的目的就是通过支持请求与响应的多路复用来减少延迟，
+通过压缩 HTTP 首部字段将协议开销降至最低，
+同时增加对请求优先级和服务器端推送的支持。
+为达成这些目标，HTTP 2.0 还给我们带来大量其他协议层面的辅助实现，比如新的流量控制、错误处理和更新机制。</p>
+<h2>优化 HTTP</h2>
+<p>当然，升级现有服务器和客户端以充分利用 HTTP 的最新特性以及性能优化是最简单的方法，
+但是，现有的基础设施大多还是针对 HTTP 1.1 的，全部升级到 HTTP 2.0 并不是一时就可以完成的，
+所以优化现有 HTTP 还需针对 HTTP 的版本。</p>
+<p>但是优化的总体原则是不变的：</p>
+<ul>
+<li>减少 DNS 查找</li>
+<li>重用 TCP 连接</li>
+<li>减少 HTTP 重定向</li>
+<li>使用 CDN（内容分发网络）</li>
+<li>去掉不必要的资源</li>
+<li>在客户端缓存资源</li>
+<li>传输压缩过的内容</li>
+<li>消除不必要的请求开销</li>
+<li>并行处理请求和响应</li>
+<li>针对协议版本采取优化措施</li>
+</ul>
+<h4>HTTP 1.1 优化</h4>
+<ul>
+<li>利用 HTTP 管道</li>
+<li>采用域名分区</li>
+<li>打包资源以减少 HTTP 请求</li>
+<li>嵌入小资源</li>
+</ul>
+<p>但是这些优化手段各有利弊，如果某些优化措施过于激进或使用不当，反倒会伤害性能。</p>
+<h4>HTTP 2.0 优化</h4>
+<ul>
+<li>服务器的初始 cwnd 应该是 10 个分组</li>
+<li>服务器应该通过 ALPN（针对 SPDY 则为 NPN）协商支持 TLS</li>
+<li>服务器应该支持 TLS 恢复以最小化握手延迟</li>
+<li>每个来源使用一个连接</li>
+<li>去掉不必要的文件合并和图片拼接</li>
+<li>利用服务器推送（比如嵌入资源）</li>
+<li>不要采用采用域名分区</li>
+</ul>
+<p>注：本文为《web 性能权威指南》笔记</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-10-01 17:37:55
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

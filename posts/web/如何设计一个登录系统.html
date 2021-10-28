@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>如何设计一个登录系统</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>如何设计一个登录系统</h1>
+    <article>
+      <p>很多 Web 应用都会有用户登录系统，基本流程如下：</p>
+<ul>
+<li>用户在登录界面输入“用户名”和“密码”，点击“登录”发送登陆请求</li>
+<li>服务端接收到登录请求并验证用户</li>
+<li>服务端返回用户凭证</li>
+<li>客户端用返回的用户凭证调用服务端相应接口</li>
+</ul>
+<h2>登录安全标准</h2>
+<p>上面的每一步都可能存在安全隐患，如果设计不当，很容易将用户的密码泄露出去。
+要想一个登录系统安全，至少要保证以下几个方面：</p>
+<h4>通信安全</h4>
+<p>由于 Web 应用基于 HTTP 协议，而其明文传输的特性，很容易使客户端和服务端通信时被窃听，从而导致用户信息泄露，
+所以客户端和服务端通信时需要加密，一般才用 HTTPS，服务端应搭建 HTTPS 服务器。</p>
+<h4>原始密码安全</h4>
+<p>由于用户的密码信息保存在服务器端，所以服务端的系统开发人员和运维人员是可以得到这些信息的，
+而用户原始密码的泄露大多是因为服务端明文保存密码的原因造成的，
+所以服务端需要对用户的密码加密保存。</p>
+<p>只有服务端保存用户密码时加密就可以了吗？
+也不行，客户端也应该将密码进行加密，
+因为，服务端接收到登录请求时，开发人员是可以获取用户的密码信息的。</p>
+<h4>不可逆哈希加密</h4>
+<p>对密码加密应采用不可逆哈希加密，在哈希算法中，首选是 SHA2 系列，可以对密码进行多次哈希加密，
+客户端可以采用如下加密方法：</p>
+<pre><code>sha256(
+  sha265(sha265(password)) + sha265(username)
+)
+</code></pre>
+<p>这样，不仅可以增加密文反推原文的难度，还加入用户名信息，即使密码相同，不同用户的密文也完全不一样。</p>
+<h4>加密混入随机数据（盐）</h4>
+<p>由于对同一字符串进行哈希的结果是恒定的，所以知道了算法和密文，理论上是可以反推出密码的，反推的难度取决于用户原始密码的复杂度。
+那如何才能够让反推的难度指数级增大呢？
+答案是在原始密码密文的基础之上，再加入一个随机字符串，从而达到让用户的密码更复杂的效果。
+这个随机字符串，便是盐。</p>
+<p>服务端保存密码时可以采用如下加密：</p>
+<pre><code>sha256(
+  sha256(username + sha256(password + salt1)) + salt2 + sha256(username + salt3)
+)
+</code></pre>
+<p>注意，盐的保存非常关键，务必将它与用户信息分开存放。</p>
+<h4>服务端经常更新盐和密文</h4>
+<p>前面用户的密码已经在客户端和服务端都加密了，基本已经很安全了，
+但是我们还可以更安全，那就是经常变更盐，让用户信息表中的密文字段值也经常变化。</p>
+<p>由于服务端是不存储客户端哈希密文的，所以只能在用户登录的时候才能更改盐和密文。</p>
+<h2>登录身份验证</h2>
+<p>目前，实现身份验证的方法，主要有两个大类：</p>
+<h4>Cookies</h4>
+<p>传统的浏览器网页，都是使用 Cookies 来验证身份，
+实际上，浏览器端的应用层里，基本不用去管身份验证的事情，
+Cookies 的设置，由服务器端完成，在提交请求的时候，由浏览器自动附加对应的 Cookies 信息，
+所以在 JavaScript 代码中，不需要为此编写专门的代码。
+但每次请求的时候，都会带上全部的 Cookies 数据，</p>
+<p>随着 CDN 的应用，移动端的逐渐兴起，Cookies 越来越不能满足复杂的、多域名下的身份验证需求。</p>
+<h4>密钥</h4>
+<p>当浏览器在请求服务器的时候，将密钥以特定的方式附加在请求中，
+比如放在请求的头部（ headers ）。
+为此，需要编写专门的客户端代码来管理密钥。</p>
+<p>浏览器端密钥的保存也有以下几种方法：</p>
+<ul>
+<li><code>Cookies</code>：不推荐使用，有最大 4k 的限制</li>
+<li><code>sessionStorage</code>：sessionStorage 在 tab 页间是不能共享的</li>
+<li><code>localStorage</code>: 推荐方式，除非清理浏览器数据，否则 localStorage 存储的数据会一直存在</li>
+</ul>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a><a href="https://fugangqiang.github.io/tags/%E5%AE%89%E5%85%A8.html">安全<sup>1</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-09-09 17:18:40
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

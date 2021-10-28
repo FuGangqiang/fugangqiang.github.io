@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>memcached简介</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>memcached简介</h1>
+    <article>
+      <p>许多 Web 应用都将数据保存到 RDBMS 中，应用服务器从中读取数据并在浏览器中显示。
+但随着数据量的增大、访问的集中，就会出现 RDBMS 的负担加重、数据库响应恶化、网站显示延迟等重大影响。
+这时的解决办法之一就是利用内存来缓存数据库的查询结果，此后再次访问相同的数据，直接从内存读取，
+而不再查询数据库，进而减轻数据库的负担。</p>
+<p>memcached 就是为解决此种问题而产生的。</p>
+<h2>简介</h2>
+<p>memcached 是高性能的分布式内存缓存服务器，
+通过缓存数据库查询结果，减少数据库访问次数，以提高动态应用的速度、提高可扩展性。</p>
+<p>为了提高性能，memcached 将数据都存储在内存存储空间中，基于一个存储键/值对的 hashmap。
+由于数据仅存在于内存中，因此重启 memcached、重启操作系统都会导致全部数据消失。
+另外，内容容量达到指定值之后，就基于 LRU(Least Recently Used)算法自动删除不使用的缓存。
+memcached 本身是为缓存而设计的服务器，因此并没有过多考虑数据的永久性问题。</p>
+<p>memcached 作为高速运行的分布式缓存服务器，具有以下的特点：</p>
+<ul>
+<li>协议简单</li>
+<li>基于 libevent 的事件处理</li>
+<li>内置内存存储方式</li>
+<li>memcached 不互相通信的分布式</li>
+</ul>
+<h2>Archlinxu 安装</h2>
+<pre><code>pacman -S memcached
+</code></pre>
+<h2>运行</h2>
+<pre><code>memcached -d -p 1234 -m 1024
+</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>-d</code>：以守护进程运行 memcached</li>
+<li><code>-p</code>：指定 memcached 服务器监听端口号默认为 11211</li>
+<li><code>-m</code>：设置 memcached 可以使用内存的大小，单位为 M</li>
+</ul>
+<h2>客户端</h2>
+<p>memcached 使用简单的文本行协议，
+因此可以用 telnet 与 memcached 服务器进行交互，
+例如访问本机上监听 1234 端口的 memcached 服务器：</p>
+<pre><code>telnet localhost 1234
+</code></pre>
+<p>这样就可以键入 memcached 命令与之交互了。</p>
+<p>memcached 服务端是用 ANSI C 写成的，
+但客户端可以用任何语言利用 socket 来与之通信。</p>
+<p>例如：python3 中的 python3-memcached 模块就是利用其 socket 模块写成的。</p>
+<h2>python客户端安装</h2>
+<pre><code>pip install python3-memcached
+</code></pre>
+<h2>命令</h2>
+<p>memcached 协议提供的命令很简单：</p>
+<ul>
+<li>set：无论如何都进行存储</li>
+</ul>
+<pre><code>set key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>add：只有数据不存在时才进行添加</li>
+</ul>
+<pre><code>add key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>replace：只有数据存在时才进行替换</li>
+</ul>
+<pre><code>replace key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>append：当数据存在时，添加数据至其首</li>
+</ul>
+<pre><code>append key flags exptime bytes [noreply]
+value
+</code></pre>
+<ul>
+<li>prepend：当数据存在时，添加数据至其尾</li>
+</ul>
+<pre><code class="language-prepend">value
+</code></pre>
+<ul>
+<li>cas：check and set之意，只有unique_cas_token与gets所获取的参数匹配才能存储</li>
+</ul>
+<pre><code>cas key flags exptime bytes unique_cas_token [noreply]
+value
+</code></pre>
+<ul>
+<li>get：读取</li>
+</ul>
+<pre><code>get key1 [key2 key3]
+</code></pre>
+<ul>
+<li>gets：读取</li>
+</ul>
+<pre><code>gets key1 [key2 key3]
+</code></pre>
+<ul>
+<li>delete：删除</li>
+</ul>
+<pre><code>delete key [noreply]
+</code></pre>
+<ul>
+<li>incr：当值为数字时，增加其值</li>
+</ul>
+<pre><code>incr key increment_value
+</code></pre>
+<ul>
+<li>decr：当值为数字时，减少其值</li>
+</ul>
+<pre><code>decr key decrement_value
+</code></pre>
+<ul>
+<li>
+<p>stats：统计信息</p>
+</li>
+<li>
+<p>flush_all：清除</p>
+</li>
+</ul>
+<pre><code>flush_all [time] [noreply]
+</code></pre>
+<h2>python 客户端示例</h2>
+<p>摘自python3-memcached源码：</p>
+<pre><code class="language-python">import memcache
+mc = memcache.Client(['127.0.0.1:11211'], debug=0)
+
+mc.set(&quot;some_key&quot;, &quot;Some value&quot;)
+value = mc.get(&quot;some_key&quot;)
+
+mc.set(&quot;another_key&quot;, 3)
+mc.delete(&quot;another_key&quot;)
+
+mc.set(&quot;key&quot;, &quot;1&quot;)   # note that the key used for incr/decr must be a string.
+mc.incr(&quot;key&quot;)
+mc.decr(&quot;key&quot;)
+</code></pre>
+<p>一般用下面的方法来缓存数据库：</p>
+<pre><code class="language-python">key = derive_key(obj)
+obj = mc.get(key)
+if not obj:
+    obj = backend_api.get(...)
+    mc.set(key, obj)
+
+# we now have obj, and future passes through this code
+# will use the object from the cache.
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/memcached.html">memcached<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/%E7%BC%93%E5%AD%98.html">缓存<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>20</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-02-04 22:17:24
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

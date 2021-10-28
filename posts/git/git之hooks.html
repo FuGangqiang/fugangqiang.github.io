@@ -1,0 +1,322 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>git之hooks</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>git之hooks</h1>
+    <article>
+      <p>当你用 Git 管理代码时，
+是不是每次提交 commit 前都会重复性的做同一件事情（打开终端，运行各个相关测试命令）?</p>
+<p>是不是每次 push 代码到服务器后也重复性的做同一件事情（打开终端，更新代码到服务器，然后 ssh 进服务器，重启相关后台进程）?</p>
+<p>......</p>
+<p>而 Git 的 hooks 功能就可以帮你自动运行这些手动重复、冗烦的命令。</p>
+<h2>Hooks 是什么？</h2>
+<p>Git 具有在特定事件发生前后执行特定脚本的功能（类似于监听事件、触发器），
+Git Hooks 就是那些在 Git 特定事件（如 commit、push、receive 等）前后被触发运行的脚本（shell、python、ruby 等脚本均可）。</p>
+<p>这些Hooks脚本位于 <code>.git/hooks/</code> 目录(本地和远程 repo 都有)下，
+可以在这个目录下自由定制各个 Hooks 脚本，
+而当触发一些 Git 行为时，相应地 Hooks 就会被调用执行。</p>
+<h2>Hooks的分类</h2>
+<p>Hooks 脚本按照运行环境可以分为：</p>
+<ul>
+<li>本地 Hooks，触发事件如 commit、merge 等。</li>
+<li>服务端 Hooks，触发事件如 receive 等。</li>
+</ul>
+<p>按照 Hooks 脚本对应的 Git 特定事件可以分为：</p>
+<ul>
+<li>
+<p>applypatch-msg</p>
+<p>本地 Hooks，
+由 <code>git am</code> 触发，
+而该脚本最先被运行。</p>
+</li>
+<li>
+<p>pre-applypatch</p>
+<p>本地 Hooks，
+由 <code>git am</code> 触发，
+会在补丁应用后但尚未提交前运行。</p>
+</li>
+<li>
+<p>post-applypatch</p>
+<p>本地 Hooks，
+由 <code>git am</code> 触发，
+会在补丁应用并提交之后运行。</p>
+</li>
+<li>
+<p>pre-commit</p>
+<p>本地 Hooks，
+由 <code>git commit</code> 触发，
+在提交前运行，若脚本运行失败（返回非零值），git 提交就会被终止，这个脚本可以通过传递 --no-verify 参数而被禁用。</p>
+</li>
+<li>
+<p>prepare-commit-msg</p>
+<p>本地 Hooks，
+由 <code>git commit</code> 触发，
+在默认的提交信息准备完成后但编辑器尚未启动之前运行，若脚本运行失败（返回非零值），git 提交就会被终止，这个脚本不会因为 --no-verify参数而被禁用。</p>
+</li>
+<li>
+<p>commit-msg</p>
+<p>本地 Hooks，
+由 <code>git commit</code> 触发，
+用来验证提交说明的规范性，若脚本运行失败（返回非零值），git 提交就会被终止，这个脚本可以通过传递 --no-verify 参数而被禁用。</p>
+</li>
+<li>
+<p>post-commit</p>
+<p>本地 Hooks，
+由 <code>git commit</code> 触发，
+在提交完成后运行，不会影响 commit 的运行结果。</p>
+</li>
+<li>
+<p>pre-rebase</p>
+<p>本地 Hooks，
+由 <code>git rebase</code> 触发，
+在 rebase 执行之前运行。</p>
+</li>
+<li>
+<p>post-checkout</p>
+<p>本地 Hooks，
+由 <code>git checkout</code> 或 <code>git clone</code> 触发（除非在 clone 时使用参数 --no-checkout），
+在完成工作区更新之后运行。</p>
+</li>
+<li>
+<p>post-merge</p>
+<p>本地 Hooks，
+由 <code>git merge</code> 或 <code>git pull</code> 触发，
+在 merge 成功后运行。</p>
+</li>
+<li>
+<p>pre-push</p>
+<p>本地 Hooks，
+由 <code>git push</code> 触发，
+在本地推送前运行。</p>
+</li>
+<li>
+<p>pre-receive</p>
+<p>服务端 Hooks，
+由 <code>git-receive-pack</code> 触发，
+在从本地完成一个推送后，远端服务器开始批量更新之前运行。</p>
+</li>
+<li>
+<p>update</p>
+<p>本地 Hooks，
+由 <code>git-receive-pack</code> 触发，
+和 pre-recieve 类似，只是它会为推送过来的更新中涉及到的每一个分支都运行一次，而后者只运行一次。如果运行失败（返回非零值），相关引用会被拒绝，但其他正常的引用更新都会被接受。</p>
+</li>
+<li>
+<p>post-receive</p>
+<p>服务端 Hooks，
+由 <code>git-receive-pack</code> 触发，
+在从本地完成一个推送后，远端服务器所有引用都更新完毕后运行。</p>
+</li>
+<li>
+<p>post-update</p>
+<p>服务端 Hooks，
+由 <code>git-receive-pack</code> 触发，
+和 post-receive 类似，只是它会为推送过来的更新中涉及到的每一个分支都运行一次，而后者只运行一次。</p>
+</li>
+<li>
+<p>pre-auto-gc</p>
+<p>本地 Hooks，
+由 <code>git gc --auto</code> 触发，
+在每次自动 gc 之前运行。</p>
+</li>
+<li>
+<p>post-rewrite</p>
+<p>本地 Hooks，
+由 <code>git commit --amend</code> 或 <code>git rebase</code> 触发，
+在每次重写 commit 之后运行。</p>
+</li>
+</ul>
+<h2>Hooks 的示例</h2>
+<h3>应用一：本地 Hooks</h3>
+<p>我的博客生成程序的源代码都存储在 <a href="https://github.com/FuGangqiang/myblog">Github myblog repo</a> 中，
+博客文章都是 Markdown 格式的，
+而每次有新文章或改进某文章后，都会 push 到这个 repo 上，
+同时运行相应的 <code>./update.sh</code> 命令来生成博客的 html/css，
+并部署在 <a href="https://github.com/FuGangqiang/fugangqiang.github.io">Github fugangqiang.github.io repo</a> 上，
+每次都会执行同样的操作，是不是很麻烦，为了避免这些重复性的动作，我就用了 Git 的 Hooks 来帮我自动完成以上动作。</p>
+<p>因为每次都是在本地 myblog repo 执行 <code>git push</code> 后，运行以上命令，我就选用了 pre-push hooks 脚本来完成以上任务。</p>
+<p>首先，在本地 myblog repo 的 .git/hooks 目录新建一个名为 pre-push 的可执行文件：</p>
+<pre><code>cd .git/hooks
+touch pre-push
+chmod +x pre-push
+</code></pre>
+<p>接着就可以编写 pre-push hooks 内容如下：</p>
+<pre><code class="language-sh">#!/bin/sh
+
+GITDIR=~/Git
+echo &quot;=====&gt;&gt; START blogging &lt;&lt;=====&quot;
+
+cd &quot;${GITDIR}/fugangqiang.github.io&quot; &amp;&amp; rm -r $(ls)
+cd &quot;${GITDIR}/myblog&quot;
+./update.sh
+cd &quot;${GITDIR}/fugangqiang.github.io&quot;
+git add . &amp;&amp; git commit -m &quot;automatic build&quot; &amp;&amp; git push
+
+echo &quot;=====&gt;&gt; End blogging &lt;&lt;===== &quot;
+
+exit 0
+</code></pre>
+<p>完成编辑后，就可以在博客源码更新后，只运行 <code>git push</code> 命令来自动更新我的 <a href="http://fugangqiang.github.io/">Github 博客</a>了。</p>
+<h3>应用二：服务端 Hooks</h3>
+<p>进行 Web 开发时，
+每当有 release 版本时都会把它部署到相应的服务器上，
+或者每当有一个 hotfix 完成后，也要更新到相应的服务器上，
+一般我们会把代码 rsync 到服务器上，然后再 ssh 进服务器重启相关后台进程。</p>
+<p>这些每次都会运行相同命令，而 post-receive hooks 就可以帮助我们来自动完成这些相关重复性动作。</p>
+<h4>git bare repo</h4>
+<p>首先，我们在服务器上建立一个 git repo，
+这样每当我们代码更新时，我们就可以运行 <code>git push</code> 命令将代码更新到服务器上：</p>
+<pre><code>mkdir proj.git
+cd proj.git
+git init --bare
+</code></pre>
+<p>其次，在服务器的 git repo 中生成 post-receive hooks：</p>
+<pre><code>cd hooks
+touch post-receive
+chmod +x post-receive
+</code></pre>
+<p>编辑其内容如下：</p>
+<pre><code class="language-sh">echo &quot;=====&gt;&gt; Deployment Start &lt;&lt;=====&quot;
+
+while read oldrev newrev refname
+do
+    if [ $refname = &quot;refs/heads/master&quot; ]; then
+        echo &quot;STARTing [$refname]&quot;
+        git --work-tree=/var/www/html --git-dir=/path/to/proj.git checkout -f
+        # restart the service
+    fi
+done
+echo &quot;=====&gt;&gt; Deployment End &lt;&lt;=====&quot;
+</code></pre>
+<p>最后，在本地添加服务器 remote：</p>
+<pre><code>git remote add upstream ssh://user@ip:port/path/to/proj.git
+</code></pre>
+<p>这样就可以在本地运行 <code>git push upstream master</code> 后，自动把代码更新和部署到服务器上了。</p>
+<h4>git normal repo</h4>
+<p>与上面差不多，只是 git 仓库不是 bare 仓库：</p>
+<pre><code>mkdir proj
+cd porj
+git init
+git config receive.denycurrentbranch ignore
+cd .git/hooks
+touch post-receive
+chmod +x post-receive
+</code></pre>
+<p>编辑 post-receive 内容如下：</p>
+<pre><code class="language-sh">#!/bin/sh
+
+GIT_WORK_TREE=/path/to/proj git checkout -f
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/git.html">git<sup>8</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-02-13 12:41:33
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

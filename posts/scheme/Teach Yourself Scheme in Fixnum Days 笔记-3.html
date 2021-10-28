@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-3</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-3</h1>
+    <article>
+      <h1>第三贴: 语句块</h1>
+<p>读者也许已经注意到: 前面的 scheme 例子中列举了许多符号表达式, 其实在 scheme 中, 程序就是数据. 因此, <code>#\c</code> 就是一个程序，或者语句块.</p>
+<p>scheme 对语句块 <code>#\c</code> 求值为 <code>#\c</code>, 因为 <code>#\c</code> 是自求值的. 并不是所有符号表达式都是自求值的. 比如, 表达式 <code>xyz</code> 求值结果为 <code>xyz</code> 变量所绑定的值. 而列表符号表达式 <code>(string-&gt;number &quot;16&quot;)</code> 求值结果是数字 <code>16</code>.</p>
+<p>并不是所有的符号表达是都是正确程序. 如果你写如下的代码 <code>(1 . 2)</code>, scheme 就会报错.</p>
+<p>scheme 对一个列表符号表达式求值, 首先求值语句块的第一个元素, 如果其为一个过程, 那么语句块剩下的元素会被求值以作为这个过程的参数; 如果第一个元素是一种特殊语句, 那么就会以一种特殊的方式来对该语句进行求值, 我们前面碰到的这种特殊语句有 <code>begin</code>, <code>define</code> 和 <code>set!</code>.  <code>begin</code> 语句对其后的语句进行顺序求值, 并返回最后一个语句的求值结果. <code>define</code> 语句定义变量并将一个值绑定到该变量, <code>set!</code> 改变变量绑定的值.</p>
+<h2>Procedures(过程)</h2>
+<p>我们已经看过许多 scheme 内置过程, 例如: <code>cons</code>, <code>string-&gt;list</code> 等等.
+我们也可以用 <code>lambda</code> 语句来自定义过程. 比如, 下面定义了一个程序, 对其参数加 <code>2</code>:</p>
+<pre><code>guile&gt; (lambda (x) (+ x 2))
+</code></pre>
+<p>其中, 第一个子语句 <code>(x)</code> 是参数类表, 剩下的子语句是过程体. 这个函数可以向内置过程那样对一个参数进行调用:</p>
+<pre><code>guile&gt; ((lambda (x) (+ x 2)) 5)
+7
+</code></pre>
+<p>如果以后会调用这个过程很多次, 我们可以把这个过程绑定到一个变量, 以后直接引用变量就可以了:</p>
+<pre><code>guile&gt; (define add2
+...        (lambda (x) (+ x 2)))
+guile&gt; (add2 5)
+7
+</code></pre>
+<h3>参数列表</h3>
+<p>一个 lambda-过程的参数列表就是紧跟着 lambda 符号的第一个子语句. <code>add2</code> 是一元参数过程, 它的参数列表为 <code>(x)</code>, 在过程体内, 符号 <code>x</code> 就是被调用过程的参数所绑定到的变量, 变量 <code>x</code> 是过程体中的局部变量.</p>
+<p>我们可以定义二元或多元参数过程.
+下面定义了一个二元参数过程来计算矩形的面积, 此函数的两个参数分别是矩形的长和宽:</p>
+<pre><code>guile&gt; (define area
+...        (lambda (length breadth)
+...            (* length breadth)))
+guile&gt; (area 3 2)
+6
+</code></pre>
+<p>注意: <code>area</code> 过程对其两参数进行相乘, 同内置函数 <code>*</code> 一样. 因此, 我们可以更简单定义 <code>area</code> 过程:</p>
+<pre><code>guile&gt; (define area *)
+guile&gt; (area 4 5)
+20
+</code></pre>
+<h3>变参</h3>
+<p>某些过程支持可变数量的参数, 这个只需把 lambda 参数列表换作一个符号<code>symbol</code>, 这个符号作为该过程的一个变量被绑定到所调用过程的参数组成的列表.</p>
+<p>通常, lambda 参数列表可以为一个形如 <code>(x ...)</code> 的列表, 或者是一个形如 <code>(x ... . z)</code> 的点对. 
+当是点对的时候, 在点<code>.</code>之前的所有变量被绑定到被调过程相应的参数, 
+点<code>.</code>之后的那个变量被绑定到被调过程剩下的所有参数所组成的列表.</p>
+<h2>Apply</h2>
+<p>scheme 中的 <code>apply</code> 过程可以把一个过程作用到一个参数列表:</p>
+<pre><code>guile&gt; (define x '(1 2 3))
+guile&gt; (apply + x)
+6
+</code></pre>
+<p>通常, <code>apply</code> 过程第一个参数为一个过程, 其后参数的数量是可变的, 但是, 最后一个参数必须为一个列表:</p>
+<pre><code>guile&gt; (apply + 1 2 3 x)
+12
+</code></pre>
+<h2>Sequencing</h2>
+<p>我们可以用 <code>begin</code> 特殊语句把那些需要顺序执行的子语句组合起来. 许多 scheme 语句含有隐式的 <code>begin</code> 语句.
+比如, 我们可以定义一个过程用来显示它的三个参数, 其间用空格分离, 下面就是一种定义方法:</p>
+<pre><code>(define display3
+  (lambda (arg1 arg2 arg3)
+    (begin
+      (display arg1)
+      (display &quot; &quot;)
+      (display arg2)
+      (display &quot; &quot;)
+      (display arg3)
+      (newline))))
+</code></pre>
+<p>在 scheme 中, <code>lambda</code> 语句体就是一个隐式的 <code>begin</code> 语句,
+因此, 在 <code>display3</code> 的定义中, <code>begin</code> 是可以省略的,
+更简单的一种方法是下面的定义:</p>
+<pre><code>(define display3
+  (lambda (arg1 arg2 arg3)
+    (display arg1)
+    (display &quot; &quot;)
+    (display arg2)
+    (display &quot; &quot;)
+    (display arg3)
+    (newline)))
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2010-12-10 23:06:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

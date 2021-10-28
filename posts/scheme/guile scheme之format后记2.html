@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>guile scheme之format后记2</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>guile scheme之format后记2</h1>
+    <article>
+      <h2>数值输出指令</h2>
+<p>在格式化输出中，数值输出是最常见的形式，其通常分为：整数、浮点数和复数。</p>
+<h3>整数输出指令</h3>
+<ul>
+<li><code>~b</code>: 二进制输出指令</li>
+<li><code>~o</code>: 八进制输出指令</li>
+<li><code>~d</code>: 十进制输出指令</li>
+<li><code>~x</code>: 十六进制输出指令</li>
+</ul>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~b&quot; 16)
+&quot;10000&quot;
+scheme@(guile-user)&gt; (format #f &quot;~o&quot; -16)
+&quot;-20&quot;
+scheme@(guile-user)&gt; (format #f &quot;~d&quot; 16)
+&quot;16&quot;
+scheme@(guile-user)&gt; (format #f &quot;~x&quot; -16)
+&quot;-10&quot;
+</code></pre>
+<p>如果想要非负整数前有一加号，可以用 <code>@</code> 指令选项：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~@b&quot; 16)
+&quot;+10000&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@o&quot; -16)
+&quot;-20&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@d&quot; 16)
+&quot;+16&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@x&quot; -16)
+&quot;-10&quot;
+</code></pre>
+<p>如果想要控制数值输出的最小宽度及多余宽度填充字符或其他格式，我们可以用 param 可选项，
+这些整数指令的 param 可选项格式为： <code>minwidth,padchar,commachar,commawidth</code></p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~5d&quot; 16)       ;宽度为5
+&quot;   16&quot;
+scheme@(guile-user)&gt; (format #f &quot;~5,'*d&quot; 16)    ;宽度为5，填充字符为 *
+&quot;***16&quot;
+scheme@(guile-user)&gt; (format #f &quot;~5,'0d&quot; 16)    ;宽度为5，填充字符为 0
+&quot;00016&quot;
+scheme@(guile-user)&gt; (format #f &quot;~3,'0d&quot; 1234)  ;宽度为3，超出则忽略之，按实际输出
+&quot;1234&quot;
+</code></pre>
+<p>如果你想要这样的大数写法：<code>1,000,000,000,000</code>
+可以用 : 可选参数，见下：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~:d&quot; 8123456789)         ;默认每三位插入一个逗号
+&quot;8,123,456,789&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,'*:d&quot; 8123456789)     ;也可以指定插入字符，这里为 *，若未指定，默认为逗号
+&quot;8*123*456*789&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,'*,4:d&quot; 8123456789)   ;也可以指定每隔几位插入指定字符
+&quot;81*2345*6789&quot;
+</code></pre>
+<p>我们也可以组合运用以上选项：</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~15,'*,'/,4:@d&quot; 987654321)
+&quot;***+9/8765/4321&quot;
+</code></pre>
+<ul>
+<li><code>~r</code>: 指定进制输出指令,输出数值对应的英文单词或罗马数字</li>
+</ul>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~7r&quot; 16)       ;七进制，可指定进制范围：2～36，0-9 和 a-z
+&quot;22&quot;
+scheme@(guile-user)&gt; (format #f &quot;~r&quot; 16)        ;数值的英文单词，就像 10 被写为 ten
+&quot;sixteen&quot;
+scheme@(guile-user)&gt; (format #f &quot;~:r&quot; -16)      ;数值的英文单词，就像 10 被写为 tenth
+&quot;minus sixteenth&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@r&quot; 89)       ; roman 形式
+&quot;LXXXIX&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@:r&quot; 89)      ; old roman 形式
+&quot;LXXXVIIII&quot;
+</code></pre>
+<p>在设定进制时，也可以向上面的 <code>~b</code>,<code>~o</code>,<code>~d</code>,<code>~x</code> 等指令那样控制数值输出的最小宽度及多余宽度填充字符或其他格式，我们可以用 <code>~r</code> 指令的可选项 param：
+其 param 形式为：<code>radix,winwidth,padchar,commachar,commawidth</code></p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~3,10,'*,'-,2:@r&quot; 100)   ;三进制输出，输出宽度为10，其余空白用*填充
+&quot;**+1-02-01&quot;                                              ;当参数为正数时，显示正号，每2位插入一个 -
+</code></pre>
+<h2>浮点数输出指令</h2>
+<ul>
+<li><code>~f</code>: fixed-point float   小数格式</li>
+<li><code>~e</code>: exponential float   科学计数法格式</li>
+<li><code>~g</code>: general float       自动选择小数格式或科学计数法格式</li>
+<li><code>~$</code>: Monetary style fixed-point float   货币打印格式</li>
+</ul>
+<pre><code>scheme@(guile-user)&gt; (define pi 3.1415926)
+scheme@(guile-user)&gt; (format #f &quot;~f&quot; pi)
+&quot;3.1415926&quot;
+scheme@(guile-user)&gt; (format #f &quot;~e&quot; pi)
+&quot;3.1415926E+0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~g&quot; pi)
+&quot;3.1415926    &quot;
+scheme@(guile-user)&gt; (format #f &quot;~$&quot; pi)
+&quot;3.14&quot;
+</code></pre>
+<p><code>~f</code> 指令的 param: <code>width,decimals,scale,overflowchar,padchar</code></p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~f&quot; 5)                 ;参数为整数
+&quot;5.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~f&quot; &quot;123&quot;)             ;参数为字符串
+&quot;123.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~f&quot; &quot;1e-1&quot;)            ;参数为字符串
+&quot;0.1&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@f&quot; 0)                ;非负数前显示正号
+&quot;+0.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@f&quot; -1)
+&quot;-1.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~5f&quot; 5)                ;指定宽度
+&quot;  5.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~6f&quot; -1.5)     
+&quot;  -1.5&quot;
+scheme@(guile-user)&gt; (format #f &quot;~6,,,,'*f&quot; 23)         ;指定填充字符 *
+&quot;**23.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~6f&quot; 1234567.0)
+&quot;1234567.0&quot;
+scheme@(guile-user)&gt; (format #f &quot;~1,2f&quot; pi)             ;指定小数点后位数
+&quot;3.14&quot;
+scheme@(guile-user)&gt; (format #f &quot;~1,2f&quot; 1.5)
+&quot;1.50&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,2f&quot; pi)             ;指定参数的放大倍数，10的n次方
+&quot;314.15926&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,-2f&quot; pi)            ;指数 n 可以为复数
+&quot;0.031415926&quot;
+scheme@(guile-user)&gt; (format #f &quot;~4,,,'xf&quot; 12345)       ;应当输出字符串长度大于给定宽度4，用4个 x 代替输出 
+&quot;xxxx&quot;
+scheme@(guile-user)&gt; (format #f &quot;~6,,,'xf&quot; 12345)
+&quot;12345.&quot;
+scheme@(guile-user)&gt; (format #f &quot;~7,,,'xf&quot; 12345)
+&quot;12345.0&quot;
+</code></pre>
+<p><code>~e</code> 指令的 params 为： <code>width,mantdigits,expdigits,intdigits,overflowchar,padchar,expchar</code></p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~e&quot; 5000.25)                   ; 参数为数值
+&quot;5.00025E+3&quot;
+scheme@(guile-user)&gt; (format #f &quot;~e&quot; &quot;123.4&quot;)                   ; 参数为字符串
+&quot;1.234E+2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~e&quot; &quot;1e4&quot;)                     ; 参数为字符串
+&quot;1.0E+4&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@e&quot; 5000.0)                   ; 正号
+&quot;+5.0E+3&quot;
+scheme@(guile-user)&gt; (format #f &quot;~10e&quot; 1234.0)                  ; 宽度
+&quot;  1.234E+3&quot;
+scheme@(guile-user)&gt; (format #f &quot;~10,,,,,'*e&quot; 1234.0)           ; 填充字符
+&quot;**1.234E+3&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,3e&quot; 11111.0)                 ; 底数小数点后位数
+&quot;1.111E+4&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,8e&quot; 123.0)                   ; 同上
+&quot;1.23000000E+2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,1e&quot; 1.0e99)                 ; 指数位数
+&quot;1.0E+99&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,6e&quot; 1.0e99)                 ; 同上
+&quot;1.0E+000099&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,,3e&quot; 12345.0)               ; 底数小数点前位数(正数)
+&quot;123.45E+2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,,0e&quot; 12345.0)               ; 底数小数点前为 0
+&quot;0.12345E+5&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,,-3e&quot; 12345.0)              ; 底数紧接小数点后 0 的个数(负数)
+&quot;0.00012345E+8&quot;
+scheme@(guile-user)&gt; (format #f &quot;~6,,,,'xe&quot; 100.0)              ; 当格式化输出字符串宽度小于指定宽度时，正常输出
+&quot;1.0E+2&quot;
+scheme@(guile-user)&gt; (format #f &quot;~3,,,,'xe&quot; 100.0)              ; 当格式化输出字符串宽度大于于指定宽度时，同指定替代字符替换格式化字符串
+&quot;xxx&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,,,,,'ee&quot; 100.0)             ; 在格式化字符串中，用 e 来代替 E (默认为E)
+&quot;1.0e+2&quot;
+</code></pre>
+<p><code>~g</code> 指令的 params: <code>width,mantdigits,expdigits,intdigits,overflowchar,padchar,expchar</code>。</p>
+<p>当数值的绝对值大于 <code>0.1</code>，并且其小数格式所占空间比科学技术法格式的尾数所占空间小，<code>~g</code> 将会采用 <code>~f</code> 格式化输出数值，否则采用 <code>~e</code> 格式输出数值。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~12,4,2g&quot; 999.0)
+&quot;   999.0    &quot;
+scheme@(guile-user)&gt; (format #f &quot;~12,4,2g&quot; &quot;100000&quot;)
+&quot;  1.0000E+05&quot;
+</code></pre>
+<p><code>~$</code> 指令的 params: <code>decimals,intdigits,width,padchar</code>。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~$&quot; 5)         ; 用小数格式格式化输出数值，默认 2 位小数
+&quot;5.00&quot;
+scheme@(guile-user)&gt; (format #f &quot;~4$&quot; &quot;2.25&quot;)   ; 指定 4 为小数
+&quot;2.2500&quot;
+scheme@(guile-user)&gt; (format #f &quot;~4$&quot; &quot;1e-2&quot;)   ; 参数为字符串
+&quot;0.0100&quot;
+scheme@(guile-user)&gt; (format #f &quot;~@$&quot; 0)        ; 正号
+&quot;+0.00&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,3$&quot; 9.5)     ; 指定整数部分的位数
+&quot;009.50&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,0$&quot; 0.125)   ; 整数部分位数为 0
+&quot;.13&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,8$&quot; -1.5)   ; 指定格式化输出字符的宽度
+&quot;   -1.50&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,8:$&quot; -1.5)  ; ~:$ 把 padchar 插入在符号之后，padchar 默认为空格
+&quot;-   1.50&quot;
+scheme@(guile-user)&gt; (format #f &quot;~,,8,'.:@$&quot; 3) ; 指定 padchar 为 .
+&quot;+...3.00&quot;
+</code></pre>
+<h2>复数输出指令</h2>
+<p><code>~i</code> 指令的 params: <code>width,decimals,scale,overflowchar,padchar</code>。</p>
+<pre><code>scheme@(guile-user)&gt; (format #f &quot;~i&quot; 1)
+&quot;1.0+0.0i&quot;
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2011-01-18 13:14:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

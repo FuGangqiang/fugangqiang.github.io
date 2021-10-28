@@ -1,0 +1,356 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>systemd介绍</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>systemd介绍</h1>
+    <article>
+      <p>现在已经有好多 Linux 发行版采用 systemd 作为它们的 init 系统了，
+自己在网上看到关于 systemd 好多文章，
+本文是我对它们的一个总结。</p>
+<h2>什么是 init?</h2>
+<p>在 Linux 中，init 就是 initialization（初始化）的缩写。
+init 是一个 daemon（后台）进程，
+它是 Linux 系统开机启动（内核加载完毕）后运行的第一个进程，进程号(pid)为 1，
+直到系统关机它才终止运行，也就是说它也是 Linux 系统关机前运行的最后一个进程。</p>
+<p>Linux 系统中所有其他进程都是直接或间接由 init 进程启动的，
+因此 init 进程是其他所有进程的父进程或祖先进程。
+因此它可以做许多其他进程不能做的事情，接管其他进程不负责的功能。</p>
+<p>正是由于其特殊性，
+万一 init 因为某种原因不能启动，那么 Linux 系统就再也无法启动其他进程，
+系统就会处于“Kernel Panic”状态。</p>
+<p>Linux的 init 系统有好多种，本文只是介绍 systemd。</p>
+<h2>systemd 是什么？</h2>
+<p>systemd 是 System Management Daemon 的简写
+（在 UNIX 系统中，后台进程都按照惯例以 d 结尾，因此当你看到一个进程的名字以 d 结尾，那它极有可能是一个后台进程），
+它是 Linux 系统中启动的第一个进程，也就上面所说的 init daemon 进程。</p>
+<h2>systemd unit</h2>
+<p>系统启动过程中，systemd 用 unit 来组织那些各种不同的任务，
+例如生成网络端口、配置硬件设备、加载存储设备、开启后台服务进程、等等</p>
+<p>systemd 要求每一个任务对应一个 unit，
+而每一个 unit 都需要一个包含必要信息的配置文件，
+而这些配置文件的语法很简单，
+这也是 systemd 的要实现的目的之一。</p>
+<p>unit 的类型有：</p>
+<ul>
+<li>service</li>
+<li>target</li>
+<li>path</li>
+<li>timer</li>
+<li>socket</li>
+<li>automount</li>
+<li>device</li>
+<li>mount</li>
+<li>scope</li>
+<li>slice</li>
+<li>snapshot</li>
+<li>swap</li>
+</ul>
+<p>systemd 通过配置文件的后缀名来判断 unit 的类型的，比如一个 service 类型的 unit 的配置文件名通常类似于 name.service，
+一个 mount 类型的 unit 的配置文件名通常类似于 name.mount。</p>
+<p>这些配置文件通常存放在 /etc/systemd/system/ 和 /usr/lib/systemd/system/ 文件夹中，如果同一个配置文件名都处于这两个文件夹中，
+systemd 会忽略 /usr/lib/systemd/system/ 中的同名配置文件。</p>
+<p>systemd 会自动生成一些 unit，而这些 unit 并不会存在配置文件，但是它们可以通过 systemctl 来访问。</p>
+<h2>开机启动过程</h2>
+<p>systemd 最基本的任务是管理开机启动过程，并提供开机启动的一些信息。</p>
+<p>想得到开机启动时间，运行下面命令：</p>
+<pre><code>systemd-analyze
+</code></pre>
+<p>想得到开机时每一个任务启动的时间，运行下面命令：</p>
+<pre><code>systemd-analyze blame
+</code></pre>
+<p>想得到更多的启动信息，systemd-analyze 这个命令也可以通过以下命令生成一个描述各个启动任务信息的 svg 格式图片：</p>
+<pre><code>systemd-analyze plot &gt; plot.svg
+</code></pre>
+<p>想了解开机启动的每一个任务之间的依赖关系，运行以下命令：</p>
+<pre><code>systemctl list-dependencies
+</code></pre>
+<p>想知道哪些服务启动失败，运行一下命令：</p>
+<pre><code>systemctl --failed
+</code></pre>
+<p>systemd 中没有 runlevel 的概念，但是提供相似的 target 的功能：</p>
+<ul>
+<li>runlevel0  -&gt;  runlevel0.target  ==  poweroff.target</li>
+<li>runlevel1  -&gt;  runlevel1.target  ==  rescue.target</li>
+<li>runlevel2  -&gt;  runlevel2.target  ==  multi-user.target</li>
+<li>runlevel3  -&gt;  runlevel3.target  ==  multi-user.target</li>
+<li>runlevel4  -&gt;  runlevel4.target  ==  multi-user.target</li>
+<li>runlevel5  -&gt;  runlevel5.target  ==  graphical.target</li>
+<li>runlevel6  -&gt;  runlevel6.target  ==  reboot.target</li>
+</ul>
+<p>与 target/runlevel 相关的命令：</p>
+<pre><code>systemctl get-default
+systemctl set-default name.target
+
+systemctl isolate name.target
+
+systemctl list-units --type target
+
+systemctl rescue
+systemctl halt
+systemctl reboot
+systemctl poweroff
+systemctl suspend
+systemctl hybrid-sleep
+systemctl emergency
+systemctl hibernate
+</code></pre>
+<p>与 unit 相关的命令：</p>
+<pre><code>systemctl list-units
+systemctl list-units --type service --all --state=inactive
+systemctl list-unit-files
+systemctl status name.service
+
+systemctl start name.service
+systemctl stop name.service
+systemctl restart name.service
+systemctl try-restart name.service
+systemctl reload name.service
+systemctl is-active name.service
+
+systemctl enable name.service
+systemctl disable name.service
+systemctl is-enabled name.service
+
+systemctl mask name.service
+systemctl unmask name.service
+
+systemctl cat name.service
+systemctl edit name.service
+systemctl show name.service
+systemctl show name.service -p property
+
+systemctl list-dependencies
+systemctl daemon-reload
+
+systemctl kill httpd
+systemctl set-property httpd.service CPUShares=500
+systemctl show -p CPUShares httpd.service
+</code></pre>
+<p>通过 ssh 远程控制主机，运行以下命令：</p>
+<pre><code>systemctl --host user_name@host_name command
+systemctl -H user_name@host_name command
+</code></pre>
+<h2>journalctl</h2>
+<p>与日志相关命令：</p>
+<pre><code>journalctl
+journalctl --utc
+
+journalctl --list-boots
+journalctl -b  # since recent boot
+journalctl -b -1  # last boot
+journalctl -b caf0524a1d394ce0bdbcff75b94444fe
+
+journalctl --since=today
+journalctl --since &quot;2015-06-01 01:00:00&quot;
+journalctl --since &quot;2015-06-01&quot; --until &quot;2015-06-13 15:00&quot;
+journalctl --since 09:00 --until &quot;1 hour ago&quot;
+
+journalctl -u nginx.service
+journalctl -u nginx.service -u postgresql.service --since today
+
+journalctl _PID=8088
+journalctl _UID=33
+journalctl _GID=33
+man systemd.journal-fields
+journalctl -F _GID
+
+journalctl /sbin/crond
+journalctl `which crond`
+
+journalctl -k     # kernel messages, dmesg out
+
+journalctl -p err
+-p:
+   * emerg
+   * alert
+   * crit
+   * err
+   * warning
+   * notice
+   * info
+   * debug
+
+journalctl --no-full
+journalclt --no-pager
+
+journalctl -b -u nginx.service -o json
+journalctl -b -u nginx -o json-pretty
+format:
+      * cat
+      * export
+      * json
+      * json-pretty
+      * json-sse
+      * short
+      * short-iso
+      * short-monotonic
+      * short-precise
+      * verbose
+
+journalctl -f     # Follow messages
+journalctl -n 20
+
+journalctl --disk-usage
+journalctl --vacuum-size=1G
+journalctl --vacuum-time=1years
+</code></pre>
+<h2>hostnamectl</h2>
+<p>与 hostname 相关命令：</p>
+<pre><code>hostnamectl
+hostnamectl set-hostname &lt;hostname&gt;
+</code></pre>
+<h2>localectl</h2>
+<p>与 locale 相关命令：</p>
+<pre><code>localectl
+localectl status
+ocalectl list-locales
+localectl set-locale LANG=en_GB.utf8
+localectl list-keymaps
+localectl set-keymap en_GB
+localectl set-x11-keymap en_GB
+</code></pre>
+<h2>timedatectl</h2>
+<p>与日期、时间相关命令：</p>
+<pre><code>timedatectl
+timedatectl status
+timedatectl set-time YYYY-MM-DD
+timedatectl set-time HH:MM:SS
+timedatectl set-time 'YYYY-MM-DD HH:MM:SS'
+timedatectl list-timezones
+timedatectl set-timezone America/New_York
+timedatectl set-local-rtc boolean   # yes/no
+timedatectl set-ntp boolean
+</code></pre>
+<h2>loginctl</h2>
+<p>与登陆相关命令：</p>
+<pre><code>loginctl list-users
+loginctl list-sessions
+loginctl show-user tom
+</code></pre>
+<h2>bootctl</h2>
+<p>与系统加载相关命令：</p>
+<pre><code>bootctl status
+bootctl update
+bootctl install
+bootctl remove
+</code></pre>
+<h2>other</h2>
+<pre><code>busctl
+machinectl
+networkctl
+systemd-cgtop
+systemd-cgls
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>29</sup></a><a href="https://fugangqiang.github.io/tags/systemd.html">systemd<sup>5</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-01-17 20:21:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

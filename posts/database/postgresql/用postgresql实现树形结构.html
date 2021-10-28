@@ -1,0 +1,268 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>用postgresql实现树形结构</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>用postgresql实现树形结构</h1>
+    <article>
+      <p>关系型数据库对树形结构没有一个很好的解决方案，本文针对 postgresql 数据库，列出以下解决方案:</p>
+<ul>
+<li>jsonb 类型</li>
+<li>xml 类型</li>
+<li>邻接表(Adjacency List)</li>
+<li>路径枚举(The Path to a Node)</li>
+<li>先根遍历树(Modified Preorder Tree Traversal)</li>
+</ul>
+<p>本文所有代码均以下图为例：</p>
+<p><img src="/media/postgresql/foods_tree.gif" alt="foods tree" /></p>
+<h2>jsonb</h2>
+<p>postgresql 自从 9.4 版本加入 jsonb 类型，用其表示树形结构很方便：</p>
+<pre><code class="language-sql">create table foods (
+    food jsonb
+);
+
+insert into foods values (
+    '{
+	     &quot;Fruit&quot;: {
+		     &quot;Red&quot;: [
+			     {
+				     &quot;name&quot;: &quot;Cherry&quot;
+				 }
+			 ],
+			 &quot;Yellow&quot;: [
+			     {
+				     &quot;name&quot;: &quot;Banana&quot;
+				 }
+			 ]
+		 },
+		 &quot;Meat&quot;: [
+		     {
+			     &quot;name&quot;: &quot;Beef&quot;
+			 },
+			 {
+			     &quot;name&quot;: &quot;Pork&quot;
+			 }
+		 ]
+	 }'
+);
+</code></pre>
+<p>postgresql 提供了大量的对 jsonb 类型进行查询、修改操作。</p>
+<h2>xml</h2>
+<p>xml 本身就是一个树形结构，postgresql 内部已经实现了 xml 类型，用它来表示树形结构也是可以的：</p>
+<pre><code class="language-sql">create table foods (
+    food xml
+);
+
+insert into foods values (
+    '&lt;Food&gt;
+	    &lt;Fruit&gt;
+		    &lt;Red&gt;
+			    &lt;name&gt;Cherry&lt;/name&gt;
+			&lt;/Red&gt;
+			&lt;Yellow&gt;
+			    &lt;name&gt;Banana&lt;/name&gt;
+			&lt;/Yellow&gt;
+		&lt;/Fruit&gt;
+		&lt;Meat&gt;
+		    &lt;name&gt;Beef&lt;/name&gt;
+			&lt;name&gt;Pork&lt;/name&gt;
+		&lt;/Meat&gt;
+	 &lt;/Food&gt;'
+);
+</code></pre>
+<p>postgresql 也针对 xml 类型提供了许多 xml 相关的操作函数。</p>
+<h2>邻接表</h2>
+<p>邻接表就是把所有的节点都放在一张表中，用一个属性记录其父节点：</p>
+<pre><code class="language-sql">create table foods (
+    id integer,
+	name varchar(15),
+	parent integer
+);
+
+insert into foods(id, name) values (1, 'Food');
+insert into foods(id, name, parent) values (2, 'Fruit', 1);
+insert into foods(id, name, parent) values (3, 'Meat', 1);
+insert into foods(id, name, parent) values (4, 'Red', 2);
+insert into foods(id, name, parent) values (5, 'Yellow', 2);
+insert into foods(id, name, parent) values (6, 'Cherry', 4);
+insert into foods(id, name, parent) values (7, 'Banana', 5);
+insert into foods(id, name, parent) values (8, 'Beef', 3);
+insert into foods(id, name, parent) values (9, 'Pork', 3);
+</code></pre>
+<p>遍历树形结构可以用通用表表达式(CTE, Common Table Expressions)来实现：</p>
+<pre><code class="language-sql">with recursive tree as (
+        select id, name
+        from foods
+        where id = 1
+    union all
+        select origin.id, tree.name || '&gt;' || origin.name
+        from tree join foods origin
+             on origin.parent = tree.id
+)
+select * from tree;
+ id |           name
+----+--------------------------
+  1 | Food
+  2 | Food&gt;Fruit
+  3 | Food&gt;Meat
+  4 | Food&gt;Fruit&gt;Red
+  5 | Food&gt;Fruit&gt;Yellow
+  8 | Food&gt;Meat&gt;Beef
+  9 | Food&gt;Meat&gt;Pork
+  6 | Food&gt;Fruit&gt;Red&gt;Cherry
+  7 | Food&gt;Fruit&gt;Yellow&gt;Banana
+</code></pre>
+<h2>路径枚举</h2>
+<p>路径枚举就是在 foods 表中设置一个 path 属性，用来存储从根节点到当前结点的路径，用分隔符隔开，
+尽管 path 可以是 text 类型，但是 postgresql contrib 中的 ltree 模块专门针对这种情况定义了 ltree 类型：</p>
+<pre><code class="language-sql">create extension ltree;
+create table foods (
+	path ltree
+);
+
+insert into foods values('Food');
+insert into foods values('Food.Fruit');
+insert into foods values('Food.Meat');
+insert into foods values('Food.Fruit.Red');
+insert into foods values('Food.Fruit.Yellow');
+insert into foods values('Food.Fruit.Red.Cherry');
+insert into foods values('Food.Fruit.Yellow.Banana');
+insert into foods values('Food.Meat.Beef');
+insert into foods values('Food.Meat.Pork');
+</code></pre>
+<h2>先根遍历树</h2>
+<p>用两个数字(left 和 right)对每个节点进行编码如下：</p>
+<pre><code class="language-sql">create table foods (
+    name text,
+	left integer,
+	right integer
+);
+
+insert into foods values('Food', 1, 18);
+insert into foods values('Fruit', 2, 11);
+insert into foods values('Meat', 12, 17);
+insert into foods values('Red', 3, 6);
+insert into foods values('Yellow', 7, 10);
+insert into foods values('Cherry', 4, 5);
+insert into foods values('Banana', 8, 9);
+insert into foods values('Beaf', 13, 14);
+insert into foods values('Pork', 15, 16);
+</code></pre>
+<p><img src="/media/postgresql/foods_preorder_tree.gif" alt="foods preorder tree" /></p>
+<p>规则如下：</p>
+<ul>
+<li>left 的数值小于该节点的所有后代的 left</li>
+<li>right 的数值大于该节点的所有后代 right</li>
+</ul>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/postgresql.html">postgresql<sup>14</sup></a><a href="https://fugangqiang.github.io/tags/%E6%95%B0%E6%8D%AE%E5%BA%93.html">数据库<sup>20</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-09-27 18:15:39
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

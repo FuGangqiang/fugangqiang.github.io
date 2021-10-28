@@ -1,0 +1,303 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>Teach Yourself Scheme in Fixnum Days 笔记-13</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>Teach Yourself Scheme in Fixnum Days 笔记-13</h1>
+    <article>
+      <h1>第十三贴：跳转</h1>
+<p>scheme 一个显著的特性是其支持跳转<Jump>或非局部控制<nonlocal contral>。具体地说，scheme 允许程序控制流跳转到程序的任意地方，不像通过条件语句和函数调用等控制跳转那么局限。
+scheme 跳转操作是通过 <code>call-with-current-continuation</code> &lt;简写形式：call/cc&gt;过程来实现的。下面我们将会看到如何通过该过程来实现许多惊人的控制流程<control idioms>。</p>
+<h2>call-with-current-continuation</h2>
+<p><code>call-with-current-continuation</code> 过程的参数是一个单参数<unary>过程，单参数过程的参数被绑定为&quot;current continuation&quot;。</p>
+<p>在程序的任何地方，&quot;current continuation&quot; 都是 &quot;the rest of the program&quot; 的抽象。因此，下面语句中：</p>
+<pre><code>(+ 1 (call/cc
+      (lambda (k)
+        (+ 2 (k 3)))))
+</code></pre>
+<p><code>call/cc</code> 过程的 &quot;the rest of the program&quot; 就是下面的有一个 <code>[]</code> 的语句：</p>
+<pre><code>(+ 1 [])
+</code></pre>
+<p>也就是说，这个 continuation 就是用任何值来来替 <code>[]</code> 进而与 <code>1</code> 相加的程序。</p>
+<p>下面是 <code>call/cc</code> 过程的参数&lt;必须为一个单参数过程&gt;：</p>
+<pre><code>(lambda (k)
+  (+ 2 (k 3)))
+</code></pre>
+<p>其中，<code>k</code> 就是 &quot;the continuation&quot;，在这个过程体中，用 <code>3</code> 调用 <code>k</code> <the continuation>，这就会使程序流程跳转到：</p>
+<pre><code>(+ 1 [])
+</code></pre>
+<p>&lt;过程体 <code>k</code> 调用随后的语句不会被执行，直接跳转&gt;,
+随后用 <code>3</code> 代替 <code>[]</code>：</p>
+<pre><code>(+ 1 3)  ;结果为 4
+</code></pre>
+<p>上面用例子说明了用来跳出计算的 escaping continuation。但是，在 scheme 中，continuation 也可以被用来多次跳转到程序已经执行过的地方。
+先睹为快，看下面程序：</p>
+<pre><code>(define r #f)
+(+ 1 (call/cc
+      (lambda (k)
+        (set! r k)
+        (+ 2 (k 3)))))
+</code></pre>
+<p>最后一个表达式返回 <code>4</code>，这里的 <code>call/cc</code> 调用与前面的例子中有一个不同，就是在跳转前我们把 &quot;the continuation&quot; 绑定到 <code>r</code> 全局变量中。现在，我们就有了一个在 <code>r</code> 变量存储的 &quot;the continuation&quot; 记录，该 &quot;the continuation&quot; 为 <code>(+ 1 [])</code>，因此，以后，我们以一个数值调用 <code>r</code> 时，都会使程序控制流跳转到程序中的 &quot;the continuation&quot; 的位置，并且用该数值代替 <code>[]</code> 进行以后的计算。
+因此，当我们用 <code>5</code> 调用 <code>r</code> 时返回 <code>6</code>：</p>
+<pre><code>scheme@(guile-user)&gt; (r 5)
+6
+</code></pre>
+<p>而把 r 调用嵌入在某些环境中更能证明 continuation 跳转的作用：</p>
+<pre><code>scheme@(guile-user)&gt; (+ 3 (r 5))
+6
+</code></pre>
+<p><code>r</code> 调用会将程序控制流直接跳转到 &quot;the continuation&quot; <code>(+ 1 [])</code> 处，再用 <code>5</code> 替换 <code>[]</code>，执行那里的代码。</p>
+<h2>Escaping continuations</h2>
+<p>escaping continuations 是 <code>call/cc</code> 最简单的应用，但是对于跳出过程体或循环特别有用处。
+让我们看一下下面的 <code>list-product</code> 过程，其以一个列表为参数，返回所有列表元素的乘积：</p>
+<pre><code>(define (list-product ls)
+   (let loop ((ls ls))
+      (if (null? ls)
+          1
+          (* (car ls)
+             (loop (cdr ls))))))
+</code></pre>
+<p>但是上面的计算方法有一个问题，就是列表中有一个元素为 <code>0</code> 并且其后还有许多个元素，当计算到 <code>0</code> 时，结果就可以确定为 <code>0</code>，而不用在与其后的元素相乘。
+此时，我们可以用 escaping continuations 重写 <code>list-product</code> 过程来避免这些无效的计算：</p>
+<pre><code>(define (list-product ls)
+   (call/cc
+      (lambda (exit)
+         (let loop ((ls ls))
+            (cond ((null? ls) 1)
+                  ((= (car ls) 0) (exit 0))
+                  (else (* (car s)
+                           (loop (cdr ls)))))))))
+</code></pre>
+<p>一旦遇到 <code>0</code>，就会调用 <code>exit</code> 返回 <code>0</code>。</p>
+<h2>Tree matching</h2>
+<p>一个更复杂的应用 continuation 的例子就是判断两个树的先序排列<fringe>是否相同，比如：</p>
+<pre><code>scheme@(guile-user)&gt; (same-fringe? '(1 (2 3)) '((1 2) 3))
+#t
+scheme@(guile-user)&gt; (same-fringe? '(1 2 3) '(1 (3 2)))
+#f
+</code></pre>
+<p>一个简单的方法就是先计算出两个树的先序排列表再比较它们：</p>
+<pre><code>(define (flatten tree)
+  (cond ((null? tree) '())
+        ((pair? (car tree))
+         (append (flatten (car tree))
+                 (flatten (cdr tree))))
+        (else
+         (cons (car tree)
+               (flatten (cdr tree))))))
+(define (same-fringe? tree1 tree2)
+  (let loop ((ftree1 (flatten tree1))
+             (ftree2 (flatten tree2)))
+    (cond ((and (null? ftree1)
+                (null? ftree2))
+           #t)
+          ((or (null? ftree1)
+               (null? ftree2))
+           #f)
+          ((eqv? (car ftree1)
+                 (car ftree2))
+           (loop (cdr ftree1)
+                 (cdr ftree2)))
+          (else #f))))
+</code></pre>
+<p>但是这个效率比较低下。</p>
+<p>我们可以用 <code>call/cc</code> 过程定义一个 <code>tree-&gt;generator</code> 过程来解决不必要的计算：</p>
+<pre><code>(define (tree-&gt;generator tree)
+  (let ((leaf #f) (walk-tree #f))
+    (define (walk-tree)
+      (let loop ((tree tree))
+        (cond ((null? tree) 'skip)
+              ((pair? tree) (loop (car tree))
+                            (loop (cdr tree)))
+              (else (call/cc
+                     (lambda (rest-of-tree)
+                       (set! walk-tree
+                             (lambda ()
+                               (rest-of-tree 'resume)))
+                       (leaf tree))))))
+      (leaf '()))
+    (define (next)
+      (call/cc
+       (lambda (k)
+         (set! leaf k)
+         (walk-tree))))
+    next))
+</code></pre>
+<p><code>tree-&gt;generator</code> 过程将其返回值映射到其参数树上，每次调用该返回值都会顺序返回该树先序排列所对应的元素：</p>
+<pre><code>scheme@(guile-user)&gt; (define gen (tree-&gt;generator '((1 2) 3)))
+scheme@(guile-user)&gt; (gen)
+1
+scheme@(guile-user)&gt; (gen)
+2
+scheme@(guile-user)&gt; (gen)
+3
+scheme@(guile-user)&gt; (gen)
+()
+</code></pre>
+<p>利用这一特性，当我们利用 <code>tree-&gt;generator</code> 过程返回值调用来比较两个树的每一个元素时，当两个被比较的元素不相同时，我们就可以判定这两个树的先序排列不相同直接返回而不用在去理会其他未比较的元素，<code>tree-&gt;generator</code> 版的 <code>same-fringe?</code> 过程如下：</p>
+<pre><code>(define (same-fringe? tree1 tree2)
+  (let ((gen1 (tree-&gt;generator tree1))
+        (gen2 (tree-&gt;generator tree2)))
+    (let loop ((leaf1 (gen1))
+               (leaf2 (gen2)))
+      (if (eqv? leaf1 leaf2)
+          (if (null? leaf1)
+              #t
+              (loop (gen1) (gen2)))
+          #f))))
+</code></pre>
+<h2>Coroutines</h2>
+<pre><code>(define-macro (coroutine x . body)
+  `(letrec ((+local-control-state (lambda (,x)
+                                    ,@body))
+            (resume (lambda (c v)
+                      (call/cc (lambda (k)
+                                 (set! +local-control-state k)
+                                 (c v))))))
+     (lambda (v)
+       (+local-control-state v))))
+ 
+(define (make-matcher-coroutine tree-cor-1 tree-cor-2)
+  (coroutine dont-need-an-init-arg
+             (let loop ()
+               (let ((leaf1 (resume tree-cor-1 'get-a-leaf))
+                     (leaf2 (resume tree-cor-2 'get-a-leaf)))
+                 (if (eqv? leaf1 leaf2)
+                     (if (null? leaf1)
+                         #t
+                         (loop))
+                     #f)))))
+ 
+(define (make-leaf-gen-coroutine tree matcher-cor)
+  (coroutine dont-need-an-init-arg
+             (let loop ((tree tree))
+               (cond ((null? tree) 'skip)
+                     ((pair? tree)
+                      (loop (car tree))
+                      (loop (cdr tree)))
+                     (else
+                      (resume matcher-cor tree))))
+             (resume matcher-cor '())))
+ 
+(define (same-fringe? tree1 tree2)
+  (letrec ((tree-cor-1 (make-leaf-gen-coroutine tree1
+                                                (lambda (v) (matcher-cor v))))
+           (tree-cor-2 (make-leaf-gen-coroutine tree2
+                                                (lambda (v) (matcher-cor v))))
+           (matcher-cor (make-matcher-coroutine (lambda (v) (tree-cor-1 v))
+                                                (lambda (v) (tree-cor-2 v)))))
+    (matcher-cor 'start-ball-rolling)))
+</code></pre>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/scheme.html">scheme<sup>28</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2011-01-04 11:16:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>concurrency</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css">
+<style>
+  .title {
+    font-size: 1.5rem;
+    margin-left: 1rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+  <h1>concurrency</h1>
+  <article>
+    <section>
+      <span>2018-05-14</span>
+      <span class="title"><a href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html">rust并发编程：线程高级用法</a></span>
+    </section>
+    <section>
+      <span>2018-05-02</span>
+      <span class="title"><a href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E6%B6%88%E6%81%AF%E4%BC%A0%E9%80%92.html">rust并发编程：线程消息传递</a></span>
+    </section>
+    <section>
+      <span>2018-05-01</span>
+      <span class="title"><a href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%85%B1%E4%BA%AB%E7%8A%B6%E6%80%81.html">rust并发编程：线程共享状态</a></span>
+    </section>
+    <section>
+      <span>2018-04-29</span>
+      <span class="title"><a href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA.html">rust并发编程：线程创建</a></span>
+    </section>
+  </article>
+
+  <div id="pages"><span class="info">1 / 1</span></div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<script src="https://fugangqiang.github.io/static/main.js"></script>
+</body>
+</html>

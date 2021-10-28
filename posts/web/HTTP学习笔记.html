@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>HTTP学习笔记</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>HTTP学习笔记</h1>
+    <article>
+      <p>这里记录了我在学习 Http:The Definitive Guide 时的一些笔记。</p>
+<h2>MIME type</h2>
+<p>HTTP 可以传输任何格式的文件，
+而这些格式的文件是由 MIME(Multipurpose Internet Mail Extensions)多用途互联网邮件扩展类型标识的。</p>
+<p>常见的 MIME 类型有：</p>
+<ul>
+<li>text/plain: 普通文本，文件扩展名 <code>.txt</code></li>
+<li>text/html：超文本标记语言文本，文件扩展名 <code>.html</code></li>
+<li>text/xml: xml 文档，文件扩展名 <code>.xml</code></li>
+<li>image/png: PNG 图像，文件扩展名 <code>.png</code></li>
+<li>image/gif: GIF 图形，文件扩展名 <code>.gif</code></li>
+<li>image/jpeg: JPEG 图形，文件扩展名 <code>.jpeg</code>,<code>.jpg</code></li>
+<li>audio/x-wave: WAVE 格式的音频，文件扩展名 <code>.wav</code></li>
+<li>audio/mpeg: MP3 格式的音频，文件扩展名 <code>.mp3</code></li>
+<li>video/mpeg: MPEG 文件，文件扩展名 <code>.mpg</code>,<code>.mpeg</code></li>
+<li>video/x-msvideo: AVI 文件，文件扩展名 <code>.avi</code></li>
+<li>application/x-gzip: GZIP 文件，文件扩展名 <code>.gz</code></li>
+<li>application/x-tar: TAR 文件，文件扩展名 <code>.tar</code></li>
+<li>application/xhtml+xml: XHTML 文档，文件扩展名 <code>.xhtml</code></li>
+<li>application/rtf: RTF 文本，文件扩展名 <code>.rtf</code></li>
+<li>application/pdf: PDF 文档，文件扩展名 <code>.pdf</code></li>
+<li>application/msword: Microsoft Word 文件，文件扩展名 <code>.word</code></li>
+<li>application/octet-stream: 任意的二进制数据</li>
+</ul>
+<h2>URI</h2>
+<p>URI(Uniform Resource Identifier)统一资源标识符，
+有两种类型：</p>
+<ol>
+<li>URL(Uniform Resource Locator)统一资源定位符，与位置有关，用位置定位</li>
+</ol>
+<pre><code>http://example.org/absolute/URI/with/absolute/path/to/resource.txt
+</code></pre>
+<ol start="2">
+<li>URN(Uniform Resource Name)统一资源名，与位置无关，用名称定位</li>
+</ol>
+<pre><code>urn:issn:1535-3613
+</code></pre>
+<p>我们通常用 URL，极少用 URN。
+URL 形式如下：</p>
+<pre><code>&lt;scheme&gt;://&lt;user&gt;:&lt;password&gt;@&lt;host&gt;:&lt;port&gt;/&lt;path&gt;;&lt;parameters&gt;?&lt;query&gt;#&lt;frag&gt;
+</code></pre>
+<ol>
+<li>scheme</li>
+<li>user</li>
+<li>password</li>
+<li>host</li>
+<li>port</li>
+<li>path</li>
+<li>parameters</li>
+<li>query</li>
+<li>frag</li>
+</ol>
+<p>以上九部分并不需同时存在，例如：</p>
+<pre><code>http://www.example.com/index.html
+http://www.example.com:80/index.html
+http://8.8.8.8:80/index.html
+http://www.example.com/index.html
+ftp://ftp.example.com/pub/xxx
+ftp://anonymous@ftp.example.com/pub/xxx
+ftp://joe:joespasswd@ftp.example.com/pub/xxx
+ftp://ftp.example.com/pub/xxx;type=
+http://www.example.com/abc.html;sale=false/index.html;graphics=true
+http://www.example.com/index.html?item=123&amp;color=blue&amp;size=large
+http://www.example.com/index.html#id
+</code></pre>
+<h2>Message</h2>
+<p>Message 有三部分组成：</p>
+<ol>
+<li>start line</li>
+<li>header</li>
+<li>body</li>
+</ol>
+<p>两种 Message：</p>
+<ol>
+<li>Request Message</li>
+</ol>
+<pre><code>&lt;method&gt; &lt;request-URL&gt; &lt;version&gt;
+&lt;headers&gt;
+
+&lt;entity-body&gt;
+</code></pre>
+<ol start="2">
+<li>Response Message</li>
+</ol>
+<pre><code>&lt;version&gt; &lt;status&gt; &lt;reason-phrase&gt;
+&lt;headers&gt;
+
+&lt;entity-body&gt;
+</code></pre>
+<p>method:</p>
+<ul>
+<li>GET</li>
+<li>POST</li>
+<li>PUT</li>
+<li>DELETE</li>
+<li>HEAD</li>
+<li>TRACE</li>
+<li>OPTIONS</li>
+</ul>
+<p>version:</p>
+<pre><code>HTTP/&lt;major&gt;.&lt;minor&gt;
+</code></pre>
+<p>header:</p>
+<ul>
+<li>general headers</li>
+<li>request headers</li>
+<li>response headers</li>
+<li>entity headers</li>
+<li>extension headers</li>
+</ul>
+<p>response status codes:</p>
+<ul>
+<li>100~199: informational</li>
+<li>200~299: success</li>
+<li>300~399: the resource has been moved</li>
+<li>400~499: the client did something wrong in the request</li>
+<li>500~599: something went awry on the server</li>
+</ul>
+<p>经常用到的：</p>
+<ul>
+<li>200: OK</li>
+<li>301: Moved Permanently</li>
+<li>302: Moved Temporarily</li>
+<li>401: Unauthorized</li>
+<li>404: NotFound</li>
+<li>500: Internal Server Error</li>
+<li>501: Not Implenmented</li>
+</ul>
+<h2>网路的组成</h2>
+<ul>
+<li>Proxies</li>
+<li>Caches</li>
+<li>gateways</li>
+<li>tunnels</li>
+<li>agents</li>
+</ul>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/http.html">http<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2014-10-08 18:08:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>spark学习-1：简介及安装</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>spark学习-1：简介及安装</h1>
+    <article>
+      <h2>Spark 是什么？</h2>
+<p>Spark 是一个通用的集群计算框架，通过将大量数据集计算任务分配到多台计算机上，提供高效内存计算。
+如果你熟悉 Hadoop，那么你知道分布式计算框架要解决两个问题：如何分发数据和如何分发计算。
+Hadoop 使用 HDFS 来解决分布式数据问题，MapReduce 计算范式提供有效的分布式计算。
+类似的，Spark 拥有多种语言的函数式编程 API，提供了除 map 和 reduce 之外更多的运算符，
+这些操作是通过一个称作弹性分布式数据集(resilient distributed datasets, RDDs)的分布式数据框架进行的。</p>
+<p>本质上，RDD 是一种编程抽象，代表可以跨机器进行分割的只读对象集合。
+RDD 可以从一个继承结构（lineage）重建（因此可以容错），通过并行操作访问，
+可以读写HDFS或S3这样的分布式存储，更重要的是，可以缓存到 worker 节点的内存中进行立即重用。
+由于 RDD 可以被缓存在内存中，Spark 对迭代应用特别有效，因为这些应用中，数据是在整个算法运算过程中都可以被重用。
+大多数机器学习和最优化算法都是迭代的，使得 Spark 对数据科学来说是个非常有效的工具。
+另外，由于 Spark 非常快，可以通过类似 Python REPL 的命令行提示符交互式访问。</p>
+<p>Spark 库本身包含很多应用元素，这些元素可以用到大部分大数据应用中。
+Spark 核心是一个“计算引擎”，用来调度、分发、集群监控。
+由于 Spark 很快，在其之上有许多组建，其中包括对大数据进行类似 SQL 查询的支持，机器学习和图算法，甚至对实时流数据的支持，等等。</p>
+<p><img src="/media/spark/spark_stack.png" alt="spark stack" /></p>
+<ul>
+<li><code>Spark Core</code>：包含了 Spark 的基本功能（任务调度、内存管理、故障恢复、与存储系统的交互等等），也定义 RDD 的相关 API。
+其他 Spark 的库都是构建在 RDD 和 Spark Core 之上的。</li>
+<li><code>Spark SQL</code>：提供通过 Apache Hive 的 SQL 变体 Hive 查询语言（HiveQL）与 Spark 进行交互的 API。
+每个数据库表被当做一个 RDD，Spark SQL 查询被转换为 Spark 操作。</li>
+<li><code>Spark Streaming</code>：允许对实时数据流进行处理和控制，允许程序能够像普通 RDD 一样处理实时数据。</li>
+<li><code>MLlib</code>：一个常用机器学习算法库，算法被实现为对 Spark RDD 的操作。这个库包含可扩展的学习算法，比如分类、回归等需要对大量数据集进行迭代的操作。</li>
+<li><code>GraphX</code>：控制图、并行图操作和计算的一组算法和工具的集合，扩展了 RDD API，包含控制图、创建子图、访问路径上所有顶点的操作。</li>
+<li><code>Cluster Managers</code>：Spark 可以运行在许多集群管理器上，从而可以很容易的扩展到成千上万的计算节点。</li>
+</ul>
+<h2>安装</h2>
+<p>目前 Spark 最新版本是 2.0.0，所以本篇及其后系列文章均基于此版本，API 调用基于 Python 语言 。</p>
+<p>由于 Spark 是由 Scala 语言开发的，运行在 Java 虚拟机上，
+所以你的计算机上需要安装 Java，如果要使用 Python API，也需要安装 Python。</p>
+<h3>下载：</h3>
+<pre><code>mkdir spark
+cd spark
+wget http://d3kbcqa49mib13.cloudfront.net/spark-2.0.0-bin-hadoop2.7.tgz
+</code></pre>
+<h3>验证：</h3>
+<pre><code>md5sum spark-2.0.0-bin-hadoop2.7.tgz  # verify md5 signature
+</code></pre>
+<h3>解压：</h3>
+<pre><code>tar -xf spark-2.0.0-bin-hadoop2.7.tgz
+</code></pre>
+<h3>文件列表</h3>
+<pre><code>cd spark-2.0.0-bin-hadoop2.7
+ls
+</code></pre>
+<ul>
+<li><code>README.md</code>: Spark 的简短说明，以及一些开启指令</li>
+<li><code>bin</code>、<code>sbin</code>: Spark 相关的可执行程序</li>
+<li><code>conf</code>: Spark 配置文件文件夹，里面包含了一些示例</li>
+<li><code>examples</code>: 运行 Spark 的一些示例</li>
+<li><code>license</code>: 与 Spark 相关的开源许可文件</li>
+<li><code>data</code>、<code>python</code>、<code>R</code>、...：Spark 主要组建的代码</li>
+</ul>
+<h2>Spark python shell</h2>
+<pre><code>./bin/pyspark
+</code></pre>
+<p>默认 python2 交互环境，如果想用 python3:</p>
+<pre><code>PYSPARK_PYTHON=python3 ./bin/pyspark
+</code></pre>
+<p>也可以利用 ipython：</p>
+<pre><code>PYSPARK_DRIVER_PYTHON=ipython ./bin/pyspark
+</code></pre>
+<h2>简单配置</h2>
+<p>在交互界面下，有许多繁琐的日志输出，要减少它们需要创建 <code>conf/log4j.properties</code> 文件：</p>
+<pre><code>cp conf/log4j.properties.template conf/log4j.properties
+</code></pre>
+<p>将 <code>conf/log4j.properties</code> 中的 <code>log4j.rootCategory=INFO, console</code> 修改为 <code>log4j.rootCategory=WARN, console</code>。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/spark.html">spark<sup>4</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-09-08 19:23:22
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>

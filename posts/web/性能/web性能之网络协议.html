@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>web性能之网络协议</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>web性能之网络协议</h1>
+    <article>
+      <p>尽管国际标准化组织(ISO)制定了七层网络模型，但现实并不是那样，
+而是如下图所示：</p>
+<p><img src="/media/web/network_model.png" alt="网络模型" /></p>
+<p>其中“会话层(TLS)”有时会被取消。</p>
+<p>我们计算机中绝大多数应用都处在应用层，它们的性能当然会受到下层网络基础的限制：</p>
+<ul>
+<li>IP(Internet Protocol)</li>
+<li>TCP(Transmission Control Protocol)/UDP(User Datagram Protocol)</li>
+<li>TLS(Transport Layer Security)</li>
+</ul>
+<p>IP 协议负责联网主机之间的路由选择和寻址，
+TCP 协议负责在不可靠的传输信道之上建立面向连接和可靠数据传输服务，
+UDP 协议与 TCP 处在同一层，提供无连接不可靠数据传输服务，
+TLS 协议保证上层协议的网络通信安全，
+对这些网络协议的合理设置可以减少网络请求的延迟。</p>
+<h2>TCP</h2>
+<h3>三次握手</h3>
+<p>TCP 协议为了建立可靠连接在 TCP 连接一开始就要进行三次握手：</p>
+<p><img src="/media/web/tcp_handshake.png" alt="三次握手" /></p>
+<p>三次握手完成后，客户端与服务器之间才可以通信，
+三次握手带来的延迟使得每创建一个新 TCP 连接都要付出很大代价，
+所以应该想办法重用连接，
+也可以利用 TFO(TCP Fast Open)机制来减少三次握手时间，
+但是这种机制也有一些限制：</p>
+<ul>
+<li>客户端和服务器同时支持 TFO（Linux 3.7 已经实现）</li>
+<li>随同 SYN 分组一起发送的数据净荷有最大尺寸限制</li>
+<li>只能发送某些类型的 HTTP 请求</li>
+<li>依赖加密 cookie，只能应用于重复的连接</li>
+</ul>
+<h3>预防及控制拥塞</h3>
+<p>TCP 为了预防和控制网络拥塞加入了一下机制：</p>
+<h4>流量控制</h4>
+<p>通过通告接收窗口（rwnd）大小，以便两端动态调整数据流速。</p>
+<p>最初的 TCP 规范分配给通告窗口大小的字段是 16 位的，
+在这个限制内经常无法获得最优性能，
+为解决这个问题，RFC 1323 提供了“TCP 窗口缩放”（TCP Window Scaling）选项，
+可以把接收窗口大小由 65 535 字节提高到 1G 字节！</p>
+<p>linux 中可以通过以下命令检查和启用窗口缩放选项：</p>
+<pre><code>sysctl net.ipv4.tcp_window_scaling
+sysctl -w net.ipv4.tcp_window_scaling=1
+</code></pre>
+<h4>慢启动</h4>
+<p>服务器通过 TCP 连接时初始化一个新的拥塞窗口（cwnd）变量，
+其大小控制发送端对从客户端接收确认（ACK）之前可以发送数据量的限制，
+客户端与服务器之间最大可以传输（未经 ACK 确认的）数据量取 rwnd 和 cwnd 变量中的最小值。</p>
+<p>最初 cwnd 被设定为一个很保守的值，随后的每次往返都会成倍提高 cwnd 的值，
+直到超过接收端的流量控制窗口，即系统配置的拥塞阈值（ssthresh）窗口，
+或者有分组丢失为止，此时拥塞预防算法介入，这种机制叫慢启动重启（SSR, Slow-Start Restart）。</p>
+<p>在连接空闲一定时间后 TCP 也会重置连接的拥塞窗口(cwnd)，
+所以 TCP 连接建立初始和空闲时长时不能完全利用连接的最大带宽，特别对于小文件传输非常不利。</p>
+<p>为了减少慢启动的影响，我们可以增加初始拥塞窗口(cwnd)的大小，而且在服务端可以禁用慢启动重启：</p>
+<pre><code>ip route show
+ip route change default via &lt;gateway&gt; dev &lt;eth0&gt; initcwnd &lt;value1&gt; ssthresh &lt;value2&gt;
+
+sysctl net.ipv4.tcp_slow_start_after_idle
+sysctl -w net.ipv4.tcp_slow_start_after_idle=0
+</code></pre>
+<h4>拥塞预防</h4>
+<p>拥塞预防算法把丢包作为网络拥塞的标志，即路径中某个连接或路由器已经拥堵了，
+以至于必须采取删包措施。因此，必须调整窗口大小，以避免造成更多的包丢失，
+从而保证网络畅通。</p>
+<p>最初，TCP 使用倍减加增算法（AIMD, Multiplicative Decrease and Additive Increase），
+即发生丢包时，先将拥塞窗口减半，然后每次往返再缓慢地给窗口增加一个固定的值。
+不过，很多时候 AIMD 算法太过保守，因此又有了新的比例降速算法（PRR, Proportional Rate Reduction），
+其目标就是改进丢包后的恢复速度，Linux 3.2+ 内核默认的拥塞预防算法。</p>
+<p>因此，将服务器升级到最新的版本来采用最新的拥塞预防算法。</p>
+<h3>队首阻塞</h3>
+<p>TCP 协议是基于字节流的传输协议，
+每个 TCP 分组都会带着一个唯一的序列号被发出，而所有分组必须按顺序传送到接收端，
+如果中途有一个分组没能到达接收端，那么后续分组必须保存在接收端的 TCP 缓冲区，
+等待丢失的分组重发并到达接收端。</p>
+<p>这一切都发生在 TCP 层，应用程序对 TCP 重发和缓冲区中排队的分组一无所知，
+必须等待分组全部到达才能访问数据。
+在此之前，应用程序只能在通过套接字读数据时感觉到延迟交付。
+这种效应称为 TCP 的队首（HOL，Head of Line）阻塞。</p>
+<p>因此，如果应用程序并不需要可靠的交付或者不需要按顺序交付可以采用 UDP 协议来避免队首阻塞所带来的系统抖动。</p>
+<h2>UDP</h2>
+<p>由于 UDP 协议只是在 IP 协议层之上只增加了 4 个字段：源端口、目标端口、分组长度和校验和，
+并没有像 TCP 那么多的功能，把 IP 层的特性全部暴露给了应用层：</p>
+<ul>
+<li>不保证消息交付</li>
+<li>不保证交付顺序</li>
+<li>不跟踪连接状态</li>
+<li>不需要拥塞控制</li>
+</ul>
+<p>应用程序高效利用 UDP 协议需要：</p>
+<ul>
+<li>解决 NAT 转换问题</li>
+<li>容忍各种因特网路径条件</li>
+<li>控制传输速度</li>
+<li>对所有流量进行拥塞控制</li>
+<li>使用与 TCP 相近的带宽</li>
+<li>准备基于丢包的重发计数器</li>
+<li>不发送大于路径 MTU 的数据报</li>
+<li>处理数据报丢失、重复和重排</li>
+<li>足够稳定以支持 2 分钟以上的交付延迟</li>
+<li>支持 IPv4 UDP 校验和，必须支持 IPv6 校验和</li>
+<li>在需要时使用 keep-alive（最小间隔 15 秒）</li>
+</ul>
+<h2>TLS</h2>
+<p>TLS 协议提供了三种服务：</p>
+<ul>
+<li>加密</li>
+<li>身份验证</li>
+<li>数据完整性</li>
+</ul>
+<p>为了建立加密的安全数据通道，连接双方必须就加密数据的密钥套件和密钥协商一致，
+这就是所谓的“TLS 握手”，握手过程中，TLS 协议还允许通信两端互相验明正身，
+使用消息认证码（MAC, Message Authentication Code）签署每一条消息。</p>
+<h3>TLS 握手</h3>
+<p>由于 TLS 协议基于 TCP 协议，所以 TLS 握手也是在 TCP 三次握手基础上增加了两次额外的往返：</p>
+<p><img src="/media/web/tls_handshake.png" alt="五次握手" /></p>
+<p>本身 TCP 三次握手就已经加大了网络延迟，而 TLS 在此基础上又增加两次往返，网络延迟更甚，
+因此优化 TLS 就在于减少握手往返的次数和扩展 TLS 功能。</p>
+<h4>应用层协议协商</h4>
+<p>应用层协议协商（ALPN, Application Layer Protocol Negotiation）TLS 扩展，
+让我们能在 TLS 握手的同时协商应用协议，从而省掉了 HTTP 的 Upgrade 机制所需的额外往返时间。</p>
+<h4>服务器名称指示</h4>
+<p>服务器名称指示（SNI, Server Name Indication）TLS 扩展允许客户端在握手之初就指明要连接的主机名，
+Web 服务器可以检查 SNI 主机名，选择适当的证书，继续完成握手。</p>
+<h4>TLS 会话缓存（无状态恢复）</h4>
+<p>会话标识符（Session Identifier）机制支持服务器为每个客户端保存一个 32 字节的会话 ID 和协商后的会话参数，
+相应地，客户端也可以保存会话 ID 信息，并将该 ID 包含在后续会话的“ClientHello”消息中，
+从而告诉服务器自己还记着上次握手协商后的加密套件和密钥呢，这些都可以重用。
+这样就可以节省一次 TLS 握手往返。</p>
+<p>由于每个打开的 TLS 连接都要占用内存，因此需要一套会话 ID 缓存和清除策略，
+对于拥有很多服务器而且为获得最佳性能必须使用共享 TLS 会话缓存的热门站点而言，部署这些策略绝非易事。</p>
+<p>为了解决这种问题，出台了会话记录单（Session Ticket）机制，
+该机制不用服务器保存每个客户端的会话状态，相反，如果客户端表明其支持会话记录单，
+则服务器可以在完整 TLS 握手的最后一次交换中添加一条“新会话记录单”（New Session Ticket）记录，
+包含只有服务器知道的安全密钥加密过的所有会话数据，
+然后，客户端将这个会话记录单保存起来，在后续会话的 ClientHello 消息中，可以将其包含在 SessionTicket 扩展中。
+这样，所有会话数据只保存在客户端，而由于数据被加密过，且密钥只有服务器知道，因此仍然是安全的。</p>
+<h3>证书验证</h3>
+<p>每个浏览器都会内置一个可信任的证书颁发机构（根机构）的名单，
+可以利用这个名单审计和验证服务器站点的证书没有被滥用或冒充。</p>
+<p>有时候，出于种种原因，证书颁发者需要撤销或作废证书，
+因此客户端需要缓存并定期更新证书撤销名单（CRL, Certificate Revocation List）。
+在缓存过期之前，相关证书将一直被视为有效，
+可以利用在线证书状态协议（OCSP, Online Certificate Status Protocol）来实时验证证书链是否有效。</p>
+<p>验证信任链需要浏览器遍历链条中的每个节点，从站点证书开始递归验证父证书，直至信任的根证书，
+因此，应该确保证书链的长度最小。</p>
+<h3>TLS 协议记录大小</h3>
+<p>TLS 协议每条记录的上限是 16 KB，小记录会造成分帧浪费，大记录会导致 TCP 分组，进而增加延迟，
+所以，TLS 记录大小应恰好占满 TCP 分配的 MSS（Maximum Segment Size，最大段大小）。</p>
+<p>注：本文为《web 性能权威指南》笔记</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/web.html">web<sup>12</sup></a><a href="https://fugangqiang.github.io/tags/%E6%80%A7%E8%83%BD.html">性能<sup>5</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2016-09-30 14:39:30
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>
