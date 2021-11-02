@@ -156,7 +156,7 @@ pacman -S adobe-source-code-pro-fonts adobe-source-han-sans-cn-fonts adobe-sourc
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -164,7 +164,7 @@ pacman -S adobe-source-code-pro-fonts adobe-source-han-sans-cn-fonts adobe-sourc
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -172,7 +172,7 @@ pacman -S adobe-source-code-pro-fonts adobe-source-han-sans-cn-fonts adobe-sourc
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -181,7 +181,18 @@ pacman -S adobe-source-code-pro-fonts adobe-source-han-sans-cn-fonts adobe-sourc
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);

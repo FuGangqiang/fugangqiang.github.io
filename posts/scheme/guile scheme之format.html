@@ -79,7 +79,7 @@ guile&gt; (format #f &quot;~{~a~^, ~}&quot; xs)
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -87,7 +87,7 @@ guile&gt; (format #f &quot;~{~a~^, ~}&quot; xs)
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -95,7 +95,7 @@ guile&gt; (format #f &quot;~{~a~^, ~}&quot; xs)
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -104,7 +104,18 @@ guile&gt; (format #f &quot;~{~a~^, ~}&quot; xs)
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);

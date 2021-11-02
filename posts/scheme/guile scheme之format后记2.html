@@ -244,7 +244,7 @@ scheme@(guile-user)&gt; (format #f &quot;~,,8,'.:@$&quot; 3) ; 指定 padchar �
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -252,7 +252,7 @@ scheme@(guile-user)&gt; (format #f &quot;~,,8,'.:@$&quot; 3) ; 指定 padchar �
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -260,7 +260,7 @@ scheme@(guile-user)&gt; (format #f &quot;~,,8,'.:@$&quot; 3) ; 指定 padchar �
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -269,7 +269,18 @@ scheme@(guile-user)&gt; (format #f &quot;~,,8,'.:@$&quot; 3) ; 指定 padchar �
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);

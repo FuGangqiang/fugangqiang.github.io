@@ -134,7 +134,7 @@ Postscript points 和 打印机的 points 的简写形式分别为 bp 和 pt,在
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -142,7 +142,7 @@ Postscript points 和 打印机的 points 的简写形式分别为 bp 和 pt,在
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -150,7 +150,7 @@ Postscript points 和 打印机的 points 的简写形式分别为 bp 和 pt,在
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -159,7 +159,18 @@ Postscript points 和 打印机的 points 的简写形式分别为 bp 和 pt,在
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);

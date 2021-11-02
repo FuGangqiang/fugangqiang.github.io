@@ -223,7 +223,7 @@ https://www.facebook.com/?access_token=ya29.AHES6ZSXVKYTW2VAGZtnMjD&amp;token_ty
     }
 
     var headerNav = document.getElementById('header-nav');
-    menu.addEventListener('click', function () {
+    menu.addEventListener('click', function() {
       if (headerNav.style.display === 'flex') {
         headerNav.style.display = 'none';
       } else {
@@ -231,7 +231,7 @@ https://www.facebook.com/?access_token=ya29.AHES6ZSXVKYTW2VAGZtnMjD&amp;token_ty
       }
     });
 
-    document.addEventListener('click', function (evt) {
+    document.addEventListener('click', function(event) {
       if (!window.matchMedia('(max-width: 767px)').matches) {
         return;
       }
@@ -239,7 +239,7 @@ https://www.facebook.com/?access_token=ya29.AHES6ZSXVKYTW2VAGZtnMjD&amp;token_ty
         return;
       }
 
-      let targetElement = evt.target;
+      let targetElement = event.target;
       do {
         if (targetElement == menu) {
           return;
@@ -248,7 +248,18 @@ https://www.facebook.com/?access_token=ya29.AHES6ZSXVKYTW2VAGZtnMjD&amp;token_ty
       } while (targetElement)
 
       headerNav.style.display = 'none';
-    })
+    });
+
+    window.addEventListener('resize', function() {
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        headerNav.style.display = 'none';
+        return;
+      }
+      if (headerNav.style.display === 'flex') {
+        return;
+      }
+      headerNav.style.display = 'flex';
+    });
   }
 
   window.addEventListener('load', setMenu);
