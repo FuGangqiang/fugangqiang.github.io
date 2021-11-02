@@ -1,0 +1,484 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="mdblog.rs">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
+  <title>archlinux的构建系统</title>
+<link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
+  <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
+<body>
+<header>
+  <div class="container">
+    <div id="site">
+      <div id="site-name">
+        <a href="https://fugangqiang.github.io/index.html" title="Fu">Fu</a>
+      </div>
+      <div id="site-motto">Simple is Beautiful!</div>
+    </div>
+    <nav id="header-nav">
+      <a href="https://fugangqiang.github.io/index.html">博客</a>
+      <a href="https://fugangqiang.github.io/tags.html">标签</a>
+      <a href="https://fugangqiang.github.io/atom.xml">订阅</a>
+    </nav>
+    <svg id="menu" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <path d="M128 298.666667h768a42.666667 42.666667 0 0 0 0-85.333334H128a42.666667 42.666667 0 0 0 0 85.333334z m768 170.666666H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z m0 256H128a42.666667 42.666667 0 0 0 0 85.333334h768a42.666667 42.666667 0 0 0 0-85.333334z" fill="#fff"></path>
+    </svg>
+  </div>
+</header>
+
+<main class="container">
+    <h1>archlinux的构建系统</h1>
+    <article>
+      <p>我们知道，Linux 有许多发行版，
+常见的有 Redhad、Dedian、Suse 等，
+还有许多小众的发行版，比如 Archlinux、Gentoo 等，
+有人统计过世界上有数百种不同的 Linux 发行版。</p>
+<p>尽管如此众多，它们都是基于 Linux 内核，并在其上包装一些开源软件，
+那为什么会出现如此众多的发行版呢？
+这就在于它们如何包装构建、安装和管理那些成百上千的开源软件及其依赖，
+也就是它们的构建系统，
+比如 Redhad 的 yum、Dedian 的 apt、Suse 的 yast、Archlinux 的 pacman、Gentoo 的 emerge。
+其中本文只介绍 Archlinux 的构建系统。</p>
+<h2>一切从最开始说起</h2>
+<p>在介绍构建系统之前，我们先看看在 Linux 下最经典也是最通用的源码编译安装程序的方式：</p>
+<ol>
+<li>到开源网站下载相应的源码包</li>
+<li>解压源码包</li>
+<li>初始化编译环境及配置</li>
+<li>构建二进制程序</li>
+<li>安装二进制程序</li>
+</ol>
+<p>我们以 <code>nginx</code> 为例来介绍这一安装过程，
+首先我们先到 <a href="http://nginx.org/en/download.html">nginx 官方网站</a>找到并下载自己需要的 nginx 安装包：</p>
+<pre><code>wget http://nginx.org/download/nginx-1.8.0.tar.gz
+</code></pre>
+<p>解压源码包：</p>
+<pre><code>tar -xvzf nginx-1.8.0.tar.gz
+</code></pre>
+<p>初始化编译环境：</p>
+<pre><code>cd nginx-1.8.0
+./configure
+</code></pre>
+<p>构建二进制程序：</p>
+<pre><code>make
+</code></pre>
+<p>安装二进制程序：</p>
+<pre><code>sudo make install
+</code></pre>
+<p>这样就安装好了 nginx 程序。</p>
+<p>在安装过程中，有同学会碰到依赖出错提示，
+也就是说 nginx 使用了其他软件库，这些库有：pcre 库、zlib 库、openssl 库，
+所以在编译安装 nginx 之前，我们需要先把 pcre、zlib 和 openssl 三个库安装到自己的系统里，
+然后编译安装 nginx。</p>
+<p>但是问题来了，pcre 库、zlib 库和 openssl 库有可能还会依赖其他软件库，
+那么我们就要循环向上把所有涉及的依赖库安装到我们的系统中，
+当然有可能有些依赖库已经在我们的系统中了，就不须再次安装了。</p>
+<p>如果我们不想再用 nginx 了，想把 nginx 彻底的从系统里卸载掉，
+那我们只需把所有与 nginx 有关的文件删掉即可。
+但是那些 nginx 的依赖库呢？是否也须把它们也删除了？
+这里就要小心了，因为我们系统中有可能还有其他程序依赖这些库，
+如果我们删除了这些依赖库，会导致那些依赖这些库的程序无法运行。
+如果我们不删除这些依赖库，随着安装卸载各种程序的积累，系统中就会遗留一些不再被用到的依赖库文件了，就是我们通常说的垃圾文件。</p>
+<p>不仅如此，我们怎么找到那些与 nginx 有关的所有的文件呢？
+这就要从我们运行 <code>make install</code> 命令时用到的 makefile 文件里找了，
+当然一般 makefile 文件也有 <code>uninstall</code> 命令供你选择。</p>
+<p>从上面可以看出，在 Linux 系统上从源码编译安装卸载程序会是一件很繁琐及容易出错的事情，
+所以人们想到了各种方法来简化安装及卸载软件的繁琐过程，
+于是就出现了各种不同的构建系统。</p>
+<h2>Pacman 命令</h2>
+<p>在 Archlinux 系统里，如果我们需要安装 nginx 程序，当然可以像上面那样安装，
+但是更好也是最简单的方法就是利用 Archlinux 中的 <code>pacman</code> 命令：</p>
+<pre><code>pacman -S nginx
+</code></pre>
+<p>这样，就把 nginx 及其依赖（pcre 库、zlib 库和 openssl 库）安装到你的系统中了，
+你就可以直接调用 <code>nginx</code> 命令运行了。</p>
+<p>如果我们想彻底的把 nginx 命令卸载呢？很简单：</p>
+<pre><code>pacman -Rsn nginx
+</code></pre>
+<p>这样，就把 nginx 相关文件及其依赖彻底的删除了，
+但是如果系统中还有其他程序依赖 pcre 库、zlib 库或 openssl 库时，
+pacman 就不会删除这个库，这样就保证我们不会碰到删除依赖库的同时其它依赖于这个库的程序无法运行的情况。</p>
+<p>pacman 命令是 <code>package manager</code> 的简写，是 Archlinux 系统中的包管理器，简单使用如下：</p>
+<ol>
+<li>更新系统
+<ul>
+<li><code>pacman -Syu</code> 更新整个 Archlinux 系统</li>
+<li><code>pacman -Sy</code> 将本地的包数据库与远程的仓库进行了同步</li>
+<li><code>pacman -Su</code> 根据本地包数据库更新系统</li>
+<li><code>pacman -Syu –ignore 包名</code> 在更新系统时不升级指定包</li>
+</ul>
+</li>
+<li>安装包
+<ul>
+<li><code>pacman -S 包名</code> 安装指定包，也可以同时安装多个包，只需以空格分隔包名即可</li>
+<li><code>pacman -Sy 包名</code> 与上面命令不同的是，该命令将先同步包数据库然后再安装指定包名</li>
+<li><code>pacman -Sf 包名</code> 强制安装指定包</li>
+<li><code>pacman -Sv 包名</code> 在显示一些操作信息后执行安装</li>
+<li><code>pacman -U  包名.pkg.tar.gz</code> 安装本地包</li>
+</ul>
+</li>
+<li>删除包
+<ul>
+<li><code>pacman -R 包名</code> 只删除指定包</li>
+<li><code>pacman -Rs 包名</code> 在删除指定包的同时，也将删除其依赖</li>
+<li><code>pacman -Rd 包名</code> 在删除指定包时不检查其依赖</li>
+<li><code>pacman -Rn 包名</code>　删除软件包及其配置文件</li>
+<li><code>pacman -Rsn 包名</code>　删除软件包及其依赖和配置文件</li>
+</ul>
+</li>
+<li>查询同步(sync)包数据库
+<ul>
+<li><code>pacman -Ss 关键字</code> 在包数据库中查询含有关键字的包</li>
+<li><code>pacman -Si 包名</code>　查询包数据库中有关包的详细信息</li>
+</ul>
+</li>
+<li>查询本地(local)包数据库
+<ul>
+<li><code>pacman -Q</code> 列出系统中所有已安装包的包名</li>
+<li><code>pacman -Qs 关键字</code>　在包数据库中查询含有关键字的包</li>
+<li><code>pacman -Qi 包名</code> 在包数据库中查询有关包的详细信息</li>
+<li><code>pacman -Ql 包名</code> 在包数据库中查询并列出该包所含文件</li>
+<li><code>pacman -Qo /path/file</code> 查询某文件属于何包</li>
+<li><code>pacman -Qdt</code> 查询系统中的孤立包</li>
+<li><code>pacman -Qet</code> 查询系统中的不被因依赖而安装的包</li>
+</ul>
+</li>
+<li>其他用法
+<ul>
+<li><code>pacman -Sw 包名</code> 只下载包，不安装</li>
+<li><code>pacman -Sc</code> 清理未安装的包文件（Pacman 下载的包文件缓存于 /var/cache/pacman/pkg/ 目录）</li>
+<li><code>pacman -Scc</code> 清理所有的缓存文件</li>
+<li><code>pacman -Rs $(pacman -Qdtq)</code> 递归删除系统中存在的孤立包</li>
+</ul>
+</li>
+</ol>
+<h2>pacman 原理</h2>
+<p>上面我们看到了 pacman 有很多方便的功能，下面就让我们来看一下 pacman 命令是怎么做到这些的。</p>
+<p>我们手动简单模拟一下 <code>pacman -S nginx</code> 是怎么工作的：</p>
+<pre><code>wget http://mirrors.163.com/archlinux/extra/os/x86_64/nginx-1.8.0-1-x86_64.pkg.tar.xz
+pacman -U nginx-1.8.0-1-x86_64.pkg.tar.xz
+</code></pre>
+<p>我们先从网上下载最新的 <code>nginx</code> 的 archlinux 包，然后安装它，这就是 pacman 安装程序的大致过程。</p>
+<p>那这个过程是怎么被 pacman 命令隐藏的呢？我们来看一下 pacman 命令的配置文件 <code>/etc/pacman.conf</code> 里被注释掉的两行：</p>
+<pre><code>#DBPath      = /var/lib/pacman/
+#CacheDir    = /var/cache/pacman/pkg/
+</code></pre>
+<p>从这里我们可以大致看到：<code>DBPath</code> 是用来存储 archlinux 的包数据库的，而 <code>CacheDir</code> 是用来存放下载的 archlinux 包的。</p>
+<p>在运行 <code>pacman -S nginx</code> 时，
+pacman首先会从 <code>/var/lib/pacman/sync/</code> 文件夹里的几个数据库中搜索到 <code>nginx</code> 包对应的所有依赖包，
+并递归搜索相应依赖包的所有依赖包，统计出安装 <code>nginx</code> 必须要安装的所有包，
+再从 <code>/var/lib/pacman/local/</code> 文件夹里查询这些包是否已经被安装，如果已被安装，则忽略安装此包及其依赖，
+接着 pacman 就会从 <code>/etc/pacman.d/mirrorlist</code> 文件里选择一个包下载地址，
+把这些包下载到 <code>/var/cache/pacman/pkg/</code> 文件夹里，安装包到系统里，
+同时更新 <code>/var/lib/pacman/local/</code> 文件夹，用来注册这些新安装的包，
+到此安装过程结束。</p>
+<h2>package</h2>
+<p>读到这里，你也许会问，我们安装的 <code>nginx-1.8.0-1-x86_64.pkg.tar.xz</code> 包到底是什么东东？</p>
+<p>从文件后缀我们可以知道它是一个压缩包，解压一下，我们看看里面是什么：</p>
+<pre><code>$ tar xvJf nginx-1.8.0-1-x86_64.pkg.tar.xz
+$ tree .
+.
+├── etc
+│   ├── logrotate.d
+│   │   └── nginx
+│   └── nginx
+│       ├── fastcgi.conf
+│       ├── fastcgi_params
+│       ├── koi-utf
+│       ├── koi-win
+│       ├── mime.types
+│       ├── nginx.conf
+│       ├── scgi_params
+│       ├── uwsgi_params
+│       └── win-utf
+├── usr
+│   ├── bin
+│   │   └── nginx
+│   ├── lib
+│   │   └── systemd
+│   │       └── system
+│   │           └── nginx.service
+│   └── share
+│       ├── licenses
+│       │   └── nginx
+│       │       └── LICENSE
+│       ├── man
+│       │   └── man8
+│       │       └── nginx.8.gz
+│       ├── nginx
+│       │   └── html
+│       │       ├── 50x.html
+│       │       └── index.html
+│       └── vim
+│           └── vimfiles
+│               ├── ftdetect
+│               │   └── nginx.vim
+│               ├── indent
+│               │   └── nginx.vim
+│               └── syntax
+│                   └── nginx.vim
+└── var
+    ├── lib
+    │   └── nginx
+    │       └── proxy
+    └── log
+        └── nginx
+</code></pre>
+<p>从目录树里我们可以看到，这就是安装 <code>nginx</code> 的所有文件，
+其中有二进制文件和配置文件(<code>usr/</code>、<code>etc/</code> 和 <code>var/</code> 目录)，
+并且路径与操作系统中的目录树相对应。</p>
+<h2>makepkg</h2>
+<p><code>nginx-1.8.0-1-x86_64.pkg.tar.xz</code> 这个包是由 archlinux 的维护者们事先打包构建的，
+把它放到 <code>mirrorlist</code> 服务器上，供 pacman 命令下载。</p>
+<p>那这个包又是怎么构建的呢？
+其实这个包构建的步骤与我们在本文第一节讲过的大致相同，
+下载，解压，编译，安装。</p>
+<p>但是 archlinux 也额外做了一些其他事情，比如下载安装依赖包等等，
+为了简化这一繁琐过程，archlinux 有了 <code>makepkg</code> 命令。</p>
+<p><code>makepkg</code> 命令是通过一个名为 <code>PKGBUILD</code> 脚本下载、解压、编译并打包成 archlinux 包来完成上面所有事情的。</p>
+<p>首先我们编写一个 <code>PKGBUILD</code> 脚本用来构建 <code>nginx-1.8.0-1-x86_64.pkg.tar.xz</code>：</p>
+<pre><code>mkdir build
+touch PKGBUILD
+</code></pre>
+<p>编写 <code>PKGBUILD</code> 内容如下：</p>
+<pre><code class="language-bash">pkgname=nginx
+pkgver=1.8.0
+pkgrel=1
+pkgdesc='Lightweight HTTP server and IMAP/POP3 proxy server'
+arch=('i686' 'x86_64')
+url='http://nginx.org'
+license=('custom')
+depends=('pcre' 'zlib' 'openssl' 'geoip')
+makedepends=('hardening-wrapper')
+source=($url/download/nginx-$pkgver.tar.gz)
+md5sums=('3ca4a37931e9fa301964b8ce889da8cb')
+
+build() {
+  cd $pkgname-$pkgver
+
+  ./configure \
+    --prefix=/etc/nginx \
+    --conf-path=/etc/nginx/nginx.conf \
+    --sbin-path=/usr/bin/nginx \
+    --pid-path=/run/nginx.pid \
+    --lock-path=/run/lock/nginx.lock \
+    --user=http \
+    --group=http \
+    --http-log-path=/var/log/nginx/access.log \
+    --error-log-path=stderr \
+    --http-client-body-temp-path=/var/lib/nginx/client-body \
+    --http-proxy-temp-path=/var/lib/nginx/proxy \
+    --http-fastcgi-temp-path=/var/lib/nginx/fastcgi \
+    --http-scgi-temp-path=/var/lib/nginx/scgi \
+    --http-uwsgi-temp-path=/var/lib/nginx/uwsgi \
+    --with-imap \
+    --with-imap_ssl_module \
+    --with-ipv6 \
+    --with-pcre-jit \
+    --with-file-aio \
+    --with-http_dav_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_realip_module \
+    --with-http_spdy_module \
+    --with-http_ssl_module \
+    --with-http_stub_status_module \
+    --with-http_addition_module \
+    --with-http_degradation_module \
+    --with-http_flv_module \
+    --with-http_mp4_module \
+    --with-http_secure_link_module \
+    --with-http_sub_module \
+    --with-http_geoip_module
+
+  make
+}
+
+package() {
+  cd $pkgname-$pkgver
+  make DESTDIR=&quot;$pkgdir&quot; install
+
+  install -Dm644 contrib/vim/ftdetect/nginx.vim \
+    &quot;$pkgdir&quot;/usr/share/vim/vimfiles/ftdetect/nginx.vim
+  install -Dm644 contrib/vim/syntax/nginx.vim \
+    &quot;$pkgdir&quot;/usr/share/vim/vimfiles/syntax/nginx.vim
+  install -Dm644 contrib/vim/indent/nginx.vim \
+    &quot;$pkgdir&quot;/usr/share/vim/vimfiles/indent/nginx.vim
+
+  sed -e 's|\&lt;user\s\+\w\+;|user html;|g' \
+    -e '44s|html|/usr/share/nginx/html|' \
+    -e '54s|html|/usr/share/nginx/html|' \
+    -i &quot;$pkgdir&quot;/etc/nginx/nginx.conf
+
+  rm &quot;$pkgdir&quot;/etc/nginx/*.default
+
+  install -d &quot;$pkgdir&quot;/var/lib/nginx
+  install -dm700 &quot;$pkgdir&quot;/var/lib/nginx/proxy
+
+  chmod 750 &quot;$pkgdir&quot;/var/log/nginx
+  chown http:log &quot;$pkgdir&quot;/var/log/nginx
+
+  install -d &quot;$pkgdir&quot;/usr/share/nginx
+  mv &quot;$pkgdir&quot;/etc/nginx/html/ &quot;$pkgdir&quot;/usr/share/nginx
+
+  install -Dm644 LICENSE &quot;$pkgdir&quot;/usr/share/licenses/$pkgname/LICENSE
+
+  rmdir &quot;$pkgdir&quot;/run
+
+  install -d &quot;$pkgdir&quot;/usr/share/man/man8/
+  gzip -9c man/nginx.8 &gt; &quot;$pkgdir&quot;/usr/share/man/man8/nginx.8.gz
+}
+</code></pre>
+<p>在 <code>build/</code> 目录下运行 <code>makepkg</code> 命令，
+就可以看到了所有与本文第一节类似的步骤，
+然后就自动生成了 <code>nginx-1.8.0-1-x86_64.pkg.tar.xz</code> 包。</p>
+<p>当然，此时你可以把新生成的包安装到系统中：</p>
+<pre><code>pacman -U nginx-1.8.0-1-x86_64.pkg.tar.xz
+</code></pre>
+<h2>PKGBUILD</h2>
+<p>从上面可以看到，为了构建一个 archlinux 包，
+我们只需编写 <code>PKGBUILD</code> 脚本，
+然后运行 <code>makepkg</code> 命令，
+其通过 <code>PKGBUILD</code> 脚本中参数和指令来自动化下载、解压、编译和打包全过程。</p>
+<p><code>PKGBUILD</code> 非常好写，通过 shell 语法定义一些 <code>makepkg</code> 命令需要的参数和指令。</p>
+<p>我们来看看上一小节中 <code>PKGBUILD</code> 中定义的参数：</p>
+<ul>
+<li>pkgname：包名</li>
+<li>pkgver：包版本</li>
+<li>pkgrel：包的 release number</li>
+<li>pkgdesc：包的简要概述</li>
+<li>arch：包编译的体系结构</li>
+<li>url：包官方网站 url</li>
+<li>depends：包的依赖包</li>
+<li>makedepends：编译这个包时需要的依赖包</li>
+<li>source：包源码的下载地址</li>
+<li>md5sums：上面 source 参数对应项的 md5sum，用来检测下载包的正确性</li>
+<li>build：编译指令</li>
+<li>package：打包指令</li>
+</ul>
+<p>更多参数请参考 <a href="https://wiki.archlinux.org/index.php/PKGBUILD">archlinux wiki</a>。</p>
+<h2>AUR(Archlinux User-community Repository)</h2>
+<p>开源世界是一个分享的世界，archlinux 通过 AUR 来存放来自世界上所有用户贡献的 <code>PKGBUILD</code> 脚本，
+进而使大家方便的通过 archlinux 安装软件。</p>
+<p>那么如何贡献 AUR 呢？很简单，只需下面步骤：</p>
+<ul>
+<li>编写 <code>PKGBUILD</code> 相关文件</li>
+<li>打包 <code>PKGBUILD</code> 相关文件</li>
+<li>上传打包文件到 http://aur.archlinux.org 即可</li>
+</ul>
+<p>相对应的命令如下：</p>
+<pre><code>cd pkgname
+touch PKGBUILD
+cd ..
+tar -zcvf pkgname.tar.gz pkgname
+</code></pre>
+<p>那么我们如何利用AUR呢？</p>
+<p>你可以：</p>
+<ul>
+<li>在AUR网站上搜索你想要的包</li>
+<li>下载相应的 <code>pkgname.tar.gz</code></li>
+<li>解压包</li>
+<li>进入目录运行 <code>makepkg</code> 命令</li>
+<li>利用 <code>pacman -U</code> 来安装相应包</li>
+</ul>
+<p>有些同学可能会问：那 AUR 和 <code>pacman -S pkgname</code> 又有什么关系呢？</p>
+<p>在 archlinux 系统里，所有的包都是从 <code>PKGBUILD</code> 开始构建的，你通过 <code>pacman</code> 得到的二进制包也是从 <code>PKGBUILD</code> 编译而成的。
+在 <code>/etc/pacman.conf</code> 有很多 <code>Repository</code> 设置，其中的 <code>[core]</code>、<code>[extra]</code> 是由 archlinux 的核心成员维护的，
+这些软件库里的软件由于特别重要，每个人都要用，所以 archlinux 的开发人员把二进制包提前做好，你就可以通过 <code>pacman</code> 取得了 。</p>
+<p>而 <code>/etc/pacman.conf</code> 里的 <code>[community]</code> 里的包就是先由 AUR 社区用户贡献，通过下载用户投票，当投票数超过一定数量后，
+由 archlinux 维护者检查这个包的 <code>PKGBUILD</code> 相关文件是否安全，如果安全，就会把这个包移入 <code>[community]</code> 源里。</p>
+<h2>ABS(Archlinux Build System)</h2>
+<p>ABS 默认没有被安装到 archlinux 里，你可以通过 <code>pacman -S abs</code> 命令安装它。</p>
+<p>那么 ABS 又是什么呢？
+ABS 就是把所有包的 <code>PKGBUILD</code> 相关文件全部下载到你的系统里(<code>/var/abs/</code>)。</p>
+<p>你可以到 <code>/var/abs/</code> 里面复制相应包的 <code>PKGBUILD</code> 相关文件，
+运行 <code>makepkg</code> 和 <code>pacman -U</code> 命令来打包安装它了，
+当然，你也可以按照你的需要修改相应的 <code>PKGBUILD</code> 文件，继而自定义安装包。</p>
+
+    </article>
+    <div id="article-footer">
+        <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
+          <a href="https://fugangqiang.github.io/tags/linux.html">linux<sup>30</sup></a><a href="https://fugangqiang.github.io/tags/archlinux.html">archlinux<sup>3</sup></a><a href="https://fugangqiang.github.io/tags/package.html">package<sup>1</sup></a>
+        </div>
+      <div>
+          <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
+          2015-06-06 19:19:00
+        </div>
+      </div>
+</main>
+
+<footer>
+  <div class="container">博学之　审问之　慎思之　明辨之　笃行之</div>
+</footer>
+
+<script>
+  function setMenu() {
+    var menu = document.getElementById('menu');
+    if (!menu) {
+      return;
+    }
+
+    var headerNav = document.getElementById('header-nav');
+    menu.addEventListener('click', function () {
+      if (headerNav.style.display === 'flex') {
+        headerNav.style.display = 'none';
+      } else {
+        headerNav.style.display = 'flex';
+      }
+    });
+
+    document.addEventListener('click', function (evt) {
+      if (!window.matchMedia('(max-width: 767px)').matches) {
+        return;
+      }
+      if (headerNav.style.display !== 'flex') {
+        return;
+      }
+
+      let targetElement = evt.target;
+      do {
+        if (targetElement == menu) {
+          return;
+        }
+        targetElement = targetElement.parentNode;
+      } while (targetElement)
+
+      headerNav.style.display = 'none';
+    })
+  }
+
+  window.addEventListener('load', setMenu);
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.css" integrity="sha384-cRxb1HsKSl8bTfU9fBcGsjktUfQa6w+fwvkYnU8XjFH4Qg8To1+/9OXv5iRzrKX4" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.20/dist/katex.min.js" integrity="sha384-ov99pRO2tAc0JuxTVzf63RHHeQTJ0CIawbDZFiFTzB07aqFZwEu2pz4uzqL+5OPG" crossorigin="anonymous"></script>
+<script>
+  "use strict";
+  document.addEventListener("DOMContentLoaded", function () {
+    var maths = document.getElementsByClassName("language-math");
+    for (var i = 0; i < maths.length; i++) {
+      var el = maths[i];
+      katex.render(el.innerText, el, { displayMode: true });
+    }
+    var codes = document.getElementsByTagName("code");
+    for (i = 0; i < codes.length; i++) {
+      el = codes[i];
+      if (el.classList.contains("language-math")) continue;
+      if (el.classList.contains("language-inline-math")) {
+        katex.render(el.innerText, el);
+        continue;
+      }
+      var n = el.nextSibling;
+      var p = el.previousSibling;
+      if (n && p && /^\$/.test(n.data) && /\$$/.test(p.data)) {
+        katex.render(el.innerText, el);
+        n.splitText(1);
+        n.remove();
+        p.splitText(p.data.length - 1).remove();
+      }
+    }
+  });
+</script>
+</body>
+</html>
