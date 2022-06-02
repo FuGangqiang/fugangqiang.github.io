@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2022-05-29T22:26:18+08:00</updated>
+  <updated>2022-06-02T18:00:08+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/media/favicon.png</icon>
   <logo>/media/favicon.png</logo>
@@ -10,6 +10,71 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E6%A6%82%E5%BF%B5.html</id>
+    <title>编程语言宏之概念</title>
+    <updated>2022-06-02T15:02:00+08:00</updated>
+    <published>2022-06-02T15:02:00+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E6%A6%82%E5%BF%B5.html"/>
+    <summary>很多人不理解宏的概念，其实这与翻译有很大关系， 如果将 `macro` 理解为 `缩写`，就更易懂了，翻译成`缩变`就更合适了。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>很多人不理解宏的概念，其实这与翻译有很大关系，
+如果将 <code>macro</code> 理解为 <code>缩写</code>，就更易懂了，翻译成<code>缩变</code>就更合适了。</p>
+<p>自然语言中，<code>缩写</code>是简单的替换，
+<code>人大</code>就是<code>人民代表大会</code>，
+<code>中共</code>就是<code>中国共产党</code>，
+<code>GDP</code>就是<code>Gross Domestic Product</code>，翻译过来就是<code>国内生产总值</code>,
+编程语言中也存在类似的概念，这就是我们说的<code>宏</code>。</p>
+<h2>什么是宏？</h2>
+<p>在编程语言中，<code>macro</code>(macro instruction 的简称) 是将某些输入替换成某些输出的规则，
+它的输入、输出类型可以是字符、词法 token 或者语法树。</p>
+<p>宏可以携带参数，一个或者多个，根据参数的不同，替换为不同的内容，也就是<code>可编程替换</code>。</p>
+<p>编程语言中涉及宏的地方有两种：</p>
+<ul>
+<li>宏的定义：用来定义替换规则</li>
+<li>宏的展开：用宏的替换规则将宏的输入展开成宏的输出</li>
+</ul>
+<h2>宏示例</h2>
+<p>许多编程语言有宏的概念，比如 C，TeX，m4，lisp，scheme，julia，scala，rust，以及某些汇编语言等等，
+下面我们用 C 语言中的宏来示例宏定义和用法。</p>
+<p>比如在 C 语言中定义一个简单的 <code>max</code> 宏如下：</p>
+<pre><code>#define max(a,b) ((a) &gt;= (b) ? (a) : (b))
+</code></pre>
+<p>这里定义了一个名为 <code>max</code> 的宏，
+这个宏有两个参数是 <code>a</code> 和 <code>b</code>，
+而后面的 <code>((a) &gt;= (b) ? (a) : (b))</code> 用来规定替换 <code>max(a, b)</code> 形式的输出样式。</p>
+<p>当在代码中使用 <code>max</code> 宏的时候，根据参数的不同进行替换相应的代码，
+比如下面的代码：</p>
+<pre><code>i + max(x*y, u-v) + j
+</code></pre>
+<p>这里 <code>max(x*y, u-v)</code> 就相当于一个编程语言 <code>缩写</code>，
+其中 <code>x*y</code> 会匹配到 max 定义中的 <code>a</code> 参数，而 <code>u-v</code> 就匹配到 max 定义中的 <code>b</code> 参数，</p>
+<pre><code>max(x*y, u-v)
+     |    |
+     |    |
+     v    v
+max( a ,  b )
+</code></pre>
+<p>然后根据 max 定义，将 <code>max(a, b)</code> 形式的宏调用进行参数替换：</p>
+<pre><code>(( a ) &gt;= ( b ) ? ( a ) : ( b ))
+   |        |       |       |
+   |        |       |       |
+   v        v       v       v
+((x*y) &gt;= (u-v) ? (x*y) : (u-v))
+</code></pre>
+<p>整个 <code>i + max(x*y, u-v) + j</code> 最终替换后的结果是：</p>
+<pre><code>i + ((x*y) &gt;= (u-v) ? (x*y) : (u-v)) + j
+</code></pre>
+<h2>更复杂的宏</h2>
+<p>当然，C 语言中的宏还是比较简单的，它仅仅是词法 token 级别的替换，
+有些编程语言有更复杂，更具有编程性的宏，
+它们中的代表是 lisp 语言，lisp 可以说是对宏应用最彻底的一个语言，
+这与 lisp 的语法是 sexp(S-expressions, Symbolic EXPression)有关，
+具体需要看下一篇博文了。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/compiler/minilisp%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB.html</id>
     <title>minilisp源码阅读</title>
     <updated>2022-05-29T20:53:00+08:00</updated>
@@ -562,23 +627,6 @@ Linux 系统使用一直都很和谐。</p>
 <pre><code>pacman -S unarchiver
 unar xxx.zip
 </code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/network/tcp-ip-illustrated-v1-the-protocols%E7%AC%94%E8%AE%B0-00.html</id>
-    <title>tcp-ip-illustrated-v1-the-protocols笔记-00</title>
-    <updated>2018-06-17T18:33:42+08:00</updated>
-    <published>2018-06-17T18:33:42+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/network/tcp-ip-illustrated-v1-the-protocols%E7%AC%94%E8%AE%B0-00.html"/>
-    <summary>最近越发感觉自己在网络方面的知识非常匮乏，很有必要更进一步深入了解一下， 打算从 TCP/IP Illustrated V1: The Protocols 开始看起， 学习过程中再进一步了解 linux 下与网络相关的一系列工具， 并在学习的过程中，认真的做相关笔记。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>最近越发感觉自己在网络方面的知识非常匮乏，很有必要更进一步深入了解一下，
-打算从 TCP/IP Illustrated V1: The Protocols 开始看起，
-学习过程中再进一步了解 linux 下与网络相关的一系列工具，
-并在学习的过程中，认真的做相关笔记。</p>
-<p>发现这里埋了一个很大的坑，以后要逼着自己把它填完啦，哈哈...</p>
 
         ]]>
     </content>

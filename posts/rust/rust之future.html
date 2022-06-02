@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="generator" content="mdblog.rs">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
-  <title>redis源码阅读之基本数据结构</title>
+  <title>rust之future</title>
 <link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
 <body>
@@ -28,193 +28,134 @@
 </header>
 
 <main class="container">
-    <h1>redis源码阅读之基本数据结构</h1>
+    <h1>rust之future</h1>
     <article>
-      <h2>基本数据结构</h2>
-<h3>动态字符串(dynamic string)</h3>
+      <p>随着 tokio 0.1 的发布，rust 语言的异步 io 库逐渐成熟，
+打算用几篇博客来描述一下 tokio 框架相关的基础 crate(当然，也是为了学习一下)：</p>
 <ul>
-<li>sds.h</li>
-<li>sds.c</li>
+<li><a href="https://github.com/carllerche/mio">mio</a></li>
+<li><a href="https://github.com/alexcrichton/futures-rs">futures</a></li>
+<li><a href="https://github.com/tokio-rs/tokio">tokio</a></li>
 </ul>
-<p>存储在 heap 上，只是比 c 中的字符串类型多了一个结构头，
-在结构头里有 len 和 size 属性，实现了二进制安全。</p>
-<pre><code class="language-c">struct sdshdr {
-    unsigned int len;
-    unsigned int free;
-    char buf[];
-};
+<p>本篇主要讲解 <a href="https://github.com/alexcrichton/futures-rs">futures</a>。</p>
+<p>在许多编程语言都有 <code>futures</code>(类似于 <code>promise</code>、<code>delay</code>、<code>deferred</code>) 的概念，
+并在此基础上引入轻量级进程或协程的概念。</p>
+<h2>为什么需要 futures？</h2>
+<p>在异步并发编程中同时需要维护成千上万个链接，这些链接大多处于阻塞状态，
+当其中某些链接就绪后（由 mio 提供的接口询问），服务程序需要分别对其进行不同的处理，
+处理这些链接的方法大多用两种方式：</p>
+<ul>
+<li>callbacks</li>
+<li>futures</li>
+</ul>
+<p>虽然 callbacks 方式便于理解，但是当回调的嵌套层次比较深时，程序代码维护和阅读很不方便，
+为此引入了 futures 方式来表达程序的执行流程，进而使代码像同步代码一样。</p>
+<h2>什么是 futures？</h2>
+<p>本质上 <code>future</code> 就是一个值，但是这个值有可能还没有就绪，而就绪是需要某些事件的发生，
+其适用于任何事件，我们可以用 <code>future</code> 来表示以下事件：</p>
+<ul>
+<li>一个 RPC 调用</li>
+<li>一个数据库查询</li>
+<li>一个计时器</li>
+<li>一个非常耗时的任务</li>
+<li>从 socket 中读数据</li>
+</ul>
+<p>不仅如此，我们可以对 <code>future</code> 进行任意的组合，比如：</p>
+<ul>
+<li>顺序组合(sequential composition)：
+<code>f.and_then(|val| some_new_future(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个 future</li>
+<li>映射组合(Mapping)：
+<code>f.map(|val| some_new_value(val))</code>，
+获取 future <code>f</code> 的值，将其传入一个函数进而构造另一个值</li>
+<li>合并组合(Joining)：
+<code>f.join(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当两者都就绪后将两者的值合并为一个元组</li>
+<li>选择组合(Selecting)：
+<code>f.select(g)</code>，
+使 future <code>f</code> 和 future <code>g</code> 并发执行，当其中一个就绪后并选择这个 future 的值返回</li>
+</ul>
+<p>通过上面的特性我们可以很容易用 <code>futures</code> 来表达下面的执行流：</p>
+<pre><code class="language-rust">id_rpc(&amp;my_server).and_then(|id| {
+    get_row(id)
+}).map(|row| {
+    json::encode(row)
+}).and_then(|encoded| {
+    write_string(my_socket, encoded)
+})
 </code></pre>
-<h3>双向链表(doubly linked list)</h3>
+<p>这看起来很像同步代码，但是上面代码最终会被编译成一个状态机，根据当前的状态执行特定程序。</p>
+<h2>futures-rs future 种类</h2>
+<p>从上面看 future 只是代表一个单值，只代表一个事件，
+但是在网络编程中，读取一个 TCP 链接我们通常会获取一个字节流，与一系列读事件相关，
+因此我们还需要另一种 future 抽象用来关联多个事件：</p>
 <ul>
-<li>adlist.h</li>
-<li>adlist.c</li>
+<li>Stream：读入流，与 incoming events 关联</li>
+<li>Sink：写出流，与 outgoing events 关联</li>
 </ul>
-<p>与教科书上面讲的几乎没什么差别：</p>
-<pre><code class="language-c">typedef struct listNode {
-    struct listNode *prev;
-    struct listNode *next;
-    void *value;
-} listNode;
+<p>因此 futures-rs 分别提供了三种 trait：</p>
+<ul>
+<li>Future</li>
+<li>Stream</li>
+<li>Sink</li>
+</ul>
+<h2>trait 定义</h2>
+<p>trait <code>Future</code> 的定义与标准库中的 <code>Iterator</code> 很相似：</p>
+<pre><code class="language-rust">trait Future {
+    // The type of value that the future yields on successful completion.
+    type Item;
 
-typedef struct list {
-    listNode *head;
-    listNode *tail;
-    void *(*dup)(void *ptr);
-    void (*free)(void *ptr);
-    int (*match)(void *ptr, void *key);
-    unsigned long len;
-} list;
-</code></pre>
-<h3>字典(Hash Table)</h3>
-<ul>
-<li>dict.h</li>
-<li>dict.c</li>
-</ul>
-<p>利用链地址法来解决字典 hash 碰撞。</p>
-<p>redis 中的 dict 的 rehash 是渐进式，
-也就是说 rehash 过程不是一下子就完成的，
-起初只是将 dict 状态修改为正处于 rehashing 中，
-而是在之后的每一次 dict 访问时，都会转移几个 key-value 对，
-直到 rehash 完毕，再次修改 dict 状态为已 rehashing 完毕。</p>
-<pre><code class="language-c">typedef struct dictEntry {
-    void *key;
-    union {
-        void *val;
-        uint64_t u64;
-        int64_t s64;
-        double d;
-    } v;
-    struct dictEntry *next;
-} dictEntry;
+    // The type of value that the future yields on failure.
+    type Error;
 
-typedef struct dictht {
-    dictEntry **table;
-    unsigned long size;
-    unsigned long sizemask;
-    unsigned long used;
-} dictht;
+    // The only required method, which attempts to complete the future.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
 
-typedef struct dict {
-    dictType *type;
-    void *privdata;
-    dictht ht[2];
-    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
-    int iterators;
-} dict;
-</code></pre>
-<h3>跳跃表</h3>
-<ul>
-<li>redis.h</li>
-<li>t_zset.c</li>
-</ul>
-<p>跳跃表其实就是有序链表的一个变种，查找、删除和添加元素的速度和平衡二叉树相近，但实现起来更直观一些。</p>
-<pre><code class="language-c">typedef struct zskiplistNode {
-    robj *obj;
-    double score;
-    struct zskiplistNode *backward;
-    struct zskiplistLevel {
-        struct zskiplistNode *forward;
-        unsigned int span;
-    } level[];
-} zskiplistNode;
+	...
+}
 
-typedef struct zskiplist {
-    struct zskiplistNode *header, *tail;
-    unsigned long length;
-    int level;
-} zskiplist;
 </code></pre>
-<h3>整数集合</h3>
-<ul>
-<li>intset.h</li>
-<li>intset.c</li>
-</ul>
-<p>就是用一个数组存放有序整数的集合，根据存放整数的大小来确定集合中各个整数所占用的字节数。</p>
-<pre><code class="language-c">typedef struct intset {
-    uint32_t encoding;
-    uint32_t length;
-    int8_t contents[];
-} intset;
+<p>定义一个 <code>Future</code> 只需定义 <code>Item</code>、<code>Error</code> 类型和 <code>poll</code> 方法就可以了，
+其他与 <code>Future</code> 有关的方法都是基于这三个的，已经预先定义了，不需要用户自定义了。</p>
+<p><code>Stream</code> 和 <code>Sink</code> 也与 <code>Future</code> 类似：</p>
+<pre><code class="language-rust">trait Stream {
+    // The type of item yielded each time the stream's event occurs
+    type Item;
+
+    // The error type; errors terminate the stream.
+    type Error;
+
+    // Try to produce a value.
+    fn poll(&amp;mut self) -&gt; Poll&lt;Option&lt;Self::Item&gt;, Self::Error&gt;;
+
+    ...
+}
+
+trait Sink {
+    // The type of value that the sink accepts.
+    type SinkItem;
+
+    // The type of value produced by the sink when an error occurs.
+    type SinkError;
+
+    // The analog to `poll`, used for sending and then flushing items.
+    fn start_send(&amp;mut self, item: Self::SinkItem) -&gt; StartSend&lt;Self::SinkItem, Self::SinkError&gt;;
+
+    fn poll_complete(&amp;mut self) -&gt; Poll&lt;(), Self::SinkError&gt;;
+
+    ...
+}
 </code></pre>
-<h3>压缩列表</h3>
-<ul>
-<li>ziplist.h</li>
-<li>ziplist.c</li>
-</ul>
-<p>压缩列表也是一个列表，列表根据各元素的性质来决定使用何种方式、大小来存放元素，
-其实就是一段连续内存，其结构如下：</p>
-<pre><code>&lt;zlbytes&gt;&lt;zltail&gt;&lt;zllen&gt;&lt;entry&gt;&lt;entry&gt;&lt;zlend&gt;
-</code></pre>
-<p>entry 可以存放的类型有：</p>
-<ul>
-<li>4bit 无符号数</li>
-<li>1byte 符号整数</li>
-<li>3byte 有符号整数</li>
-<li>int16_t 整数</li>
-<li>int32_t 整数</li>
-<li>int64_t 整数</li>
-<li>长度小于等于 63(2^6 - 1) 字节的字符数组</li>
-<li>长度小于等于 16383(2^14 - 1) 字节的字符数组</li>
-<li>长度小于等于 4294967295(2^32 - 1) 字节的字符数组</li>
-</ul>
-<p>ziplist 中的 entry 的定义如下：</p>
-<pre><code class="language-c">typedef struct zlentry {
-    unsigned int prevrawlensize, prevrawlen;
-    unsigned int lensize, len;
-    unsigned int headersize;
-    unsigned char encoding;
-    unsigned char *p;
-} zlentry;
-</code></pre>
-<h2>基本类型</h2>
-<p>redis 支持的基本类型及它们在内存中的表现形式：</p>
-<ul>
-<li>
-<p>string 类型　</p>
-<ul>
-<li>long</li>
-<li>动态字符串</li>
-</ul>
-</li>
-<li>
-<p>list 类型</p>
-<ul>
-<li>压缩列表</li>
-<li>双向类表</li>
-</ul>
-</li>
-<li>
-<p>set 类型</p>
-<ul>
-<li>整数集合</li>
-<li>字典</li>
-</ul>
-</li>
-<li>
-<p>zset 类型</p>
-<ul>
-<li>跳跃表</li>
-<li>双向链表</li>
-</ul>
-</li>
-<li>
-<p>hash 类型</p>
-<ul>
-<li>压缩列表</li>
-<li>字典</li>
-</ul>
-</li>
-</ul>
 
     </article>
     <div id="article-footer">
         <div>
           <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
-          <a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>5</sup></a>
+          <a href="https://fugangqiang.github.io/tags/rust.html">rust<sup>14</sup></a><a href="https://fugangqiang.github.io/tags/tokio.html">tokio<sup>3</sup></a><a href="https://fugangqiang.github.io/tags/network.html">network<sup>8</sup></a>
         </div>
       <div>
           <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
-          2016-03-16 13:27:08
+          2018-04-11 15:08:33
         </div>
       </div>
 </main>

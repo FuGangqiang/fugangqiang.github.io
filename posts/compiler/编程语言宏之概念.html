@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="generator" content="mdblog.rs">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
-  <title>redis源码阅读之基本数据结构</title>
+  <title>编程语言宏之概念</title>
 <link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
 <body>
@@ -28,193 +28,71 @@
 </header>
 
 <main class="container">
-    <h1>redis源码阅读之基本数据结构</h1>
+    <h1>编程语言宏之概念</h1>
     <article>
-      <h2>基本数据结构</h2>
-<h3>动态字符串(dynamic string)</h3>
+      <p>很多人不理解宏的概念，其实这与翻译有很大关系，
+如果将 <code>macro</code> 理解为 <code>缩写</code>，就更易懂了，翻译成<code>缩变</code>就更合适了。</p>
+<p>自然语言中，<code>缩写</code>是简单的替换，
+<code>人大</code>就是<code>人民代表大会</code>，
+<code>中共</code>就是<code>中国共产党</code>，
+<code>GDP</code>就是<code>Gross Domestic Product</code>，翻译过来就是<code>国内生产总值</code>,
+编程语言中也存在类似的概念，这就是我们说的<code>宏</code>。</p>
+<h2>什么是宏？</h2>
+<p>在编程语言中，<code>macro</code>(macro instruction 的简称) 是将某些输入替换成某些输出的规则，
+它的输入、输出类型可以是字符、词法 token 或者语法树。</p>
+<p>宏可以携带参数，一个或者多个，根据参数的不同，替换为不同的内容，也就是<code>可编程替换</code>。</p>
+<p>编程语言中涉及宏的地方有两种：</p>
 <ul>
-<li>sds.h</li>
-<li>sds.c</li>
+<li>宏的定义：用来定义替换规则</li>
+<li>宏的展开：用宏的替换规则将宏的输入展开成宏的输出</li>
 </ul>
-<p>存储在 heap 上，只是比 c 中的字符串类型多了一个结构头，
-在结构头里有 len 和 size 属性，实现了二进制安全。</p>
-<pre><code class="language-c">struct sdshdr {
-    unsigned int len;
-    unsigned int free;
-    char buf[];
-};
+<h2>宏示例</h2>
+<p>许多编程语言有宏的概念，比如 C，TeX，m4，lisp，scheme，julia，scala，rust，以及某些汇编语言等等，
+下面我们用 C 语言中的宏来示例宏定义和用法。</p>
+<p>比如在 C 语言中定义一个简单的 <code>max</code> 宏如下：</p>
+<pre><code>#define max(a,b) ((a) &gt;= (b) ? (a) : (b))
 </code></pre>
-<h3>双向链表(doubly linked list)</h3>
-<ul>
-<li>adlist.h</li>
-<li>adlist.c</li>
-</ul>
-<p>与教科书上面讲的几乎没什么差别：</p>
-<pre><code class="language-c">typedef struct listNode {
-    struct listNode *prev;
-    struct listNode *next;
-    void *value;
-} listNode;
-
-typedef struct list {
-    listNode *head;
-    listNode *tail;
-    void *(*dup)(void *ptr);
-    void (*free)(void *ptr);
-    int (*match)(void *ptr, void *key);
-    unsigned long len;
-} list;
+<p>这里定义了一个名为 <code>max</code> 的宏，
+这个宏有两个参数是 <code>a</code> 和 <code>b</code>，
+而后面的 <code>((a) &gt;= (b) ? (a) : (b))</code> 用来规定替换 <code>max(a, b)</code> 形式的输出样式。</p>
+<p>当在代码中使用 <code>max</code> 宏的时候，根据参数的不同进行替换相应的代码，
+比如下面的代码：</p>
+<pre><code>i + max(x*y, u-v) + j
 </code></pre>
-<h3>字典(Hash Table)</h3>
-<ul>
-<li>dict.h</li>
-<li>dict.c</li>
-</ul>
-<p>利用链地址法来解决字典 hash 碰撞。</p>
-<p>redis 中的 dict 的 rehash 是渐进式，
-也就是说 rehash 过程不是一下子就完成的，
-起初只是将 dict 状态修改为正处于 rehashing 中，
-而是在之后的每一次 dict 访问时，都会转移几个 key-value 对，
-直到 rehash 完毕，再次修改 dict 状态为已 rehashing 完毕。</p>
-<pre><code class="language-c">typedef struct dictEntry {
-    void *key;
-    union {
-        void *val;
-        uint64_t u64;
-        int64_t s64;
-        double d;
-    } v;
-    struct dictEntry *next;
-} dictEntry;
-
-typedef struct dictht {
-    dictEntry **table;
-    unsigned long size;
-    unsigned long sizemask;
-    unsigned long used;
-} dictht;
-
-typedef struct dict {
-    dictType *type;
-    void *privdata;
-    dictht ht[2];
-    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
-    int iterators;
-} dict;
+<p>这里 <code>max(x*y, u-v)</code> 就相当于一个编程语言 <code>缩写</code>，
+其中 <code>x*y</code> 会匹配到 max 定义中的 <code>a</code> 参数，而 <code>u-v</code> 就匹配到 max 定义中的 <code>b</code> 参数，</p>
+<pre><code>max(x*y, u-v)
+     |    |
+     |    |
+     v    v
+max( a ,  b )
 </code></pre>
-<h3>跳跃表</h3>
-<ul>
-<li>redis.h</li>
-<li>t_zset.c</li>
-</ul>
-<p>跳跃表其实就是有序链表的一个变种，查找、删除和添加元素的速度和平衡二叉树相近，但实现起来更直观一些。</p>
-<pre><code class="language-c">typedef struct zskiplistNode {
-    robj *obj;
-    double score;
-    struct zskiplistNode *backward;
-    struct zskiplistLevel {
-        struct zskiplistNode *forward;
-        unsigned int span;
-    } level[];
-} zskiplistNode;
-
-typedef struct zskiplist {
-    struct zskiplistNode *header, *tail;
-    unsigned long length;
-    int level;
-} zskiplist;
+<p>然后根据 max 定义，将 <code>max(a, b)</code> 形式的宏调用进行参数替换：</p>
+<pre><code>(( a ) &gt;= ( b ) ? ( a ) : ( b ))
+   |        |       |       |
+   |        |       |       |
+   v        v       v       v
+((x*y) &gt;= (u-v) ? (x*y) : (u-v))
 </code></pre>
-<h3>整数集合</h3>
-<ul>
-<li>intset.h</li>
-<li>intset.c</li>
-</ul>
-<p>就是用一个数组存放有序整数的集合，根据存放整数的大小来确定集合中各个整数所占用的字节数。</p>
-<pre><code class="language-c">typedef struct intset {
-    uint32_t encoding;
-    uint32_t length;
-    int8_t contents[];
-} intset;
+<p>整个 <code>i + max(x*y, u-v) + j</code> 最终替换后的结果是：</p>
+<pre><code>i + ((x*y) &gt;= (u-v) ? (x*y) : (u-v)) + j
 </code></pre>
-<h3>压缩列表</h3>
-<ul>
-<li>ziplist.h</li>
-<li>ziplist.c</li>
-</ul>
-<p>压缩列表也是一个列表，列表根据各元素的性质来决定使用何种方式、大小来存放元素，
-其实就是一段连续内存，其结构如下：</p>
-<pre><code>&lt;zlbytes&gt;&lt;zltail&gt;&lt;zllen&gt;&lt;entry&gt;&lt;entry&gt;&lt;zlend&gt;
-</code></pre>
-<p>entry 可以存放的类型有：</p>
-<ul>
-<li>4bit 无符号数</li>
-<li>1byte 符号整数</li>
-<li>3byte 有符号整数</li>
-<li>int16_t 整数</li>
-<li>int32_t 整数</li>
-<li>int64_t 整数</li>
-<li>长度小于等于 63(2^6 - 1) 字节的字符数组</li>
-<li>长度小于等于 16383(2^14 - 1) 字节的字符数组</li>
-<li>长度小于等于 4294967295(2^32 - 1) 字节的字符数组</li>
-</ul>
-<p>ziplist 中的 entry 的定义如下：</p>
-<pre><code class="language-c">typedef struct zlentry {
-    unsigned int prevrawlensize, prevrawlen;
-    unsigned int lensize, len;
-    unsigned int headersize;
-    unsigned char encoding;
-    unsigned char *p;
-} zlentry;
-</code></pre>
-<h2>基本类型</h2>
-<p>redis 支持的基本类型及它们在内存中的表现形式：</p>
-<ul>
-<li>
-<p>string 类型　</p>
-<ul>
-<li>long</li>
-<li>动态字符串</li>
-</ul>
-</li>
-<li>
-<p>list 类型</p>
-<ul>
-<li>压缩列表</li>
-<li>双向类表</li>
-</ul>
-</li>
-<li>
-<p>set 类型</p>
-<ul>
-<li>整数集合</li>
-<li>字典</li>
-</ul>
-</li>
-<li>
-<p>zset 类型</p>
-<ul>
-<li>跳跃表</li>
-<li>双向链表</li>
-</ul>
-</li>
-<li>
-<p>hash 类型</p>
-<ul>
-<li>压缩列表</li>
-<li>字典</li>
-</ul>
-</li>
-</ul>
+<h2>更复杂的宏</h2>
+<p>当然，C 语言中的宏还是比较简单的，它仅仅是词法 token 级别的替换，
+有些编程语言有更复杂，更具有编程性的宏，
+它们中的代表是 lisp 语言，lisp 可以说是对宏应用最彻底的一个语言，
+这与 lisp 的语法是 sexp(S-expressions, Symbolic EXPression)有关，
+具体需要看下一篇博文了。</p>
 
     </article>
     <div id="article-footer">
         <div>
           <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M323.008 786.752c-52.928 0-96-43.072-96-96s43.072-96 96-96 96 43.072 96 96S375.936 786.752 323.008 786.752zM323.008 658.752c-17.632 0-32 14.336-32 32s14.368 32 32 32 32-14.336 32-32S340.64 658.752 323.008 658.752z" p-id="16156" fill="#bfbfbf"></path><path d="M416.096 927.072 284.224 927.072c-159.936 0-186.912-59.232-186.912-192l0-140.8c0-74.272 14.304-96.256 70.72-150.976l327.04-319.904c36.576-35.488 105.888-35.392 142.304-0.096l263.072 256.032c18.336 17.792 28.864 43.552 28.864 70.656 0 27.296-10.656 53.28-29.248 71.264l-290.016 294.592C544.544 880.416 497.216 927.072 416.096 927.072zM566.24 159.488c-10.496 0-20.16 3.52-26.528 9.696l-327.04 319.936c-49.952 48.48-51.36 54.528-51.36 105.152l0 140.8c0 110.272 8.352 128 122.912 128l131.872 0c52.672 0 83.744-28.48 148.992-92.8l26.656-26.144 263.232-268.256c6.784-6.592 10.336-15.808 10.336-25.888 0-9.888-3.424-18.88-9.472-24.736l-263.072-256.032C586.432 163.04 576.736 159.488 566.24 159.488z"></path></svg>
-          <a href="https://fugangqiang.github.io/tags/redis.html">redis<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E6%BA%90%E7%A0%81.html">源码<sup>5</sup></a>
+          <a href="https://fugangqiang.github.io/tags/macro.html">macro<sup>1</sup></a><a href="https://fugangqiang.github.io/tags/c.html">c<sup>2</sup></a><a href="https://fugangqiang.github.io/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86.html">编译原理<sup>2</sup></a>
         </div>
       <div>
           <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
-          2016-03-16 13:27:08
+          2022-06-02 15:02:00
         </div>
       </div>
 </main>
