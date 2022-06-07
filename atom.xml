@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2022-06-07T11:47:06+08:00</updated>
+  <updated>2022-06-07T17:21:09+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/media/favicon.png</icon>
   <logo>/media/favicon.png</logo>
@@ -10,6 +10,223 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E5%8D%AB%E7%94%9F%E5%AE%9E%E7%8E%B0.html</id>
+    <title>编程语言宏之卫生实现</title>
+    <updated>2022-06-07T12:14:00+08:00</updated>
+    <published>2022-06-07T12:14:00+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E5%8D%AB%E7%94%9F%E5%AE%9E%E7%8E%B0.html"/>
+    <summary>前两篇博文引入和讲解了各种宏的用法，本文进一步讲解宏的各种分类及实现。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>前两篇博文引入和讲解了各种宏的用法，本文进一步讲解宏的各种分类及实现。</p>
+<h2>宏的分类</h2>
+<p>scheme 宏的概念之所以不易于理解，就在于各种概念混杂在一起了，
+如果我们从各种角度分开看，应该会更于理解。</p>
+<p>如果我们从宏是否是卫生或者不卫生角度看，宏可以被分为两类：卫生宏，不卫生宏。</p>
+<p>如果我们从宏是否是高级或者低级的角度看，宏可以被分为两类：高级宏，低级宏。</p>
+<p>如果我们从宏是否是声明式或者过程式的角度看，宏可以被分为两类：声明宏，过程宏。
+这种分类与高级/低级分类雷同，不过用不同的名称更能说明含义。</p>
+<p>如果我们从宏是否是词法标记(token)替换或者语法树替换的角度看，宏可以被分为两类：词法宏，语法宏。</p>
+<p>下面是一些宏系统实现的分类：</p>
+<table><thead><tr><th>宏实现</th><th>卫生/不卫生</th><th>高级/低级</th><th>声明/过程</th><th>词法/语法</th></tr></thead><tbody>
+<tr><td>c macro</td><td>不卫生宏</td><td>低级宏</td><td>过程宏</td><td>词法宏</td></tr>
+<tr><td>defmacro</td><td>不卫生宏</td><td>低级宏</td><td>过程宏</td><td>语法宏</td></tr>
+<tr><td>syntax-rules</td><td>卫生宏</td><td>高级宏</td><td>声明宏</td><td>语法宏</td></tr>
+<tr><td>syntatic-closure</td><td>卫生宏</td><td>低级宏</td><td>过程宏</td><td>语法宏</td></tr>
+<tr><td>explicit-renaming</td><td>卫生宏</td><td>低级宏</td><td>过程宏</td><td>语法宏</td></tr>
+<tr><td>syntax-case</td><td>卫生宏</td><td>低级&amp;高级宏</td><td>声明&amp;过程宏</td><td>语法宏</td></tr>
+</tbody></table>
+<p>其中 <code>syntatic-closure</code>、<code>explicit-renaming</code> 和 <code>syntax-case</code> 前面并未涉及，
+这几个宏系统是 scheme 为了引入卫生宏而发明的各种算法底层实现，下文将有进一步讲解。</p>
+<h2>宏系统的各种实现</h2>
+<p>自 scheme 引入卫生宏的概念后，历史上出现了各种实现方式，下面是一个简单的时间线：</p>
+<ul>
+<li>1986: Kohlbecker - introduced the idea of hygiene, low-level, used an O(n2) coloring algorithm</li>
+<li>1987: Kohlbecker - introduced declare-syntax, high-level, the precursor to syntax-rules</li>
+<li>1988: Bawden &amp; Rees - &quot;Syntactic closures,&quot; low-level, faster than Kohlbecker's algorithm</li>
+<li>1991: Clinger &amp; Rees - Explicit renaming, low-level, based on syntactic-closures but also supports syntax-rules</li>
+<li>1992: Dybvig - Syntax-case, primary motivation to remove the distinction between low-level and high-level</li>
+</ul>
+<p>第一个，Kohlbecker 首次提出了宏的卫生的概念。因为这个算法低效，现今已经没有人用了。</p>
+<p>第二个，作者还是 Kohlbecker，用模式匹配的方式来声明宏，这就是 syntax-rules 的前身。</p>
+<p>第三个，syntax closure，引入语法闭包概念，下文重点介绍此概念。</p>
+<p>第四个，explicit renaming，显式重命名，本质与 syntax closure 类似。</p>
+<p>第五个，syntax-case，即支持低级/过程宏，也支持高级/声明宏，
+在 r6rs 中定义，但是由于其实现非常复杂，引起了很大争议，
+最终在 r7rs 中被去除，r7rs 只保留了 systax-rules 的声明宏定义，
+因低级宏的实现各方都未能达成一致，很难标准化，所以在最新的 r7rs 标准定义中只定义了 syntax-rules 声明宏。</p>
+<h2>syntax closure，语法闭包</h2>
+<p>卫生宏的本质问题是：符号到底对应宏定义时期的环境，还是宏展开时期的环境。</p>
+<p>由此 syntax closure 算法引入了两个环境变量，<code>usage-environment</code> 和 <code>macro-environment</code>，
+分别对应宏展开时的环境和宏定义时的环境，
+为了获取某个环境中某个符号所绑定的对象，又引入了 <code>make-syntactic-closure</code> 过程。</p>
+<p>这样我们可以用 syntax closure 宏系统来实现卫生的 <code>swap</code> 宏：</p>
+<pre><code>(define-syntax swap
+  (lambda (form usage-environment macro-environment)
+    (let ((a (make-syntactic-closure usage-environment '() (cadr form)))
+          (b (make-syntactic-closure usage-environment '() (caddr form)))
+          (let (make-syntactic-closure macro-environment '() 'let))
+          (tmp (make-syntactic-closure macro-environment '() 'tmp))
+          (set! (make-syntactic-closure macro-environment '() 'set!)))
+      `(,let ((,tmp ,a))
+        (,set! ,a ,b)
+        (,set! ,b ,tmp)))))
+</code></pre>
+<p>其中的 <code>form</code> 就是我们使用 <code>swap</code> 宏的形式，
+比如 <code>(swap x y)</code> 宏调用形式，
+这样，展开时上面的 <code>(car form)</code> 返回的是 <code>swap</code> 符号，
+<code>(cadr form)</code> 返回的是 <code>x</code> 符号，
+<code>（caddr form)</code> 返回的是 <code>y</code> 符号。</p>
+<p><code>make-syntactic-closure</code> 的调用方法是：</p>
+<pre><code>(make-syntactic-closure env free-variables form)
+</code></pre>
+<p>返回的对象与 <code>form</code> 等同，
+只是转换 <code>form</code> 使用 <code>env</code> 环境内的符号绑定，
+而 <code>free-variables</code> 列表是 <code>form</code> 内被排除不被解释的符号列表，
+这为了在宏的使用中，可以使用一些特殊的符号作为某些标记，
+比如 <code>loop</code> 循环中的 <code>break</code>、<code>continue</code> 标记。</p>
+<p>上面定义 swap 的方法显式的定义了 <code>a</code>, <code>b</code> 符号引用的是 <code>usage-environment</code> 环境的绑定，宏展开时的环境，
+而 <code>let</code>、<code>tmp</code>、<code>set!</code> 符号引用的是 <code>macro-environment</code> 环境的绑定，宏定义时的环境。</p>
+<p>为了简化上面的写法，
+在定义宏时可以让符号默认使用宏定义时的环境或者默认使用宏展开时的环境，
+由此出现了两种 syntax 的变种：</p>
+<ul>
+<li>sc-macro-transformer，默认使用宏定义时的环境</li>
+<li>rsc-macro-transformer，默认使用宏展开时的环境</li>
+</ul>
+<pre><code>(define sc-macro-transformer
+  (lambda (f)
+    (lambda (form usage-environment macro-environment)
+      (make-syntactic-closure macro-environment '() (f form usage-environment)))))
+
+(define rsc-macro-transformer
+  (lambda (f)
+    (lambda (form usage-environment macro-environment)
+      (f form macro-environment))))
+</code></pre>
+<h4>sc-macro-transformer</h4>
+<p>其中 <code>sc</code> 是 <code>syntax closure</code> 的缩写，
+<code>sc-macro-transformer</code> 定义宏的符号默认使用宏定义时环境的绑定，
+所以只需要接受宏展开时的环境变量 <code>usage-environment</code> 参数了，</p>
+<p>下面是用 <code>sc-macro-transformer</code> 定义 <code>swap</code> 宏的方法：</p>
+<pre><code>(define-syntax swap
+  (sc-macro-transformer
+    (lambda (form usage-environment)
+      (let ((a (make-syntactic-closure usage-environment '() (cadr form)))
+            (b (make-syntactic-closure usage-environment '() (caddr form))))
+        `(let ((tmp ,a))
+          (set! ,a ,b)
+          (set! ,b tmp))))))
+</code></pre>
+<h4>rsc-macro-transformer</h4>
+<p>其中 <code>rsc</code> 是 <code>reverse syntax closure</code> 的缩写，
+<code>rsc-macro-transformer</code> 定义宏的符号默认使用宏展开时环境的绑定，
+所以只需要接受宏定义时的环境变量 <code>macro-environment</code> 参数了，</p>
+<p>下面是用 <code>rsc-macro-transformer</code> 定义 <code>swap</code> 宏的方法：</p>
+<pre><code>(define-syntax swap
+  (rsc-macro-transformer
+    (lambda (form macro-environment)
+      (let ((a (cadr form))
+            (b (caddr form))
+            (let (make-syntactic-closure macro-environment '() 'let))
+            (tmp (make-syntactic-closure macro-environment '() 'tmp))
+            (set! (make-syntactic-closure macro-environment '() 'set!)))
+        `(,let ((,tmp ,a))
+          (,set! ,a ,b)
+          (,set! ,b ,tmp))))))
+</code></pre>
+<p><code>rsc-macro-transformer</code> 可以用类似于 lisp 中的 <code>defmacro</code> 的方法定义 <code>swap</code> 宏：</p>
+<pre><code>  (define-syntax swap!
+    (rsc-macro-transformer
+     (lambda (form env)
+       (let ((a (cadr form))
+             (b (caddr form))
+             (tmp (gensym)))
+         `(let ((,tmp ,a))
+            (set! ,a ,b)
+            (set! ,b ,value))))))
+</code></pre>
+<p>上面的宏与 lisp 中的用 <code>defmacro</code> 定义 <code>swap</code> 宏的方法等效。</p>
+<h2>er-macro-transformer</h2>
+<p><code>er-macro-transformer</code> 是后来又发明的另外一种宏系统，
+不再显式传递 <code>usage-environment</code> 和 <code>macro-environment</code> 参数，
+而是传递 <code>rename</code> 参数用来重命名符号，和一个 <code>compare</code> 参数用来比较两个符号是否相同。</p>
+<p>其中 <code>er</code> 是 <code>explicit renaming</code> 的缩写，显示重命名。</p>
+<p>下面是用 <code>syntax closure</code> 实现 <code>er-macro-transformer</code> 的方法：</p>
+<pre><code>(define er-macro-transformer
+  (lambda (f)
+    (lambda (form usage-environment macro-environment)
+      (let ((rename
+              (let ((renames '()))
+                (lambda (identifier)
+                  (let ((cell (assq identifier renames)))
+                    (if cell
+                        (cdr cell)
+                        (let ((name (make-syntactic-closure macro-environment '() identifier)))
+                          (set! renames (cons (cons identifier name) renames))
+                          name))))))
+            (compare
+              (lambda (x y) (identifier=? usage-environment x usage-environment y))))
+        (f form rename compare))))))
+</code></pre>
+<p>下面是用 <code>er-macro-transformer</code> 定义 <code>swap</code> 的方法：</p>
+<pre><code>  (define-syntax swap!
+    (er-macro-transformer
+      (lambda (form rename compare)
+        (let ((a (cadr form))
+              (b (caddr form)))
+          `(,(rename 'let) ((,(rename 'tmp) ,a))
+             (,(rename 'set!) ,a ,b)
+             (,(rename 'set!) ,b ,(rename 'tmp)))))))
+</code></pre>
+<h2>syntax-case</h2>
+<p><code>syntax-case</code> 是一种兼有低级/高级特性的宏系统，被 r6rs 引入，后因其复杂的实现又被 r7rs 去除了。</p>
+<p>下面我们分别用低级特性和高级特性来分别写 <code>swap</code> 宏对应的实现方式。</p>
+<h4>syntax-case 高级方式</h4>
+<pre><code>(define-syntax swap!
+  (lambda (stx)
+    (syntax-case stx ()
+      ((swap! a b)
+       (syntax
+         (let ((tmp a))
+           (set! a b)
+           (set! b tmp)))))))
+</code></pre>
+<p>这种高级方式已经非常类似于 <code>syntax-rules</code> 了，
+这里的 <code>stx</code> 是一个 <code>syntax</code> 语法对象，
+<code>syntax-case</code> 首先通过 <code>(swap! a b)</code> 解析匹配它，
+这里有点声明式的含义，
+而后面的 <code>syntax</code> 语句与 <code>syntax-rules</code> 并不同，
+不是模板，而是一个正常执行的语句，
+这里有点过程式的含义。</p>
+<p>如果匹配到，将相关的语法对象绑定到 <code>a</code> 和 <code>b</code> 符号，
+然后返回后面的 <code>syntax</code> 对象，
+否则报错，
+这里的 <code>syntax</code> 语句就是把各种语法对象重新再进行组装起来。</p>
+<h4>syntax-case 低级方式</h4>
+<p><code>syntax-case</code> 可以对 <code>sexp</code> 的执行各种计算，只要保证最后再转换成 <code>syntax</code> 对象就可以了。</p>
+<pre><code>  (define-syntax swap
+    (lambda (stx)
+      (syntax-case stx ()
+        ((swap! a b)
+         (let ((a (syntax-object-&gt;datum (syntax a)))
+               (b (syntax-object-&gt;datum (syntax b))))
+           (datum-&gt;syntax-object
+             (syntax swap!)
+             `(let ((tmp ,a))
+                (set! ,a ,b)
+                (set! ,b tmp))))))))
+</code></pre>
+<h2>总结</h2>
+<p>从使用角度看，<code>syntax-rules</code> 无疑是最简单的，基本没有心智负担，
+但是 <code>syntax-rules</code> 并不是太自由，
+不能像 <code>defmacro</code> 那样自由的对 <code>sexp</code> 进行计算。</p>
+<p>从实现角度看，<code>syntax closure</code> 语法闭包是最易实现的，但是使用上没有 <code>syntax-rules</code> 简单。</p>
+<p><code>syntax-rules</code>是一种高级宏系统，大多 scheme 都是通过低级宏来实现它的。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E8%BF%9B%E9%98%B6.html</id>
     <title>编程语言宏之进阶</title>
     <updated>2022-06-06T11:45:00+08:00</updated>
@@ -1047,64 +1264,6 @@ fn main() {
 
     println!(&quot;Result: {}&quot;, *counter.read().unwrap());
 }
-</code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA.html</id>
-    <title>rust并发编程：线程创建</title>
-    <updated>2018-04-29T17:40:51+08:00</updated>
-    <published>2018-04-29T17:40:51+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA.html"/>
-    <summary>最近重温了一下 rust 并发编程方面的知识，感觉很有必要总结一下，写个博客系列， 就从线程的创建开始吧。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>最近重温了一下 rust 并发编程方面的知识，感觉很有必要总结一下，写个博客系列，
-就从线程的创建开始吧。</p>
-<h2>创建线程</h2>
-<p>每一个程序默认都会有一个主线程的，也就是运行 <code>main</code> 函数的线程，
-我们可以从现有任何线程调用 <code>std::thread::spawn</code> 来创建一个新线程：</p>
-<pre><code class="language-rust">use std::thread;
-
-fn main() {
-    let handle = thread::spawn(|| {
-        println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
-    });
-    handle.join().unwrap();
-
-    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().id());
-}
-</code></pre>
-<p>这段代码输出如下：</p>
-<pre><code class="language-plain">hello concurrency world from ThreadId(1)
-hello concurrency world from ThreadId(0)
-</code></pre>
-<p>其中 <code>thread::spawn</code> 接受一个 <code>FnOnce</code> 参数开启一个新线程，
-返回调用线程一个 <code>JoinHandle</code>，
-我们可以利用这个 <code>JoinHandle</code> 来获取新线程对象，
-或等待新线程结束。</p>
-<p>每一个线程都有一个唯一标识 <code>id</code>，在任何地方调用 <code>thread::current</code> 来获取当前线程对象，
-通过线程对象的 <code>id</code> 方法获取该线程的 <code>id</code>。</p>
-<h2>配置线程</h2>
-<p>我们也可以调用 <code>thread::Builder</code> 在创建线程前配置线程参数(线程名，线程栈大小)：</p>
-<pre><code class="language-rust">use std::thread;
-
-fn main() {
-    let handle = thread::Builder::new()
-        .name(&quot;child&quot;.into())
-        .stack_size(32 * 1024)
-        .spawn(|| {
-            println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
-        }).unwrap();
-    handle.join().unwrap();
-
-    println!(&quot;hello concurrency world from {:?}&quot;, thread::current().name());
-}
-</code></pre>
-<p>这段代码输出如下：</p>
-<pre><code class="language-plain">hello concurrency world from Some(&quot;child&quot;)
-hello concurrency world from Some(&quot;main&quot;)
 </code></pre>
 
         ]]>
