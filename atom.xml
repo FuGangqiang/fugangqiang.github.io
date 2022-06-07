@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2022-06-02T18:00:08+08:00</updated>
+  <updated>2022-06-07T11:47:06+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/media/favicon.png</icon>
   <logo>/media/favicon.png</logo>
@@ -10,6 +10,122 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E8%BF%9B%E9%98%B6.html</id>
+    <title>编程语言宏之进阶</title>
+    <updated>2022-06-06T11:45:00+08:00</updated>
+    <published>2022-06-06T11:45:00+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E8%BF%9B%E9%98%B6.html"/>
+    <summary>所有编程语言的语法设计都有终止的一天， 有了宏系统，语言设计人员可以不停的通过宏系统扩展新语法， 使得编程语言永葆青春，不受语言语法限制。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>所有编程语言的语法设计都有终止的一天，
+有了宏系统，语言设计人员可以不停的通过宏系统扩展新语法，
+使得编程语言永葆青春，不受语言语法限制。</p>
+<p>世事皆有两面性，得失之间相互依存。
+宏系统可以极大减少单调冗繁的代码，构造出强大的领域特定语言（DSL, Domain Specific Language）,
+但是宏的展开比函数调用更难于调试，使用宏需要极其细心，同时也使代码更难于理解。</p>
+<p>正是由于上述原因，上世纪八九十年代及世纪之交，
+新出现的编程语言都极力避免使用宏系统，
+大多利用语言自省功能来进行元编程，
+但最近几年，有些静态语言（rust、crystal、julia、...）又开始引入了宏的高级功能。</p>
+<p>上篇博客中我们了解到 C 语言宏只是词法 token 级别的简单替换，
+接下来我们通过 lisp 语言和 scheme 来讲解较高级的宏系统，
+语法级别的用户自定义替换。</p>
+<p>理解本文需要你事先熟悉 lisp 语法，以及 sexp 表达式。</p>
+<h2>lisp 中的宏</h2>
+<p>lisp 语言有 <code>if</code> 条件基本控制语句，而 <code>unless</code> 条件控制结构就是一个宏，
+下面看看 lisp 中如何定义一个 <code>unless</code> 宏：</p>
+<pre><code>(defmacro unless (condition body)
+  (list 'if ('not condition) body))
+</code></pre>
+<p>lisp 为了简化 macro 的定义，引入了 <code>quasiquote</code>、<code>unquote</code>、<code>unquote-splicing</code> 简写形式，
+下面是用 <code>quasiquote</code> 来定义同样的 <code>unless</code> 宏的方法：</p>
+<pre><code>(defmacro unless (condition body)
+  `(if (not ,condition) ,body))
+</code></pre>
+<p>上面两种写法都是定义（defmacro, define macro）一个叫 <code>unless</code> 的宏，
+这样，代码中如果遇到 <code>(unless some-condition body)</code> 形式，
+都会先将该形式的语法转换成 <code>(if (not some-condition) body)</code> 的形式，
+然后由 lisp 解释执行。</p>
+<p>上面我们可以看到，lisp 定义宏，类似于定义一个函数，
+只是这个函数的参数是宏的语法输入，而函数返回的值就是宏的展开，
+而又因为 lisp 的代码和数据具有同构性（这也是 sexp 表达式强大之处），
+使得宏的展开定义过程极其容易，这也是 lisp 中宏得到普及的一个原因。</p>
+<h2>不卫生宏</h2>
+<p>虽然 lisp 中定义宏极其方便简单，
+但是使用它却要极其小心，因为它有些缺点，就是<code>不卫生</code>，
+也就是说 lisp 中宏的展开极易受到运行时上下文环境的影响，
+产生意向不到的结果，以至于报错。</p>
+<p>比如来看下面 <code>swap</code> 宏的定义：</p>
+<pre><code>(defmacro swap (a, b)
+  `(let ((tmp ,a))
+    (set! ,a ,b)
+    (set! ,b tmp)))
+</code></pre>
+<p>使用上面的宏，我们会碰到两种类型的错误：</p>
+<ol>
+<li>宏定义引入了重名的符号绑定问题</li>
+<li>宏定义使用了运行环境中被重新绑定的符号引用问题</li>
+</ol>
+<h4>宏定义引入了重名的符号绑定问题</h4>
+<p>使用 swap 宏时，如果其参数与 swap 定义时引入的 <code>tmp</code> 变量重名，
+就会导致相关变量作用域被改变的问题：</p>
+<pre><code>(define tmp 1)
+(define  y 2)
+(swap tmp y)
+</code></pre>
+<p>上面的 <code>(swap tmp y)</code> 在宏展开后就成了：</p>
+<pre><code>(let ((tmp tmp))
+  (set! tmp y)
+  (set! y tmp))
+</code></pre>
+<p>这样就会使宏不能达到预期效果。</p>
+<h4>宏定义使用了运行环境中被重新绑定的符号引用问题</h4>
+<p>我们在定义宏时用了 <code>set!</code> 绑定，
+如果我们在使用宏时，重新绑定了 <code>set!</code> 符号，也会使宏不能达到预期效果，
+如下：</p>
+<pre><code>(define x 1)
+(define y 2)
+(let ((set! display))
+  (swap x y)
+</code></pre>
+<h4>如何使用 lisp 宏</h4>
+<p>为了解决上面第 1 个问题，lisp 中引入了 <code>gensym</code> 函数，调用它会生成一个独一无二的符号，
+这样就可以保证绝对不会出现重名问题：</p>
+<pre><code>(defmacro swap (a, b)
+  (let ((tmp (gensym))
+    `(let ((,tmp ,a))
+      (set! ,a ,b)
+      (set! ,b ,tmp)))))
+
+</code></pre>
+<p>这样在展开 <code>(swap tmp y)</code> 时，就会展开成：</p>
+<pre><code>(let ((&lt;tmp-uniq-symbol&gt; tmp))
+  (set! tmp y)
+  (set! y &lt;tmp-uniq-symbol&gt;))
+</code></pre>
+<p>但是，lisp 中对于第2种问题却没有什么较好的解决办法，
+只能让程序员小心定义和使用宏，避免出现这种问题。</p>
+<h2>scheme 中的卫生宏</h2>
+<p>为了彻底解决 lisp 上面出现的两种问题，lisp 语言的一个分支 scheme 引入了<code>卫生宏</code>的概念。</p>
+<p>用 scheme 中宏定义的方法来定义 swap 宏如下：</p>
+<pre><code>(define-syntax swap
+  (syntax-rules ()
+    ((swap a b) (let ((tmp a))
+                  (set! a b)
+                  (set! b tmp)))))
+</code></pre>
+<p>scheme 中的 <code>syntax-rules</code> 中尽管引入了 tmp 和 set! 符号，
+但是 scheme 实现却保证了：</p>
+<ul>
+<li><code>tmp</code> 在宏扩展时会被重命名，保证唯一性</li>
+<li><code>set!</code> 在宏扩展时绑定的对象是宏定义时环境中的 <code>set!</code> 对象</li>
+</ul>
+<p>这样通过引入 <code>syntax-rules</code> 宏定义，scheme 语言彻底解决了不卫生宏的问题。</p>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/compiler/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80%E5%AE%8F%E4%B9%8B%E6%A6%82%E5%BF%B5.html</id>
     <title>编程语言宏之概念</title>
     <updated>2022-06-02T15:02:00+08:00</updated>
@@ -990,175 +1106,6 @@ fn main() {
 <pre><code class="language-plain">hello concurrency world from Some(&quot;child&quot;)
 hello concurrency world from Some(&quot;main&quot;)
 </code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BRc%E3%80%81Weak.html</id>
-    <title>rust之Rc、Weak</title>
-    <updated>2018-04-28T14:03:23+08:00</updated>
-    <published>2018-04-28T14:03:23+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E4%B9%8BRc%E3%80%81Weak.html"/>
-    <summary>rust 语言并没有提供垃圾回收(GC, Garbage Collection )的功能， 不过它提供了最简单的引用计数包装类型 `Rc`，这种引用计数功能也是早期 GC 常用的方法， 但是引用计数不能解决循环引用，所以 rust 同时还提供了 `Weak` 类型用来避免循环引用。...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <p>rust 语言并没有提供垃圾回收(GC, Garbage Collection )的功能，
-不过它提供了最简单的引用计数包装类型 <code>Rc</code>，这种引用计数功能也是早期 GC 常用的方法，
-但是引用计数不能解决循环引用，所以 rust 同时还提供了 <code>Weak</code> 类型用来避免循环引用。</p>
-<h2>Rc、Weak 示例</h2>
-<p>首先看一下 <code>Rc</code> 的一个例子：</p>
-<pre><code class="language-rust">use std::rc::Rc;
-
-fn main() {
-    let a = Rc::new(1);
-    println!(&quot;a's reference count is {}&quot;, Rc::strong_count(&amp;a));
-
-    let b = Rc::clone(&amp;a);
-    println!(&quot;a's reference count is {} after clone b&quot;, Rc::strong_count(&amp;a));
-
-    let c = Rc::clone(&amp;a);
-    println!(&quot;a's reference count is {} after clone c&quot;, Rc::strong_count(&amp;a));
-    
-    println!(&quot;a = {}, b = {}, c = {}&quot;, a, b, c);
-    println!(&quot;b's reference count is {}&quot;, Rc::strong_count(&amp;b));
-    println!(&quot;c's reference count is {}&quot;, Rc::strong_count(&amp;c));
-    
-    drop(a);
-    println!(&quot;c's reference count is {} after drop `a`&quot;, Rc::strong_count(&amp;c));
-
-    drop(b);
-    println!(&quot;c's reference count is {}  after drop `b`&quot;, Rc::strong_count(&amp;c));
-}
-</code></pre>
-<p>运行结果为：</p>
-<pre><code class="language-plain">a's reference count is 1
-a's reference count is 2 after clone b
-a's reference count is 3 after clone c
-a = 1, b = 1, c = 1
-b's reference count is 3
-c's reference count is 3
-c's reference count is 2 after drop `a`
-c's reference count is 1  after drop `b`
-</code></pre>
-<p>从这里可以看出，<code>a</code>、<code>b</code>、<code>c</code> 三个变量同时指向了同一个对象，
-这个对象的引用计数会随着 <code>clone</code> 调用而加 1，随着 <code>drop</code> 调用而减 1，
-当最后一个变量被 <code>drop</code> 时，引用计数会变为 0，进而触发释放对象被占用的堆内存。</p>
-<p>如果 <code>Rc</code> 包装的对象是一个容器类型时，有可能会产生循环引用，比如像下面这样的类型：</p>
-<pre><code class="language-rust">struct Car {
-    name: String,
-    whells: RefCell&lt;Vec&lt;Rc&lt;Wheel&gt;&gt;&gt;,
-}
-
-struct Wheel {
-    id: i32,
-    car: Rc&lt;Car&gt;,
-}
-</code></pre>
-<p>就有可能会出现：<code>Car</code> -&gt; <code>Wheel</code> -&gt; <code>Car</code> 类型的循环引用，
-这个循环应用所涉及的对象的引用计数永远都不可能为0, 所占用的内存永远也不会得到释放，
-直到进程结束，这样就造成了内存泄露，为了避免这种情况，rust 还提供了 <code>Weak</code> 类型，
-和 <code>Rc</code> 类型来协同使用：</p>
-<pre><code class="language-rust">use std::cell::RefCell;
-use std::rc::{Rc, Weak};
-
-struct Car {
-    name: String,
-    whells: RefCell&lt;Vec&lt;Weak&lt;Wheel&gt;&gt;&gt;,
-}
-
-struct Wheel {
-    id: i32,
-    car: Rc&lt;Car&gt;,
-}
-
-fn main() {
-    let car: Rc&lt;Car&gt; = Rc::new(
-        Car {
-            name: &quot;A&quot;.to_string(),
-            whells: RefCell::new(vec![]),
-        }
-    );
-    let whell1 = Rc::new(
-        Wheel {
-            id: 1,
-            car: Rc::clone(&amp;car),
-        }
-    );
-    let whell2 = Rc::new(
-        Wheel {
-            id: 2,
-            car: Rc::clone(&amp;car),
-        }
-    );
-
-    let mut whells = car.whells.borrow_mut();
-    whells.push(Rc::downgrade(&amp;whell1));
-    whells.push(Rc::downgrade(&amp;whell2));
-    drop(whells);
-
-    for whell_weak in car.whells.borrow().iter() {
-        let whell = whell_weak.upgrade().unwrap();
-        println!(&quot;Whell {} owned by {}&quot;, whell.id, whell.car.name);
-    }
-}
-</code></pre>
-<h2>Rc、Weak 原理</h2>
-<p>首先我们从源码看看 <code>Rc</code> 和 <code>Weak</code> 的结构：</p>
-<pre><code class="language-rust">struct RcBox&lt;T: ?Sized&gt; {
-    strong: Cell&lt;usize&gt;,
-    weak: Cell&lt;usize&gt;,
-    value: T,
-}
-
-struct Rc&lt;T: ?Sized&gt; {
-    ptr: Shared&lt;RcBox&lt;T&gt;&gt;,
-}
-
-struct Weak&lt;T: ?Sized&gt; {
-    ptr: Shared&lt;RcBox&lt;T&gt;&gt;,
-}
-</code></pre>
-<p>从上面可以看出：<code>Rc</code> 和 <code>Weak</code> 内存表示并没有什么不同，内部都是存放一个指向 <code>RcBoX</code> 类型的指针，
-这个 <code>RcBoX</code> 类型的指针指向堆的某个地方。</p>
-<p><code>Rc</code> 和 <code>Weak</code> 的真正不同的地方是针对指向的 <code>RcBox</code> 内部的 <code>strong</code>、<code>weak</code> 的处理上面，
-其中 <code>strong</code> 属性用来表示 <code>value</code> 对象的强引用次数(strong reference count)，
-<code>weak</code> 属性用来表示 <code>value</code> 对象的弱引用次数(weak reference count，其实是弱引用次数加 1)，
-对它们的操作有如下规则：</p>
-<ul>
-<li>当初始化一个 <code>Rc</code> 时，<code>RcBox.strong</code> 和 <code>RcBox.weak</code> 都被初始化为 1</li>
-<li>当执行 <code>Rc::clone</code> 时，<code>RcBox.strong</code> 加 1，
-当 <code>drop</code> 一个 <code>Rc</code> 时，<code>RcBox.strong</code> 减 1，
-如果此时 <code>RcBox.strong</code> 变为 0，就再将 <code>RcBox.weak</code> 减 1，
-如果此时 <code>RcBox.weak</code> 等于 0，就释放 <code>RcBox</code> 类型对象所占用的内存。</li>
-<li>当执行 <code>Rc.downgrade</code> 时，返回一个 <code>Weak</code> 引用，并将 <code>RcBox.weak</code> 加 1,
-当 <code>drop</code> 一个 <code>Weak</code> 时，<code>RcBox.weak</code> 减 1，当 <code>RcBox.weak</code> 等于 0 时，就释放 <code>RcBox</code> 类型对象所占用的内存。</li>
-<li>当执行 <code>Weak.upgrade</code> 时，如果此时 <code>RcBox.strong</code> 为 0 返回 <code>None</code>，
-否则 <code>RcBox.strong</code> 加 1，返回 <code>Some(Rc)</code>。</li>
-</ul>
-<p>这样就可以通过 <code>Rc</code> 和 <code>Weak</code> 像上面协同使用就避免了循环引用了。</p>
-<h2>Rc、Weak 限制</h2>
-<p>由于 <code>Rc</code> 和 <code>Weak</code> 并没有实现 <code>Send</code> 和 <code>Sync</code> trait，
-所以这两种包装类型只能用于单线程中，不能跨线程操作，
-如果需要跨线程操作，就需要用到 <code>std::sync::Arc</code> 和 <code>std::sync::Weak</code> 了。</p>
-<h2>std::sync::Arc 和 std::sync::Weak 原理</h2>
-<p>先看一下它们的源码：</p>
-<pre><code class="language-rust">struct ArcInner&lt;T: ?Sized&gt; {
-    strong: atomic::AtomicUsize,
-    weak: atomic::AtomicUsize,
-    data: T,
-}
-
-struct Arc&lt;T: ?Sized&gt; {
-    ptr: Shared&lt;ArcInner&lt;T&gt;&gt;,
-}
-
-struct Weak&lt;T: ?Sized&gt; {
-    ptr: Shared&lt;ArcInner&lt;T&gt;&gt;,
-}
-</code></pre>
-<p>它们与 <code>std::rc::Rc</code> 和 <code>std::rc::Weak</code> 类同，
-只是 <code>strong</code> 和 <code>weak</code> 的类型使用了线程安全的 atomic 类型，
-当然这也带来了一部分性能损失。</p>
 
         ]]>
     </content>
