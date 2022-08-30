@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="generator" content="mdblog.rs">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,shrink-to-fit=no,user-scalable=0">
-  <title>archlinux的安装与配置</title>
+  <title>archlinux使用Nvidia独立显卡</title>
 <link rel="icon" href="https://fugangqiang.github.io/media/favicon.png">
   <link rel="stylesheet" href="https://fugangqiang.github.io/static/main.css"></head>
 <body>
@@ -28,176 +28,82 @@
 </header>
 
 <main class="container">
-    <h1>archlinux的安装与配置</h1>
+    <h1>archlinux使用Nvidia独立显卡</h1>
     <article>
-      <h2>制作 USB 安装盘</h2>
-<p>从 <a href="https://www.archlinux.org/download/">Arch 官网</a>上下载 archlinux 安装 iso 格式镜像
-（文件名类似于 archlinux-2015.11.01-dual.iso），当然也可以从国内镜像网站下载。</p>
-<pre><code>wget http://mirrors.ustc.edu.cn/archlinux/iso/2018.07.01/archlinux-2018.07.01-x86_64.iso
+      <p>从事服务器开发，对显卡要求不高，
+虽然笔记本自带了 Nvidia 独立显卡，但是一直使用的是 Intel 集成显卡，
+最近学习 Blender 3D 软件，开始要求显卡性能，想到了笔记本的 Nvidia 独立显卡，
+开始了一番摸索，记录如下。</p>
+<p>本文主要是关于如何在 Archlinux 系统里只使用 Nvidia 显卡的方法，
+内容大部分来源于 <a href="https://wiki.archlinux.org/title/NVIDIA_Optimus">wiki</a>，
+不过如果只按照这个文档中的步骤，我的笔记本没有成功启动 Nvidia 显卡，
+所以也加了一些其他的步骤。</p>
+<h2>安装 nvidia 驱动</h2>
+<pre><code>pacman -S nvidia
 </code></pre>
-<p>校验 iso 文件：</p>
-<pre><code>md5sum archlinux-2018.07.01-x86_64.iso
+<p>这里需要根据自己的显卡类型来判断安装哪个包，具体请看<a href="https://wiki.archlinux.org/title/NVIDIA">Archlinux wiki NVIDIA 页面</a>。</p>
+<h2>删除 intel 驱动</h2>
+<p>确保系统中的 intel 显卡驱动被删除：</p>
+<pre><code>pacman -Rsn xf86-video-intel vulkan-intel
 </code></pre>
-<p>如果校验 md5 一致，可将 iso 镜像文件写入 usb 安装盘（设备名称为 /dev/sdx）中：</p>
-<pre><code>dd if=/path/to/archlinux.iso of=/dev/sdx bs=4M &amp;&amp; sync
+<h2>添加 xorg 配置文件</h2>
+<p>确保系统中没有 <code>/etc/X11/xorg.conf</code> 文件，并添加配置文件 <code>/etc/X11/xorg.conf.d/10-nvidia-drm-outputclass.conf</code> 如下：</p>
+<pre><code>Section &quot;OutputClass&quot;
+    Identifier &quot;intel&quot;
+    MatchDriver &quot;i915&quot;
+    Driver &quot;modesetting&quot;
+EndSection
+
+Section &quot;OutputClass&quot;
+    Identifier &quot;nvidia&quot;
+    MatchDriver &quot;nvidia-drm&quot;
+    Driver &quot;nvidia&quot;
+    Option &quot;AllowEmptyInitialConfiguration&quot;
+    Option &quot;PrimaryGPU&quot; &quot;yes&quot;
+    ModulePath &quot;/usr/lib/nvidia/xorg&quot;
+    ModulePath &quot;/usr/lib/xorg/modules&quot;
+EndSection
 </code></pre>
-<h2>开机启动</h2>
-<p>开机，设置从 usb 盘启动，进入安装界面，此时默认用户为 root 用户。</p>
-<h2>磁盘分区</h2>
-<p>推荐使用 GPT 分区表：</p>
-<pre><code>cgdisk /dev/sda
+<h2>xinitrc 文件配置</h2>
+<p>由于系统设置从 startx 进入图形界面，所以需要在 <code>~/.xinitrc</code> 文件添加命令如下：</p>
+<pre><code>xrandr --setprovideroutputsource modesetting NVIDIA-0
+xrandr --auto
+xrandr --dpi 96
 </code></pre>
-<p>分区时须选择：</p>
-<ul>
-<li>分区开始位置</li>
-<li>分区大小</li>
-<li>分区类型（EFI，linux root，linux home，linux default，linux swap）</li>
-</ul>
-<p>分区方案：</p>
-<ul>
-<li><code>/dev/sda1</code>: /boot EFI 分区，512M</li>
-<li><code>/dev/sda2</code>: swap 分区，两倍内存</li>
-<li><code>/dev/sda3</code>: / linux root 分区，10G</li>
-</ul>
-<p>格式化分区：</p>
-<pre><code>mkfs.vfat -F32 /dev/sda1
-mkswap /dev/sda2
-swapon /dev/sda2
-mkfs.ext4 /dev/sda3
+<p>如果是使用其他的显示管理器(Display manager)，需要参考文档中对应配置修改。</p>
+<h2>修改内核参数，开启 DRM 内核 mode setting</h2>
+<p>由于系统是 systemd-boot 启动的，所以需要对 <code>/boot/loader/entries/arch.conf</code> 文件的 <code>options</code> 行添加参数如下：</p>
+<pre><code>nvidia_drm.modeset=1
 </code></pre>
-<h2>挂载分区</h2>
-<pre><code>mount /dev/sda3 /mnt    # 安装系统 root 分区
-mkdir -p /mnt/boot /mnt/var /mnt/tmp /mnt/home
-mount /dev/sda1 /mnt/boot
+<h2>修改 pacman hooks</h2>
+<p>需要当 nvidia 包升级时自动重新制作 initramfs 镜像文件，添加 <code>/etc/pacman.d/hooks/nvidia.hook</code> 文件如下：</p>
+<pre><code>[Trigger]
+Operation=Install
+Operation=Upgrade
+Operation=Remove
+Type=Package
+Target=nvidia
+Target=linux
+# Change the linux part above and in the Exec line if a different kernel is used
+
+[Action]
+Description=Update NVIDIA module in initcpio
+Depends=mkinitcpio
+When=PostTransaction
+NeedsTargets
+Exec=/bin/sh -c 'while read -r trg; do case $trg in linux) exit 0; esac; done; /usr/bin/mkinitcpio -P'
 </code></pre>
-<h2>连接网络</h2>
-<p>iwctl 进入交互界面，用 iwctl 命令连接网络</p>
-<pre><code>device list
-station wlan0 scan
-station wlan0 get-networks
-station wlan0 connect SSID
-</code></pre>
-<h2>安装基础系统</h2>
-<p>编辑 <code>/etc/pacman.d/mirrorlist</code>，将要使用的源复制到最前面，然后刷新：</p>
-<pre><code>pacman -Syy
-</code></pre>
-<p>安装 <code>base</code> 和 <code>base-devel</code>：</p>
-<pre><code>pacstrap /mnt base base-devel linux linux-firmware
-</code></pre>
-<h2>生成 fstab</h2>
-<pre><code>genfstab -U -p /mnt &gt;&gt; /mnt/etc/fstab
-cat /mnt/etc/fstab
-</code></pre>
-<h2>切换到新安装系统</h2>
-<pre><code>arch-chroot /mnt
-</code></pre>
-<h2>设置语言地区</h2>
-<p>编辑 <code>/etc/locale.gen</code>，去除下面行的注视：</p>
-<pre><code>en_US.UTF-8 UTF-8
-zh_CN.GB18030 GB18030
-zh_CN.GBK GBK
-zh_CN.UTF-8 UTF-8
-zh_CN GB2312
-</code></pre>
-<p>运行：</p>
-<pre><code>locale-gen
-</code></pre>
-<p>编辑 <code>/etc/locale.conf</code> 为：</p>
-<pre><code>LANG=en_US.UTF-8
-</code></pre>
-<h2>设置终端字体</h2>
-<p>编辑 <code>/etc/vconsole.conf</code>：</p>
-<pre><code>KEYMAP=us
-FONT=Lat2-Terminus16
-</code></pre>
-<p>其中字体文件可以到 <code>/usr/share/kbd/consolefonts/</code> 中查找。</p>
-<h2>设置时区</h2>
-<pre><code>ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-</code></pre>
-<h2>设置时间</h2>
-<pre><code>timedatectl set-time &quot;yyyy-MM-dd hh:mm:ss&quot;
-hwclock -systohc
-</code></pre>
-<h2>设置主机名</h2>
-<p>编辑 <code>/etc/hostname</code>：</p>
-<pre><code>HOSTNAME
-</code></pre>
-<h2>添加用户，设置密码</h2>
-<p>设置 root 密码：</p>
-<pre><code>passwd
-</code></pre>
-<p>添加 user 用户：</p>
-<pre><code>useradd -m -G wheel user
-passwd user
-</code></pre>
-<h2>生成初始 ramdisk 环境</h2>
-<p>如果 <code>/usr</code> 和 <code>/</code> 不在同一个分区，
-须修改 <code>/etc/mkinitcpio.conf</code> 文件，
-HOOKS 行须添加 <code>usr fsck shutdown</code> 内容。</p>
-<p>运行：</p>
+<h2>重新制作内核 initramfs 镜像文件</h2>
 <pre><code>mkinitcpio -p linux
 </code></pre>
-<h2>安装引导装载程序</h2>
-<pre><code>bootctl install
+<h2>重启</h2>
+<p>进入系统后，可以利用下面命令检查是否已经启用了 Nvidia 独立显卡：</p>
+<pre><code>glxinfo | grep NVIDIA
 </code></pre>
-<p>编辑 <code>/boot/loader/entries/arch.conf</code>：</p>
-<pre><code>title          Arch Linux
-linux          /vmlinuz-linux
-initrd         /initramfs-linux.img
-options        root=UUID=xxxxxxxxxxxxx rw
-</code></pre>
-<p><code>options root</code> 项对应系统 root 分区，其中 <code>UUID</code> 可以通过查看文件 <code>/etc/fstab</code> 获取，也可以用以下命令获得：</p>
-<pre><code>ls -l /dev/disk/by-uuid
-或者
-lsblk -f
-</code></pre>
-<p>编辑 <code>/boot/loader/loader.conf</code>：</p>
-<pre><code>timeout 1
-default arch
-</code></pre>
-<h2>设置网络</h2>
-<h3>有线</h3>
-<pre><code>pacman -S networkmanager
-systemctl enable NetworkManager
-systemctl start NetworkManager
-nmtui
-</code></pre>
-<p>图形界面可以安装 <code>network-manager-applet </code>。</p>
-<h2>退出安装系统并重启</h2>
-<pre><code>exit
-umount -R /mnt
-reboot
-</code></pre>
-<h2>安装 X 窗口管理系统</h2>
-<pre><code>pacman -S xorg-server xorg-xinit xorg-utils xorg-server-utils
-</code></pre>
-<h2>通用显卡驱动</h2>
-<pre><code>pacman -S xf86-video-vesa
-</code></pre>
-<h2>声卡驱动</h2>
-<pre><code>pacman -S alsa-utils
-</code></pre>
-<h2>安装字体</h2>
-<pre><code>pacman -S ttf-dejavu wqy-zenhei wqy-microhei
-</code></pre>
-<h2>安装 fcitx 输入法</h2>
-<pre><code>pacman -S fcitx fcitx-qt4 fcitx-qt5 fcitx-gtk2 fcitx-gtk3
-</code></pre>
-<p>编辑 <code>~/.xinitrc</code> 添加：</p>
-<pre><code>export GTK_IM_MODULE=fcitx
-export QT_IM_MODULE=fcitx
-export XMODIFIERS=@im=fcitx
-</code></pre>
-<h2>安装 chromium</h2>
-<pre><code>pacman -S chromium
-</code></pre>
-<h2>安装 pacaur</h2>
-<p>从 archlinux aur 网站下载 aumman PKGBUILD，运行：</p>
-<pre><code>makepkg
-pacman -U 生成的文件，以.xz结尾
-</code></pre>
-<p><code>makepkg</code> 有时会报 gpg 验证出错，需要运行：</p>
-<pre><code>gpg --recv-keys xxxxxxxxID
+<p>如果系统中没有 <code>glxinfo</code> 命令需要安装 <code>mesa-utils</code> 包。</p>
+<h2>其他利用 Nvidia 独立显卡的方法</h2>
+<p>如果平时利用 intel 显卡，个别应用可以利用 <code>prime-run</code> 命令在需要时切换显卡：</p>
+<pre><code>prime-run blender
 </code></pre>
 
     </article>
@@ -208,7 +114,7 @@ pacman -U 生成的文件，以.xz结尾
         </div>
       <div>
           <svg class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 192c179.2 0 320 140.8 320 320s-140.8 320-320 320-320-140.8-320-320S332.8 192 512 192M512 128C300.8 128 128 300.8 128 512s172.8 384 384 384 384-172.8 384-384S723.2 128 512 128L512 128z" p-id="1937" fill="#8a8a8a"></path><path d="M640 672c-6.4 0-19.2 0-25.6-6.4l-128-128C486.4 531.2 480 518.4 480 512L480 288C480 268.8 492.8 256 512 256s32 12.8 32 32l0 211.2 121.6 121.6c12.8 12.8 12.8 32 0 44.8C659.2 672 646.4 672 640 672z" p-id="1938"></path></svg>
-          2015-11-28 12:07:00
+          2022-08-30 17:20:00
         </div>
       </div>
 </main>

@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://fugangqiang.github.io</id>
   <title>Fu</title>
-  <updated>2022-08-17T11:49:53+08:00</updated>
+  <updated>2022-08-30T18:17:34+08:00</updated>
   <subtitle>Simple is Beautiful!</subtitle>
   <icon>/media/favicon.png</icon>
   <logo>/media/favicon.png</logo>
@@ -10,6 +10,93 @@
   <link rel="self" type="application/atom+xml" href="https://fugangqiang.github.io/atom.xml" />
   <generator uri="https://github.com/FuGangqiang/mdblog.rs">mdblog.rs</generator>
   <entry>
+    <id>https://fugangqiang.github.io/posts/linux/archlinux/archlinux%E4%BD%BF%E7%94%A8Nvidia%E7%8B%AC%E7%AB%8B%E6%98%BE%E5%8D%A1.html</id>
+    <title>archlinux使用Nvidia独立显卡</title>
+    <updated>2022-08-30T17:20:00+08:00</updated>
+    <published>2022-08-30T17:20:00+08:00</published>
+    <link href="https://fugangqiang.github.io/posts/linux/archlinux/archlinux%E4%BD%BF%E7%94%A8Nvidia%E7%8B%AC%E7%AB%8B%E6%98%BE%E5%8D%A1.html"/>
+    <summary>从事服务器开发，对显卡要求不高， 虽然笔记本自带了 Nvidia 独立显卡，但是一直使用的是 Intel 集成显卡， 最近学习 Blender 3D 软件，开始要求显卡性能，想到了笔记本的 Nvidia 独立显卡， 开始了一番摸索，记录如下。...</summary>
+    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
+        <![CDATA[
+        <p>从事服务器开发，对显卡要求不高，
+虽然笔记本自带了 Nvidia 独立显卡，但是一直使用的是 Intel 集成显卡，
+最近学习 Blender 3D 软件，开始要求显卡性能，想到了笔记本的 Nvidia 独立显卡，
+开始了一番摸索，记录如下。</p>
+<p>本文主要是关于如何在 Archlinux 系统里只使用 Nvidia 显卡的方法，
+内容大部分来源于 <a href="https://wiki.archlinux.org/title/NVIDIA_Optimus">wiki</a>，
+不过如果只按照这个文档中的步骤，我的笔记本没有成功启动 Nvidia 显卡，
+所以也加了一些其他的步骤。</p>
+<h2>安装 nvidia 驱动</h2>
+<pre><code>pacman -S nvidia
+</code></pre>
+<p>这里需要根据自己的显卡类型来判断安装哪个包，具体请看<a href="https://wiki.archlinux.org/title/NVIDIA">Archlinux wiki NVIDIA 页面</a>。</p>
+<h2>删除 intel 驱动</h2>
+<p>确保系统中的 intel 显卡驱动被删除：</p>
+<pre><code>pacman -Rsn xf86-video-intel vulkan-intel
+</code></pre>
+<h2>添加 xorg 配置文件</h2>
+<p>确保系统中没有 <code>/etc/X11/xorg.conf</code> 文件，并添加配置文件 <code>/etc/X11/xorg.conf.d/10-nvidia-drm-outputclass.conf</code> 如下：</p>
+<pre><code>Section &quot;OutputClass&quot;
+    Identifier &quot;intel&quot;
+    MatchDriver &quot;i915&quot;
+    Driver &quot;modesetting&quot;
+EndSection
+
+Section &quot;OutputClass&quot;
+    Identifier &quot;nvidia&quot;
+    MatchDriver &quot;nvidia-drm&quot;
+    Driver &quot;nvidia&quot;
+    Option &quot;AllowEmptyInitialConfiguration&quot;
+    Option &quot;PrimaryGPU&quot; &quot;yes&quot;
+    ModulePath &quot;/usr/lib/nvidia/xorg&quot;
+    ModulePath &quot;/usr/lib/xorg/modules&quot;
+EndSection
+</code></pre>
+<h2>xinitrc 文件配置</h2>
+<p>由于系统设置从 startx 进入图形界面，所以需要在 <code>~/.xinitrc</code> 文件添加命令如下：</p>
+<pre><code>xrandr --setprovideroutputsource modesetting NVIDIA-0
+xrandr --auto
+xrandr --dpi 96
+</code></pre>
+<p>如果是使用其他的显示管理器(Display manager)，需要参考文档中对应配置修改。</p>
+<h2>修改内核参数，开启 DRM 内核 mode setting</h2>
+<p>由于系统是 systemd-boot 启动的，所以需要对 <code>/boot/loader/entries/arch.conf</code> 文件的 <code>options</code> 行添加参数如下：</p>
+<pre><code>nvidia_drm.modeset=1
+</code></pre>
+<h2>修改 pacman hooks</h2>
+<p>需要当 nvidia 包升级时自动重新制作 initramfs 镜像文件，添加 <code>/etc/pacman.d/hooks/nvidia.hook</code> 文件如下：</p>
+<pre><code>[Trigger]
+Operation=Install
+Operation=Upgrade
+Operation=Remove
+Type=Package
+Target=nvidia
+Target=linux
+# Change the linux part above and in the Exec line if a different kernel is used
+
+[Action]
+Description=Update NVIDIA module in initcpio
+Depends=mkinitcpio
+When=PostTransaction
+NeedsTargets
+Exec=/bin/sh -c 'while read -r trg; do case $trg in linux) exit 0; esac; done; /usr/bin/mkinitcpio -P'
+</code></pre>
+<h2>重新制作内核 initramfs 镜像文件</h2>
+<pre><code>mkinitcpio -p linux
+</code></pre>
+<h2>重启</h2>
+<p>进入系统后，可以利用下面命令检查是否已经启用了 Nvidia 独立显卡：</p>
+<pre><code>glxinfo | grep NVIDIA
+</code></pre>
+<p>如果系统中没有 <code>glxinfo</code> 命令需要安装 <code>mesa-utils</code> 包。</p>
+<h2>其他利用 Nvidia 独立显卡的方法</h2>
+<p>如果平时利用 intel 显卡，个别应用可以利用 <code>prime-run</code> 命令在需要时切换显卡：</p>
+<pre><code>prime-run blender
+</code></pre>
+
+        ]]>
+    </content>
+  </entry><entry>
     <id>https://fugangqiang.github.io/posts/compiler/forward%20forth%20%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB.html</id>
     <title>forward forth 源码阅读</title>
     <updated>2022-08-17T11:29:00+08:00</updated>
@@ -1043,137 +1130,6 @@ Linux 系统使用一直都很和谐。</p>
         <p>网上下载的一些 zip 文件通常在 linux 下解压会出现文件路径命乱码的问题，需要 <code>unar</code> 命令来解压</p>
 <pre><code>pacman -S unarchiver
 unar xxx.zip
-</code></pre>
-
-        ]]>
-    </content>
-  </entry><entry>
-    <id>https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html</id>
-    <title>rust并发编程：线程高级用法</title>
-    <updated>2018-05-14T15:40:59+08:00</updated>
-    <published>2018-05-14T15:40:59+08:00</published>
-    <link href="https://fugangqiang.github.io/posts/rust/rust%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%EF%BC%9A%E7%BA%BF%E7%A8%8B%E9%AB%98%E7%BA%A7%E7%94%A8%E6%B3%95.html"/>
-    <summary>## Barrier...</summary>
-    <content type="html" xml:lang="en" xml:base="https://fugangqiang.github.io">
-        <![CDATA[
-        <h2>Barrier</h2>
-<p><code>Barrier</code> 可以让多个线程同时都执行到在某一点后才能一起再往后执行：</p>
-<pre><code class="language-rust">use std::thread;
-use std::sync::{Arc, Barrier};
-
-fn main() {
-    let mut handles = Vec::with_capacity(10);
-    let barrier = Arc::new(Barrier::new(10));
-
-    for _ in 0..10 {
-        let b = barrier.clone();
-        handles.push(thread::spawn(move|| {
-            println!(&quot;before wait&quot;);
-            b.wait();
-            println!(&quot;after wait&quot;);
-        }));
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-}
-</code></pre>
-<p>上面程序会在所有线程都打印出 <code>before wait</code> 后，才会在继续运行，打印 <code>after wait</code>，
-这样就保证了所有线程的 <code>after wait</code> 输出在 <code>before wait</code> 输出之后。</p>
-<h2>Condition Variables</h2>
-<p><code>Condition Variables</code> 通常和 <code>Mutex</code> 一起使用，可以让线程挂起，直到某个条件发生后才会让线程继续执行下去：</p>
-<pre><code class="language-rust">use std::thread;
-use std::sync::{Arc, Mutex, Condvar};
-
-fn main() {
-    let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    let pair2 = pair.clone();
-
-    thread::spawn(move|| {
-        let &amp;(ref lock, ref cvar) = &amp;*pair2;
-        let mut started = lock.lock().unwrap();
-        println!(&quot;changing started&quot;);
-        *started = true;
-        cvar.notify_one();
-    });
-
-    let &amp;(ref lock, ref cvar) = &amp;*pair;
-    let mut started = lock.lock().unwrap();
-    while !*started {
-        started = cvar.wait(started).unwrap();
-    }
-
-    println!(&quot;started changed&quot;);
-}
-</code></pre>
-<p>上面程序中，如果 <code>started</code> 变量是 <code>false</code>，主线程进入 <code>while</code> 循环体，
-并在循环体内释放 <code>started Mutex</code> 锁后挂起线程，直到在其他线程中调用 <code>cvar.notify_one</code> 方法来唤醒主线程，
-然后再次利用 <code>while</code> 循环条件判断，直到 <code>started</code> 的值为 <code>true</code> 才会继续执行循环之后的代码。</p>
-<h2>Call Once</h2>
-<p>有时，多线程中，有些函数只允许被调用一次，通常这类函数是用来在线程间初始化一些全局变量的，
-这样，无论哪个线程先调用这个函数，都会保证全局变量只会被初始化一次，
-随后的其他线程的调用就忽略会这个函数体了。</p>
-<pre><code class="language-rust">use std::thread;
-use std::sync::{Once, ONCE_INIT};
-
-static mut VAL: usize = 0;
-static INIT: Once = ONCE_INIT;
-
-fn main() {
-    let handle1 = thread::spawn(move || {
-        INIT.call_once(|| {
-            unsafe {
-                VAL = 1;
-            }
-        });
-    });
-
-    let handle2 = thread::spawn(move || {
-        INIT.call_once(|| {
-            unsafe {
-                VAL = 2;
-            }
-        });
-    });
-
-    handle1.join().unwrap();
-    handle2.join().unwrap();
-
-    println!(&quot;{}&quot;, unsafe { VAL });
-}
-</code></pre>
-<p>上面程序运行结果取决于哪个线程第一次调用 <code>INIT.call_once</code>，
-如果是 <code>handle1</code>，那么结果是 <code>1</code>，
-如果是 <code>handle2</code>，那么结果是 <code>2</code>。</p>
-<h2>线程局部变量</h2>
-<p>rust 中用 <code>thread_local</code> 宏来初始化线程局部变量，并在线程内部用该变量的 <code>with</code> 方法来获取该变量值：</p>
-<pre><code class="language-rust">use std::cell::RefCell;
-use std::thread;
-
-thread_local! {
-    static FOO: RefCell&lt;u32&gt; = RefCell::new(1);
-}
-
-fn main() {
-    FOO.with(|foo| {
-        assert_eq!(*foo.borrow(), 1);
-        *foo.borrow_mut() = 2;
-    });
-
-    // each thread starts out with the initial value of 1
-    thread::spawn(move|| {
-        FOO.with(|foo| {
-            assert_eq!(*foo.borrow(), 1);
-            *foo.borrow_mut() = 3;
-        });
-    });
-
-    // we retain our original value of 2 despite the child thread
-    FOO.with(|foo| {
-        assert_eq!(*foo.borrow(), 2);
-    });
-}
 </code></pre>
 
         ]]>
